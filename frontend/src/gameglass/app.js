@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const inProgressList = document.getElementById('in-progress-list');
     const completedList = document.getElementById('completed-list');
-    const API_URL = '/api/sites'; // Assuming the web app is served from the same domain as the API
+    const API_URL = 'http://127.0.0.1:8000/api/sites';
 
     const fetchData = async () => {
         try {
