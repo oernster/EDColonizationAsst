@@ -134,7 +134,7 @@ class ColonizationRepository(IColonizationRepository):
                 cursor = conn.cursor()
                 cursor.execute("SELECT DISTINCT system_name FROM construction_sites ORDER BY system_name")
                 rows = cursor.fetchall()
-                systems = [row for row in rows]
+                systems = [row[0] for row in rows]
                 logger.info(f"REPOSITORY: Returning {len(systems)} systems: {systems}")
                 return systems
 

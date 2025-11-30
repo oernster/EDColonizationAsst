@@ -134,13 +134,18 @@ class JournalParser(IJournalParser):
         timestamp: datetime
     ) -> ColonizationConstructionDepotEvent:
        """Parse ColonizationConstructionDepot event"""
-       logger.info(f"Parsing ColonizationConstructionDepotEvent: {data}")
+       logger.info(f"Raw ColonizationConstructionDepotEvent data: {json.dumps(data)}")
+       station_name = data.get("StationName", "")
+       if not station_name:
+           # Handle cases where the name might be in a different key, e.g., for fleet carriers
+           station_name = data.get("Name", "Unknown Station")
+
        return ColonizationConstructionDepotEvent(
            timestamp=timestamp,
            event=data["event"],
             market_id=data["MarketID"],
-            station_name=data["StationName"],
-            station_type=data["StationType"],
+            station_name=station_name,
+            station_type=data.get("StationType", "Unknown"),
             system_name=data["StarSystem"],
             system_address=data["SystemAddress"],
             construction_progress=data.get("ConstructionProgress", 0.0),

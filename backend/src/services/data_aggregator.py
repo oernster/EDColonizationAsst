@@ -62,24 +62,43 @@ class DataAggregator(IDataAggregator):
             logger.error(f"Error fetching or transforming Inara data: {e}")
             inara_sites = []
         
+        # If Inara has no data, just return the local data
+        if not inara_sites:
+            return SystemColonizationData(
+                system_name=system_name,
+                construction_sites=sorted(local_sites, key=lambda s: s.station_name)
+            )
+
         # Merge data
         merged_sites: Dict[int, ConstructionSite] = {site.market_id: site for site in local_sites}
-        
+
         for inara_site in inara_sites:
             if inara_site.market_id not in merged_sites:
-                # Add new site from Inara
+                # This is a new site only found on Inara, add it
                 merged_sites[inara_site.market_id] = inara_site
+                await self._repository.add_construction_site(inara_site)
             else:
-                # Merge existing site data
+                # The site exists locally, so we'll merge Inara data into it
                 local_site = merged_sites[inara_site.market_id]
                 
-                # Inara is authoritative for completed status
-                if inara_site.construction_complete:
-                    merged_sites[inara_site.market_id] = inara_site
-                # Otherwise, prefer more recent data
-                elif local_site.last_updated < inara_site.last_updated:
-                    merged_sites[inara_site.market_id] = inara_site
+                # Inara is authoritative for names and completion status
+                local_site.station_name = inara_site.station_name
+                local_site.station_type = inara_site.station_type
+                local_site.construction_complete = inara_site.construction_complete
+                local_site.construction_failed = inara_site.construction_failed
 
+                # Merge commodity data: update local with more recent Inara data
+                inara_commodities = {c.name: c for c in inara_site.commodities}
+                for local_comm in local_site.commodities:
+                    if local_comm.name in inara_commodities:
+                        inara_comm = inara_commodities[local_comm.name]
+                        # Inara may have more up-to-date provided amounts
+                        if inara_comm.provided_amount > local_comm.provided_amount:
+                            local_comm.provided_amount = inara_comm.provided_amount
+                
+                # Persist the merged data back to the database
+                await self._repository.add_construction_site(local_site)
+        
         return SystemColonizationData(
             system_name=system_name,
             construction_sites=sorted(merged_sites.values(), key=lambda s: s.station_name)

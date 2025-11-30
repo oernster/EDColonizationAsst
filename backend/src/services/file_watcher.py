@@ -109,6 +109,10 @@ class JournalFileHandler(FileSystemEventHandler):
                     self.system_tracker.update_from_jump(event)
                 elif isinstance(event, DockedEvent):
                     self.system_tracker.update_from_docked(event)
+                    # Also check if this is a colonization site
+                    if "Colonisation" in event.station_type or "Construction" in event.station_type:
+                        await self._process_docked_at_construction_site(event)
+                        updated_systems.add(event.star_system)
                 
                 # Process colonization events
                 if isinstance(event, ColonizationConstructionDepotEvent):
@@ -191,6 +195,30 @@ class JournalFileHandler(FileSystemEventHandler):
             f"Contribution recorded: {event.quantity} {event.commodity_localised or event.commodity} "
             f"(total: {event.total_quantity}, credits: {event.credits_received})"
         )
+
+    async def _process_docked_at_construction_site(self, event: DockedEvent) -> None:
+        """
+        Processes a Docked event that occurs at a construction site.
+        This creates a placeholder ConstructionSite if one doesn't exist.
+        """
+        existing_site = await self.repository.get_site_by_market_id(event.market_id)
+        if existing_site:
+            return # Data already exists, probably from a more detailed event
+
+        site = ConstructionSite(
+            market_id=event.market_id,
+            station_name=event.station_name,
+            station_type=event.station_type,
+            system_name=event.star_system,
+            system_address=event.system_address,
+            # We don't have progress or commodity data from a simple Docked event
+            construction_progress=0,
+            construction_complete=False,
+            construction_failed=False,
+            commodities=[]
+        )
+        await self.repository.add_construction_site(site)
+        logger.info(f"Discovered new construction site from Docked event: {site.station_name}")
 
 
 class FileWatcher(IFileWatcher):

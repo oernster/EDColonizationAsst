@@ -165,12 +165,17 @@ async def get_site(market_id: int) -> SiteResponse:
 
 @router.get("/sites", response_model=SiteListResponse)
 async def get_all_sites() -> SiteListResponse:
-    """Get all construction sites, categorized by status."""
-    if _repository is None:
-        raise HTTPException(status_code=500, detail="Repository not initialized")
-    
-    all_sites = await _repository.get_all_sites()
-    
+    """Get all construction sites, categorized by status, aggregated from all sources."""
+    if _repository is None or _aggregator is None:
+        raise HTTPException(status_code=500, detail="Dependencies not initialized")
+
+    all_systems = await _repository.get_all_systems()
+    all_sites = []
+
+    for system_name in all_systems:
+        system_data = await _aggregator.aggregate_by_system(system_name)
+        all_sites.extend(system_data.construction_sites)
+
     in_progress = [site for site in all_sites if not site.is_complete]
     completed = [site for site in all_sites if site.is_complete]
     
