@@ -1,10 +1,14 @@
 """Configuration management for the application"""
+import os
 from pathlib import Path
 from typing import List
 import yaml
 from pydantic import Field
 from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
 
+# Load .env file at the top level of the module
+load_dotenv()
 
 class JournalConfig(BaseSettings):
     """Journal file configuration"""
@@ -13,7 +17,6 @@ class JournalConfig(BaseSettings):
         description="Path to Elite: Dangerous journal directory"
     )
     watch_interval: float = Field(default=1.0, description="File watch interval in seconds")
-
 
 class ServerConfig(BaseSettings):
     """Server configuration"""
@@ -24,12 +27,10 @@ class ServerConfig(BaseSettings):
         description="Allowed CORS origins"
     )
 
-
 class WebSocketConfig(BaseSettings):
     """WebSocket configuration"""
     ping_interval: int = Field(default=30, description="WebSocket ping interval in seconds")
     reconnect_attempts: int = Field(default=5, description="Number of reconnection attempts")
-
 
 class LoggingConfig(BaseSettings):
     """Logging configuration"""
@@ -39,11 +40,11 @@ class LoggingConfig(BaseSettings):
         description="Log format string"
     )
 
-
 class InaraConfig(BaseSettings):
     """Inara API configuration"""
-    api_key: str = Field(default="", description="Inara.cz API key")
-    commander_name: str | None = Field(default=None, description="Commander name")
+    api_key: str = os.getenv("INARA_API_KEY", "")
+    commander_name: str | None = os.getenv("INARA_COMMANDER_NAME")
+    app_name: str = os.getenv("INARA_APP_NAME", "")
 
 class AppConfig(BaseSettings):
     """Main application configuration"""
@@ -53,24 +54,8 @@ class AppConfig(BaseSettings):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     inara: InaraConfig = Field(default_factory=InaraConfig)
 
-    @classmethod
-    def load_from_yaml(cls, config_path: Path) -> "AppConfig":
-        """Load configuration from YAML file"""
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config_dict = yaml.safe_load(f)
-        
-        return cls(
-            journal=JournalConfig(**config_dict.get('journal', {})),
-            server=ServerConfig(**config_dict.get('server', {})),
-            websocket=WebSocketConfig(**config_dict.get('websocket', {})),
-            logging=LoggingConfig(**config_dict.get('logging', {})),
-            inara=InaraConfig(**config_dict.get('inara', {}))
-        )
-
-
 # Global config instance
 _config: AppConfig | None = None
-
 
 def get_config() -> AppConfig:
     """Get the global configuration instance"""
@@ -78,11 +63,22 @@ def get_config() -> AppConfig:
     if _config is None:
         config_path = Path(__file__).parent.parent / "config.yaml"
         if config_path.exists():
-            _config = AppConfig.load_from_yaml(config_path)
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config_dict = yaml.safe_load(f)
+            
+            _config = AppConfig(
+                journal=JournalConfig(**config_dict.get('journal', {})),
+                server=ServerConfig(**config_dict.get('server', {})),
+                websocket=WebSocketConfig(**config_dict.get('websocket', {})),
+                logging=LoggingConfig(**config_dict.get('logging', {})),
+            )
         else:
             _config = AppConfig()
+            
+        # Expand user path in journal directory
+        _config.journal.directory = os.path.expandvars(_config.journal.directory)
+            
     return _config
-
 
 def set_config(config: AppConfig) -> None:
     """Set the global configuration instance (mainly for testing)"""

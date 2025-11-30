@@ -1,4 +1,5 @@
 """Service for fetching data from the Inara.cz API"""
+import os
 import httpx
 from datetime import datetime
 from typing import List, Dict, Any
@@ -12,23 +13,15 @@ INARA_API_URL = "https://inara.cz/inapi/v1/"
 class InaraService:
     def __init__(self, inara_config: InaraConfig):
         self.config = inara_config
-        self.app_name = "EDColonizationAsst"
+        self.app_name = inara_config.app_name
         self.app_version = "1.0.0"
 
     async def get_system_colonization_data(self, system_name: str) -> List[Dict[str, Any]]:
         """
         Fetch colonization data for a specific system from Inara.
         """
-        if not self.config.api_key:
-            logger.warning("Inara API key is not configured.")
-            return []
-
-        if not self.config.commander_name:
-            logger.warning("Inara commander name is not configured.")
-            return []
-
         header = {
-            "appName": self.app_name,
+            "appName": os.getenv("INARA_APP_NAME", ""),
             "appVersion": self.app_version,
             "isDeveloped": True,  # Use sandbox mode for development
             "APIkey": self.config.api_key,
@@ -67,7 +60,9 @@ class InaraService:
                         return []
                     else:
                         status_text = event_response.get('eventStatusText', 'Unknown error')
-                        logger.error(f"Inara API error for {system_name}: {status_text} (status: {event_status})")
+                        logger.error(f"Inara API returned an error for {system_name}: {status_text} (status: {event_status})")
+                        # Also log the full event response for detailed debugging
+                        logger.debug(f"Full Inara error response: {event_response}")
                         return []
                 return []
 
