@@ -1,0 +1,47 @@
+body {
+    background-color: #1a1a1a;
+    color: #f0f0f0;
+    font-family: 'Eurostile', sans-serif;
+    margin: 0;
+    padding: 10px;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+h2 {
+    color: #ff8c00;
+    border-bottom: 1px solid #ff8c00;
+    padding-bottom: 5px;
+    margin-top: 0;
+}
+
+.site {
+    margin-bottom: 15px;
+}
+
+.site-name {
+    font-weight: bold;
+}
+
+.commodities-list {
+    list-style: none;
+    padding-left: 15px;
+    margin-top: 5px;
+}
+
+.commodity {
+    display: flex;
+    justify-content: space-between;
+}
+
+.commodity-name {
+    color: #00bfff;
+}
+
+.commodity-amount {
+    color: #ff8c00;
+}

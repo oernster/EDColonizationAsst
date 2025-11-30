@@ -1,0 +1,39 @@
+"""API routes for Elite: Dangerous player journal"""
+from fastapi import APIRouter, HTTPException
+
+from ..services.journal_parser import JournalParser
+from ..models.journal_events import LocationEvent, FSDJumpEvent, DockedEvent
+from ..utils.logger import get_logger
+from ..utils.journal import get_journal_directory, get_latest_journal_file
+
+router = APIRouter(prefix="/api/journal", tags=["journal"])
+logger = get_logger(__name__)
+
+
+@router.get("/status")
+async def get_journal_status():
+    """Get the latest journal status, including the current system."""
+    try:
+        journal_dir = get_journal_directory()
+        latest_file = get_latest_journal_file(journal_dir)
+
+        if not latest_file:
+            return {"current_system": None, "message": "No journal files found."}
+
+        parser = JournalParser()
+        events = parser.parse_file(latest_file)
+
+        # Find the latest location, FSD jump, or docked event to determine the current system
+        current_system = None
+        for event in reversed(events):
+            if isinstance(event, (LocationEvent, FSDJumpEvent, DockedEvent)):
+                current_system = event.star_system
+                break
+
+        return {"current_system": current_system}
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error getting journal status: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
