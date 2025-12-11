@@ -202,3 +202,80 @@ async def test_parse_file_multiple_events(tmp_path: Path):
     assert len(events) == 2
     assert isinstance(events[0], ColonizationConstructionDepotEvent)
     assert isinstance(events[1], ColonizationContributionEvent)
+
+
+def test_parse_construction_depot_with_resources_required(parser):
+    """ColonizationConstructionDepot using ResourcesRequired should be normalised correctly."""
+    data = {
+        "timestamp": "2025-11-29T01:00:00Z",
+        "event": "ColonizationConstructionDepot",
+        "MarketID": 54321,
+        "StationName": "Resources Station",
+        "StationType": "Depot",
+        "StarSystem": "Resources System",
+        "SystemAddress": 222333,
+        "ConstructionProgress": 75.0,
+        "ResourcesRequired": [
+            {
+                "Name": "Steel",
+                "Name_Localised": "Steel Local",
+                "RequiredAmount": 1000,
+                "ProvidedAmount": 400,
+                "Payment": 1234,
+            }
+        ],
+    }
+    line = json.dumps(data)
+
+    event = parser.parse_line(line)
+
+    assert event is not None
+    assert isinstance(event, ColonizationConstructionDepotEvent)
+    assert event.market_id == 54321
+    assert event.system_name == "Resources System"
+    assert len(event.commodities) == 1
+    comm = event.commodities[0]
+    assert comm["Name"] == "Steel"
+    assert comm["Name_Localised"] == "Steel Local"
+    # ResourcesRequired should have been mapped to Total/Delivered
+    assert comm["Total"] == 1000
+    assert comm["Delivered"] == 400
+
+
+def test_parse_line_generic_error_returns_none(parser):
+    """Non-JSON errors (e.g. bad timestamp) should be caught and return None."""
+    # Valid JSON, but invalid timestamp format that will cause fromisoformat to raise
+    line = json.dumps({"timestamp": "not-a-timestamp", "event": "Location"})
+    event = parser.parse_line(line)
+    assert event is None
+
+
+def test_parse_file_missing_file_returns_empty_list(tmp_path: Path):
+    """parse_file should handle missing files and return an empty list."""
+    parser = JournalParser()
+    missing_path = tmp_path / "Journal.missing.log"
+
+    events = parser.parse_file(missing_path)
+
+    assert events == []
+
+
+def test_parse_file_skips_lines_that_raise(parser, tmp_path: Path):
+    """Exceptions from parse_line should be logged and skipped, not raised."""
+    parser = parser  # explicit for clarity
+    file_path = tmp_path / "Journal.bad_line.log"
+    file_path.write_text(
+        '{"timestamp":"2025-11-29T01:00:00Z","event":"Location","StarSystem":"Sys","SystemAddress":1}\n',
+        encoding="utf-8",
+    )
+
+    def bad_parse_line(line: str):
+        raise RuntimeError("boom")
+
+    # Monkeypatch the instance method for this parser only
+    parser.parse_line = bad_parse_line  # type: ignore[assignment]
+
+    events = parser.parse_file(file_path)
+
+    # The bad line should have been skipped and no events returned
+    assert events == []

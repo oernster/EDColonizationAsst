@@ -4,7 +4,7 @@ import asyncio
 import json
 from typing import Dict, Set, Optional
 from fastapi import WebSocket, WebSocketDisconnect
-from datetime import datetime
+from datetime import datetime, timezone
 from ..models.api_models import WebSocketMessage, WebSocketMessageType
 from ..services.data_aggregator import IDataAggregator
 from ..utils.logger import get_logger
@@ -196,7 +196,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                                     "in_progress_sites": system_data.in_progress_sites,
                                     "completion_percentage": system_data.completion_percentage,
                                 },
-                                timestamp=datetime.utcnow().isoformat(),
+                                timestamp=datetime.now(timezone.utc).isoformat(),
                             )
                             await manager.send_personal_message(
                                 websocket, response.model_dump()
@@ -211,7 +211,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                     # Respond with pong
                     pong = WebSocketMessage(
                         type=WebSocketMessageType.PONG,
-                        timestamp=datetime.utcnow().isoformat(),
+                        timestamp=datetime.now(timezone.utc).isoformat(),
                     )
                     await manager.send_personal_message(websocket, pong.model_dump())
 
@@ -245,7 +245,7 @@ async def notify_system_update(system_name: str) -> None:
 
     try:
         system_data = await _aggregator.aggregate_by_system(system_name)
-
+ 
         message = WebSocketMessage(
             type=WebSocketMessageType.UPDATE,
             system_name=system_name,
@@ -258,9 +258,9 @@ async def notify_system_update(system_name: str) -> None:
                 "in_progress_sites": system_data.in_progress_sites,
                 "completion_percentage": system_data.completion_percentage,
             },
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
-
+ 
         await manager.broadcast_to_system(system_name, message.model_dump())
         logger.debug(f"Notified subscribers of update to {system_name}")
 

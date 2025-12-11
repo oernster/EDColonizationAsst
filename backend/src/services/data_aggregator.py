@@ -19,12 +19,14 @@ class IDataAggregator(ABC):
     """Interface for data aggregation"""
 
     @abstractmethod
-    async def aggregate_by_system(self, system_name: str) -> SystemColonizationData:
+    async def aggregate_by_system(  # pragma: no cover
+        self, system_name: str
+    ) -> SystemColonizationData:
         """Aggregate all construction sites in a system"""
         pass
 
     @abstractmethod
-    async def aggregate_commodities(
+    async def aggregate_commodities(  # pragma: no cover
         self, sites: List[ConstructionSite]
     ) -> List[CommodityAggregate]:
         """Aggregate commodities across multiple sites"""

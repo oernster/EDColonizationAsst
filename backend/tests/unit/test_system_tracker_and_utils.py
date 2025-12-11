@@ -9,7 +9,7 @@ import pytest
 
 from src.models.journal_events import LocationEvent, FSDJumpEvent, DockedEvent
 from src.services.system_tracker import SystemTracker
-from src.utils.journal import get_latest_journal_file
+from src.utils.journal import get_latest_journal_file, get_journal_directory
 from src.utils.logger import setup_logging, get_logger
 from src.utils.windows import get_saved_games_path
 
@@ -171,9 +171,88 @@ def test_get_saved_games_path_does_not_crash():
     assert path is None or isinstance(path, Path)
 
 
+def test_get_saved_games_path_uses_shgetknownfolderpath(monkeypatch, tmp_path: Path):
+    """Happy path: SHGetKnownFolderPath provides a Saved Games path."""
+    import src.utils.windows as windows_mod  # local import so we patch the right module
+
+    target_dir = tmp_path / "Saved Games"
+    target_dir.mkdir()
+
+    class DummyShell32:
+        def SHGetKnownFolderPath(self, folder_id, flags, token, out_path):
+            # Simulate the Windows API writing a path string to the out parameter.
+            out_path._obj.value = str(target_dir)
+
+    class DummyOle32:
+        def CoTaskMemFree(self, ptr):
+            # No-op for tests
+            pass
+
+    class DummyWindll:
+        def __init__(self):
+            self.shell32 = DummyShell32()
+            self.ole32 = DummyOle32()
+
+    # Ensure we exercise the SHGetKnownFolderPath branch rather than the USERPROFILE fallback
+    monkeypatch.setattr(windows_mod.ctypes, "windll", DummyWindll(), raising=False)
+    monkeypatch.delenv("USERPROFILE", raising=False)
+
+    path = windows_mod.get_saved_games_path()
+    assert isinstance(path, Path)
+    assert path == target_dir
+
+
+def test_get_saved_games_path_returns_none_when_no_api_and_no_env(monkeypatch):
+    """If both SHGetKnownFolderPath and USERPROFILE are unavailable, function should return None."""
+    import src.utils.windows as windows_mod  # local import so we patch the right module
+
+    class FailingWindll:
+        def __getattr__(self, name):
+            # Any attempt to access shell32/ole32 will raise
+            raise OSError("No shell32/ole32 available")
+
+    monkeypatch.setattr(windows_mod.ctypes, "windll", FailingWindll(), raising=False)
+    monkeypatch.delenv("USERPROFILE", raising=False)
+
+    path = windows_mod.get_saved_games_path()
+    assert path is None
+
+
 def test_setup_logging_and_get_logger():
     """setup_logging and get_logger should be callable without errors."""
     setup_logging(level="DEBUG", format_str="%(levelname)s:%(name)s:%(message)s")
     logger = get_logger("test_logger_system")
     assert isinstance(logger, logging.Logger)
     logger.debug("This is a debug message from test_setup_logging_and_get_logger")
+
+
+def test_get_journal_directory_raises_when_saved_games_missing():
+    """get_journal_directory should raise when Saved Games path cannot be determined."""
+    import src.utils.journal as journal_mod  # local import to patch safely
+
+    orig_get_saved_games = journal_mod.get_saved_games_path
+    try:
+        journal_mod.get_saved_games_path = lambda: None  # type: ignore[assignment]
+        with pytest.raises(FileNotFoundError):
+            journal_mod.get_journal_directory()
+    finally:
+        journal_mod.get_saved_games_path = orig_get_saved_games  # type: ignore[assignment]
+
+
+def test_get_journal_directory_raises_when_journal_folder_missing(tmp_path: Path):
+    """get_journal_directory should raise when the Frontier/Elite Dangerous folder is missing."""
+    import src.utils.journal as journal_mod  # local import to patch safely
+
+    # Simulate a Saved Games folder without the expected subdirectory
+    saved_games = tmp_path / "Saved Games"
+    saved_games.mkdir()
+
+    orig_get_saved_games = journal_mod.get_saved_games_path
+    try:
+        journal_mod.get_saved_games_path = lambda: saved_games  # type: ignore[assignment]
+        with pytest.raises(FileNotFoundError):
+            journal_mod.get_journal_directory()
+    finally:
+        journal_mod.get_saved_games_path = orig_get_saved_games  # type: ignore[assignment]
+
+

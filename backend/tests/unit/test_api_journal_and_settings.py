@@ -92,6 +92,28 @@ async def test_get_journal_status_handles_errors():
     assert exc.value.status_code == 500
 
 
+@pytest.mark.asyncio
+async def test_get_journal_status_propagates_http_exception():
+    """HTTPException raised by helpers should be propagated unchanged."""
+
+    def _boom_latest_file(*args, **kwargs):
+        raise HTTPException(status_code=418, detail="teapot")
+
+    orig_get_dir = journal_api.get_journal_directory
+    orig_get_latest = journal_api.get_latest_journal_file
+    try:
+        tmp_dir = Path.cwd()
+        journal_api.get_journal_directory = lambda: tmp_dir  # type: ignore[assignment]
+        journal_api.get_latest_journal_file = _boom_latest_file  # type: ignore[assignment]
+        with pytest.raises(HTTPException) as exc:
+            await journal_api.get_journal_status()
+    finally:
+        journal_api.get_journal_directory = orig_get_dir  # type: ignore[assignment]
+        journal_api.get_latest_journal_file = orig_get_latest  # type: ignore[assignment]
+
+    assert exc.value.status_code == 418
+
+
 # -----------------------
 # /api/settings
 # -----------------------

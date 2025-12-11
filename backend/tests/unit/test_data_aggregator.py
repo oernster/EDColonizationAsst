@@ -15,11 +15,14 @@ class _DummyInaraService:
     touches the network.
     """
 
-    def __init__(self, sites_by_system):
+    def __init__(self, sites_by_system=None, should_fail: bool = False):
         # Dict[str, list[dict]]
-        self._sites_by_system = sites_by_system
+        self._sites_by_system = sites_by_system or {}
+        self._should_fail = should_fail
 
     async def get_system_colonization_data(self, system_name: str):
+        if self._should_fail:
+            raise RuntimeError("Inara is temporarily unavailable")
         return self._sites_by_system.get(system_name, [])
 
 
@@ -183,3 +186,122 @@ async def test_aggregate_commodities_and_summary(repository: ColonizationReposit
         c.total_remaining for c in commodities
     )
     assert summary["unique_commodities"] == len(commodities)
+
+
+@pytest.mark.asyncio
+async def test_aggregate_by_system_inara_failure_falls_back_to_local(
+    repository: ColonizationRepository, sample_construction_site
+):
+    """If Inara fails, aggregate_by_system should still return local data without raising."""
+    await repository.add_construction_site(sample_construction_site)
+
+    aggregator = DataAggregator(repository)
+    aggregator._inara_service = _DummyInaraService(should_fail=True)
+
+    system_data = await aggregator.aggregate_by_system(sample_construction_site.system_name)
+    assert system_data.total_sites == 1
+    site = system_data.construction_sites[0]
+    assert site.market_id == sample_construction_site.market_id
+    assert site.construction_complete is False
+
+
+@pytest.mark.asyncio
+async def test_aggregate_by_system_inara_only_completed_site_added(repository: ColonizationRepository):
+    """Completed sites that exist only in Inara should be added to the repository."""
+    inara_payload = {
+        "Remote System": [
+            {
+                "marketId": 9999,
+                "stationName": "Remote Depot",
+                "stationType": "Depot",
+                "systemName": "Remote System",
+                "systemAddress": 424242,
+                "progress": 100.0,
+                "isCompleted": True,
+                "isFailed": False,
+                "commodities": [],
+            }
+        ]
+    }
+
+    aggregator = DataAggregator(repository)
+    aggregator._inara_service = _DummyInaraService(sites_by_system=inara_payload)
+
+    system_data = await aggregator.aggregate_by_system("Remote System")
+    assert system_data.total_sites == 1
+    site = system_data.construction_sites[0]
+    assert site.market_id == 9999
+    assert site.construction_complete is True
+
+    # Repository should now also know about this site
+    stored = await repository.get_site_by_market_id(9999)
+    assert stored is not None
+    assert stored.system_name == "Remote System"
+
+
+@pytest.mark.asyncio
+async def test_aggregate_by_system_inara_upgrades_existing_local_site(repository: ColonizationRepository):
+    """Inara should upgrade an existing local incomplete site to completed and fill commodities."""
+    # Local site in the same system that we will query
+    local_site = ConstructionSite(
+        market_id=4242,
+        station_name="Upgrade Depot",
+        station_type="Depot",
+        system_name="Upgrade System",
+        system_address=111222,
+        construction_progress=40.0,
+        construction_complete=False,
+        construction_failed=False,
+        commodities=[
+            Commodity(
+                name="Steel",
+                name_localised="Steel",
+                required_amount=1000,
+                provided_amount=100,
+                payment=1000,
+            )
+        ],
+        last_updated=datetime.now(UTC),
+    )
+    await repository.add_construction_site(local_site)
+
+    inara_payload = {
+        "Upgrade System": [
+            {
+                "marketId": local_site.market_id,
+                "stationName": local_site.station_name,
+                "stationType": local_site.station_type,
+                "systemName": local_site.system_name,
+                "systemAddress": local_site.system_address,
+                "progress": 90.0,
+                "isCompleted": True,
+                "isFailed": False,
+                "commodities": [
+                    {
+                        "name": "Steel",
+                        "name_localised": "Steel",
+                        "required": 1000,
+                        "provided": 1000,
+                        "payment": 1234,
+                    }
+                ],
+            }
+        ]
+    }
+
+    aggregator = DataAggregator(repository)
+    aggregator._inara_service = _DummyInaraService(sites_by_system=inara_payload)
+
+    system_data = await aggregator.aggregate_by_system("Upgrade System")
+    assert system_data.total_sites == 1
+    site = system_data.construction_sites[0]
+
+    # Site should have been upgraded to completed
+    assert site.construction_complete is True
+    assert site.construction_failed is False
+    assert site.construction_progress == pytest.approx(90.0)
+
+    # Commodity should appear fully provided
+    steel = next(c for c in site.commodities if c.name == "Steel")
+    assert steel.provided_amount == steel.required_amount
+    assert steel.remaining_amount == 0

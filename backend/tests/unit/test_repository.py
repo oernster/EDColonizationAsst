@@ -65,3 +65,37 @@ async def test_get_stats(repository, sample_construction_site):
     assert stats["total_sites"] == 1
     assert stats["in_progress_sites"] == 1
     assert stats["completed_sites"] == 0
+
+
+@pytest.mark.asyncio
+async def test_update_commodity_missing_site_does_not_raise(repository):
+    """update_commodity should safely no-op when the site does not exist."""
+    # No sites have been added yet; use a bogus market_id.
+    await repository.update_commodity(
+        market_id=999999,
+        commodity_name="Steel",
+        provided_amount=123,
+    )
+    # Should not raise and repository should still be empty
+    stats = await repository.get_stats()
+    assert stats["total_sites"] == 0
+
+
+@pytest.mark.asyncio
+async def test_update_commodity_missing_commodity_does_not_modify_site(
+    repository, sample_construction_site
+):
+    """update_commodity should log a warning but leave data unchanged when commodity is missing."""
+    await repository.add_construction_site(sample_construction_site)
+
+    # Attempt to update a non-existent commodity name
+    await repository.update_commodity(
+        market_id=sample_construction_site.market_id,
+        commodity_name="NonExistentCommodity",
+        provided_amount=999,
+    )
+
+    # Original commodity values should be unchanged
+    site = await repository.get_site_by_market_id(sample_construction_site.market_id)
+    steel = next(c for c in site.commodities if c.name == "Steel")
+    assert steel.provided_amount == sample_construction_site.commodities[0].provided_amount

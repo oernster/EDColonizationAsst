@@ -12,22 +12,22 @@ class ISystemTracker(ABC):
     """Interface for system tracking"""
 
     @abstractmethod
-    def get_current_system(self) -> Optional[str]:
+    def get_current_system(self) -> Optional[str]:  # pragma: no cover
         """Get the current system name"""
         pass
 
     @abstractmethod
-    def update_from_location(self, event: LocationEvent) -> None:
+    def update_from_location(self, event: LocationEvent) -> None:  # pragma: no cover
         """Update current system from Location event"""
         pass
 
     @abstractmethod
-    def update_from_jump(self, event: FSDJumpEvent) -> None:
+    def update_from_jump(self, event: FSDJumpEvent) -> None:  # pragma: no cover
         """Update current system from FSDJump event"""
         pass
 
     @abstractmethod
-    def update_from_docked(self, event: DockedEvent) -> None:
+    def update_from_docked(self, event: DockedEvent) -> None:  # pragma: no cover
         """Update current system from Docked event"""
         pass
 
