@@ -144,46 +144,89 @@ class JournalFileHandler(FileSystemEventHandler):
             logger.error(f"Error processing file {file_path}: {e}")
     
     async def _process_construction_depot(
-        self, 
-        event: ColonizationConstructionDepotEvent
+        self,
+        event: ColonizationConstructionDepotEvent,
     ) -> None:
         """
-        Process ColonizationConstructionDepot event
-        
-        Args:
-            event: Construction depot event
+        Process ColonizationConstructionDepot event.
+
+        Notes:
+            - Elite can emit many snapshot events while you sit on the
+              construction screen. They all share the same MarketID and
+              mostly identical data. We treat them as *updates* of a single
+              site, not separate sites.
+            - Some ColonisationConstructionDepot events omit station/system
+              fields; in that case we reuse metadata from any existing site
+              with the same market_id (typically created from a Docked event),
+              or fall back to the SystemTracker's current system/station.
         """
         # Convert commodities from raw data to Commodity objects
-        commodities = []
+        commodities: list[Commodity] = []
         for comm_data in event.commodities:
             commodity = Commodity(
                 name=comm_data.get("Name", ""),
-                name_localised=comm_data.get("Name_Localised", comm_data.get("Name", "")),
+                name_localised=comm_data.get(
+                    "Name_Localised", comm_data.get("Name", "")
+                ),
                 required_amount=comm_data.get("Total", 0),
                 provided_amount=comm_data.get("Delivered", 0),
-                payment=comm_data.get("Payment", 0)
+                payment=comm_data.get("Payment", 0),
             )
             commodities.append(commodity)
-        
-        # Create construction site
+
+        # Try to reuse existing site metadata (station/system names) if we have it
+        existing_site = await self.repository.get_site_by_market_id(event.market_id)
+
+        # Also fall back to the currently tracked system/station when event fields are missing
+        try:
+            current_system = self.system_tracker.get_current_system()
+        except Exception:
+            current_system = None
+
+        try:
+            # get_current_station only returns a value when docked
+            current_station = self.system_tracker.get_current_station()
+        except Exception:
+            current_station = None
+
+        station_name = (
+            (existing_site.station_name if existing_site else event.station_name)
+            or current_station
+            or "Unknown Station"
+        )
+        station_type = (
+            existing_site.station_type if existing_site else event.station_type
+        ) or "Unknown"
+        system_name = (
+            (existing_site.system_name if existing_site else event.system_name)
+            or current_system
+            or "Unknown System"
+        )
+        system_address = (
+            existing_site.system_address if existing_site else event.system_address
+        ) or 0
+
+        # Build the updated site model
         site = ConstructionSite(
             market_id=event.market_id,
-            station_name=event.station_name,
-            station_type=event.station_type,
-            system_name=event.system_name,
-            system_address=event.system_address,
+            station_name=station_name,
+            station_type=station_type,
+            system_name=system_name,
+            system_address=system_address,
             construction_progress=event.construction_progress,
             construction_complete=event.construction_complete,
             construction_failed=event.construction_failed,
-            commodities=commodities
+            commodities=commodities,
         )
-        
-        # Add to repository
+
+        # Persist (INSERT OR REPLACE on the same market_id)
         await self.repository.add_construction_site(site)
-        
+
         logger.info(
-            f"Updated construction site: {site.station_name} in {site.system_name} "
-            f"({site.construction_progress:.1f}% complete)"
+            "Updated construction site: %s in %s (%.1f%% complete)",
+            site.station_name,
+            site.system_name,
+            site.construction_progress,
         )
     
     async def _process_contribution(
@@ -210,12 +253,42 @@ class JournalFileHandler(FileSystemEventHandler):
     async def _process_docked_at_construction_site(self, event: DockedEvent) -> None:
         """
         Processes a Docked event that occurs at a construction site.
-        This creates a placeholder ConstructionSite if one doesn't exist.
+
+        If a site already exists for this MarketID but has placeholder
+        metadata (e.g. 'Unknown Station' / 'Unknown System'), we upgrade
+        that metadata from the Docked event instead of returning early.
+        Otherwise this creates a placeholder ConstructionSite.
         """
         existing_site = await self.repository.get_site_by_market_id(event.market_id)
         if existing_site:
-            return # Data already exists, probably from a more detailed event
+            updated = False
 
+            if (not existing_site.station_name or existing_site.station_name == "Unknown Station") and event.station_name:
+                existing_site.station_name = event.station_name
+                updated = True
+
+            if (not existing_site.station_type or existing_site.station_type == "Unknown") and event.station_type:
+                existing_site.station_type = event.station_type
+                updated = True
+
+            if (not existing_site.system_name or existing_site.system_name == "Unknown System") and event.star_system:
+                existing_site.system_name = event.star_system
+                updated = True
+
+            if not existing_site.system_address and event.system_address:
+                existing_site.system_address = event.system_address
+                updated = True
+
+            if updated:
+                await self.repository.add_construction_site(existing_site)
+                logger.info(
+                    "Upgraded construction site metadata from Docked event: %s in %s",
+                    existing_site.station_name,
+                    existing_site.system_name,
+                )
+            return  # Either upgraded, or already had good data
+
+        # No existing site: create placeholder from Docked data
         site = ConstructionSite(
             market_id=event.market_id,
             station_name=event.station_name,
@@ -226,10 +299,14 @@ class JournalFileHandler(FileSystemEventHandler):
             construction_progress=0,
             construction_complete=False,
             construction_failed=False,
-            commodities=[]
+            commodities=[],
         )
         await self.repository.add_construction_site(site)
-        logger.info(f"Discovered new construction site from Docked event: {site.station_name}")
+        logger.info(
+            "Discovered new construction site from Docked event: %s in %s",
+            site.station_name,
+            site.system_name,
+        )
 
 
 class FileWatcher(IFileWatcher):

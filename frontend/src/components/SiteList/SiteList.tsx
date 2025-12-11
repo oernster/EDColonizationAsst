@@ -1,7 +1,85 @@
 import { Box, Typography, Paper, LinearProgress, Chip, Grid } from '@mui/material';
 import { CheckCircle, Construction } from '@mui/icons-material';
 import { useColonizationStore } from '../../stores/colonizationStore';
-import { ConstructionSite, CommodityStatus } from '../../types/colonization';
+import { ConstructionSite, CommodityStatus, CommodityAggregate } from '../../types/colonization';
+
+const aggregateCommodities = (
+  sites: ConstructionSite[]
+): CommodityAggregate[] => {
+  const commodityMap: {
+    [name: string]: {
+      name: string;
+      name_localised: string;
+      total_required: number;
+      total_provided: number;
+      sites: Set<string>;
+      payments: number[];
+    };
+  } = {};
+
+  sites.forEach((site) => {
+    site.commodities.forEach((commodity) => {
+      const key = commodity.name;
+
+      if (!commodityMap[key]) {
+        commodityMap[key] = {
+          name: commodity.name,
+          name_localised: commodity.name_localised,
+          total_required: 0,
+          total_provided: 0,
+          sites: new Set<string>(),
+          payments: [],
+        };
+      }
+
+      const entry = commodityMap[key];
+
+      entry.total_required += commodity.required_amount;
+      entry.total_provided += commodity.provided_amount;
+
+      if (commodity.remaining_amount > 0) {
+        entry.sites.add(site.station_name);
+      }
+
+      entry.payments.push(commodity.payment);
+    });
+  });
+
+  const aggregates: CommodityAggregate[] = Object.values(commodityMap).map(
+    (data) => {
+      const average_payment =
+        data.payments.length > 0
+          ? data.payments.reduce((sum, value) => sum + value, 0) /
+            data.payments.length
+          : 0;
+
+      const total_remaining = Math.max(
+        0,
+        data.total_required - data.total_provided
+      );
+
+      const progress_percentage =
+        data.total_required === 0
+          ? 100
+          : (data.total_provided / data.total_required) * 100;
+
+      return {
+        commodity_name: data.name,
+        commodity_name_localised: data.name_localised,
+        total_required: data.total_required,
+        total_provided: data.total_provided,
+        sites_requiring: Array.from(data.sites),
+        average_payment,
+        total_remaining,
+        progress_percentage,
+      };
+    }
+  );
+
+  aggregates.sort((a, b) => b.total_remaining - a.total_remaining);
+
+  return aggregates;
+};
 
 export const SiteList = () => {
   const { systemData } = useColonizationStore();
@@ -15,6 +93,10 @@ export const SiteList = () => {
       </Box>
     );
   }
+
+  const shoppingList = aggregateCommodities(
+    systemData.construction_sites
+  ).filter((item) => item.total_remaining > 0);
 
   return (
     <Box>
@@ -55,6 +137,138 @@ export const SiteList = () => {
             </Typography>
           </Grid>
         </Grid>
+      </Paper>
+
+      {/* System Shopping List */}
+      <Paper sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
+        <Typography variant="h6" gutterBottom>
+          System Shopping List
+        </Typography>
+
+        {shoppingList.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            No commodity requirements are currently available for this system.
+            Once construction sites advertise required commodities in the
+            journals or via Inara, they will appear here.
+          </Typography>
+        ) : (
+          <>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mb: 2 }}
+            >
+              Aggregated commodities still needed across all construction sites
+              in this system.
+            </Typography>
+            {shoppingList.map((commodity) => (
+              <Box
+                key={commodity.commodity_name}
+                sx={{
+                  p: 2,
+                  mb: 1,
+                  bgcolor: 'background.default',
+                  borderRadius: 1,
+                  borderLeft: 4,
+                  borderColor:
+                    commodity.progress_percentage >= 100
+                      ? 'success.main'
+                      : 'warning.main',
+                }}
+              >
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    mb: 1,
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 1,
+                  }}
+                >
+                  <Typography variant="body1" fontWeight="medium">
+                    {commodity.commodity_name_localised}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Avg payment:{' '}
+                    {Math.round(
+                      commodity.average_payment
+                    ).toLocaleString()}{' '}
+                    CR/t
+                  </Typography>
+                </Box>
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    mb: 1,
+                    flexWrap: 'wrap',
+                    gap: 1,
+                  }}
+                >
+                  <Typography variant="body2" color="text.secondary">
+                    {commodity.total_provided.toLocaleString()} /{' '}
+                    {commodity.total_required.toLocaleString()} total
+                    {commodity.total_remaining > 0 && (
+                      <span style={{ color: '#FF9800', marginLeft: 8 }}>
+                        (Need{' '}
+                        {commodity.total_remaining.toLocaleString()} more)
+                      </span>
+                    )}
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {commodity.progress_percentage.toFixed(1)}%
+                  </Typography>
+                </Box>
+
+                <LinearProgress
+                  variant="determinate"
+                  value={commodity.progress_percentage}
+                  sx={{
+                    height: 6,
+                    borderRadius: 1,
+                    bgcolor: 'grey.800',
+                    '& .MuiLinearProgress-bar': {
+                      bgcolor:
+                        commodity.progress_percentage >= 100
+                          ? 'success.main'
+                          : 'warning.main',
+                    },
+                  }}
+                />
+
+                {commodity.sites_requiring.length > 0 && (
+                  <Box
+                    sx={{
+                      mt: 1,
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 0.5,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ mr: 1 }}
+                    >
+                      Needed at:
+                    </Typography>
+                    {commodity.sites_requiring.map((station) => (
+                      <Chip
+                        key={station}
+                        label={station}
+                        size="small"
+                        variant="outlined"
+                      />
+                    ))}
+                  </Box>
+                )}
+              </Box>
+            ))}
+          </>
+        )}
       </Paper>
 
       {/* Construction Sites */}

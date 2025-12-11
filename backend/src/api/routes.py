@@ -198,54 +198,67 @@ async def get_stats() -> dict:
 
 @router.post("/debug/reload-journals", response_model=dict)
 async def reload_journals() -> dict:
-    """Debug endpoint to manually reload journal files"""
+    """Debug endpoint to manually reload journal files.
+
+    This now reuses the same parsing/processing pipeline as the live
+    FileWatcher so that:
+      - Location / FSDJump / Docked events update the SystemTracker
+      - Docked-at-construction-site events create sites with correct
+        system/station metadata
+      - ColonisationConstructionDepot snapshots update those sites
+        instead of creating 'Unknown System' records.
+    """
     from pathlib import Path
     from ..services.journal_parser import JournalParser
     from ..config import get_config
-    
+
     if _repository is None:
         raise HTTPException(status_code=500, detail="Repository not initialized")
-    
+
     # Clear existing data before reloading
     await _repository.clear_all()
-    
+
     config = get_config()
     journal_dir = Path(config.journal.directory)
-    
+
     if not journal_dir.exists():
         raise HTTPException(status_code=404, detail=f"Journal directory not found: {journal_dir}")
-    
+
     parser = JournalParser()
-    processed_files = []
+    processed_files: list[str] = []
     total_events = 0
-    
+
+    # Import here to avoid circulars at module import time
+    from ..services.file_watcher import JournalFileHandler
+    from ..services.system_tracker import SystemTracker
+    from ..models.journal_events import ColonizationConstructionDepotEvent
+
+    # Use a single tracker/handler so system context is preserved across files
+    tracker = SystemTracker()
+    handler = JournalFileHandler(parser, tracker, _repository, None)
+
     # Find all journal files
-    journal_files = sorted(journal_dir.glob("Journal.*.log"), key=lambda p: p.stat().st_mtime)
-    
+    journal_files = sorted(
+        journal_dir.glob("Journal.*.log"),
+        key=lambda p: p.stat().st_mtime,
+    )
+
     # Process all files
     for journal_file in journal_files:
-        events = parser.parse_file(journal_file)
-        
-        # Process colonization events
-        from ..services.file_watcher import JournalFileHandler
-        from ..services.system_tracker import SystemTracker
-        
-        tracker = SystemTracker()
-        handler = JournalFileHandler(parser, tracker, _repository, None)
-        
-        processed_file = False
-        for event in events:
-            from ..models.journal_events import ColonizationConstructionDepotEvent
-            if isinstance(event, ColonizationConstructionDepotEvent):
-                await handler._process_construction_depot(event)
-                total_events += 1
-                processed_file = True
+        # Let the handler parse and process all relevant events
+        await handler._process_file(journal_file)
 
-        if processed_file:
+        # For simple stats, count colonisation depot events in this file
+        events = parser.parse_file(journal_file)
+        file_events = [
+            e for e in events if isinstance(e, ColonizationConstructionDepotEvent)
+        ]
+        if file_events:
             processed_files.append(journal_file.name)
-    
+            total_events += len(file_events)
+
     return {
         "processed_files": processed_files,
         "total_events": total_events,
-        "journal_directory": str(journal_dir)
+        "journal_directory": str(journal_dir),
     }

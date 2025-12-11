@@ -40,12 +40,16 @@ class JournalParser(IJournalParser):
     
     # Event types we care about
     RELEVANT_EVENTS = {
+        # Colonization-related events (accept both US and UK spellings)
         "ColonizationConstructionDepot",
+        "ColonisationConstructionDepot",
         "ColonizationContribution",
+        "ColonisationContribution",
+        # Location / movement / docking
         "Location",
         "FSDJump",
         "Docked",
-        "Commander"
+        "Commander",
     }
     
     def parse_file(self, file_path: Path) -> List[JournalEvent]:
@@ -106,9 +110,9 @@ class JournalParser(IJournalParser):
             timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
             
             # Route to appropriate parser
-            if event_type == "ColonizationConstructionDepot":
+            if event_type in {"ColonizationConstructionDepot", "ColonisationConstructionDepot"}:
                 return self._parse_construction_depot(data, timestamp)
-            elif event_type == "ColonizationContribution":
+            elif event_type in {"ColonizationContribution", "ColonisationContribution"}:
                 return self._parse_contribution(data, timestamp)
             elif event_type == "Location":
                 return self._parse_location(data, timestamp)
@@ -129,30 +133,78 @@ class JournalParser(IJournalParser):
             return None
     
     def _parse_construction_depot(
-        self, 
-        data: Dict[str, Any], 
-        timestamp: datetime
+        self,
+        data: Dict[str, Any],
+        timestamp: datetime,
     ) -> ColonizationConstructionDepotEvent:
-       """Parse ColonizationConstructionDepot event"""
-       logger.info(f"Raw ColonizationConstructionDepotEvent data: {json.dumps(data)}")
-       station_name = data.get("StationName", "")
-       if not station_name:
-           # Handle cases where the name might be in a different key, e.g., for fleet carriers
-           station_name = data.get("Name", "Unknown Station")
+        """Parse ColonizationConstructionDepot event.
 
-       return ColonizationConstructionDepotEvent(
-           timestamp=timestamp,
-           event=data["event"],
+        Handles both legacy and current journal formats, including:
+          - US/UK spellings (handled by RELEVANT_EVENTS / dispatch)
+          - `Commodities` (old) vs `ResourcesRequired` (new) payloads
+          - Optional StarSystem / SystemAddress keys
+        """
+        logger.info(
+            "Raw ColonizationConstructionDepotEvent data: %s",
+            json.dumps(data),
+        )
+
+        # Station name can be in StationName or Name (e.g. carriers)
+        station_name = data.get("StationName", "") or data.get("Name", "")
+        if not station_name:
+            station_name = "Unknown Station"
+
+        # System information is sometimes missing from the colonisation event.
+        # Be defensive and fall back to placeholders instead of raising KeyError.
+        system_name = (
+            data.get("StarSystem")
+            or data.get("SystemName")
+            or data.get("System")
+            or "Unknown System"
+        )
+        system_address = data.get("SystemAddress", 0)
+
+        # Normalise commodities/resources payload.
+        # Older journals used: "Commodities": [{Name, Name_Localised, Total, Delivered, Payment}]
+        # Newer journals use:  "ResourcesRequired": [{Name, Name_Localised, RequiredAmount, ProvidedAmount, Payment}]
+        commodities: list[dict[str, Any]] = []
+
+        if "Commodities" in data and isinstance(data["Commodities"], list):
+            commodities = data["Commodities"]
+        elif "ResourcesRequired" in data and isinstance(
+            data["ResourcesRequired"], list
+        ):
+            commodities = [
+                {
+                    "Name": r.get("Name", ""),
+                    "Name_Localised": r.get(
+                        "Name_Localised", r.get("Name", "")
+                    ),
+                    # Map RequiredAmount/ProvidedAmount to the old Total/Delivered shape
+                    "Total": r.get("RequiredAmount", r.get("Total", 0)),
+                    "Delivered": r.get(
+                        "ProvidedAmount", r.get("Delivered", 0)
+                    ),
+                    "Payment": r.get("Payment", 0),
+                }
+                for r in data["ResourcesRequired"]
+            ]
+        else:
+            commodities = []
+
+        return ColonizationConstructionDepotEvent(
+            timestamp=timestamp,
+            event=data["event"],
             market_id=data["MarketID"],
             station_name=station_name,
             station_type=data.get("StationType", "Unknown"),
-            system_name=data["StarSystem"],
-            system_address=data["SystemAddress"],
+            system_name=system_name,
+            system_address=system_address,
             construction_progress=data.get("ConstructionProgress", 0.0),
             construction_complete=data.get("ConstructionComplete", False),
             construction_failed=data.get("ConstructionFailed", False),
-            commodities=data.get("Commodities", []),
-            raw_data=data
+            commodities=commodities,
+            raw_data=data,
         )
     
     def _parse_contribution(
