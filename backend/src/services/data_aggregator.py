@@ -35,6 +35,13 @@ class DataAggregator(IDataAggregator):
     """
     Aggregates colonization data.
     Follows Open/Closed Principle - extensible for new aggregation types.
+
+    Strategy:
+      - INCOMPLETE sites come from LOCAL JOURNAL data.
+      - COMPLETED sites may come from INARA (or local if available).
+    Local data is never downgraded by Inara; Inara can only:
+      - mark a local site as completed, or
+      - add a completed site that is missing locally.
     """
     
     def __init__(self, repository: IColonizationRepository) -> None:
@@ -43,7 +50,10 @@ class DataAggregator(IDataAggregator):
     
     async def aggregate_by_system(self, system_name: str) -> SystemColonizationData:
         """
-        Aggregate all construction sites in a system
+        Aggregate all construction sites in a system.
+        
+        Incomplete progress is taken from local journal data.
+        Completion status may be upgraded using Inara.
         
         Args:
             system_name: Star system name
@@ -69,36 +79,55 @@ class DataAggregator(IDataAggregator):
                 construction_sites=sorted(local_sites, key=lambda s: s.station_name)
             )
 
-        # Merge data
+        # Start with all local sites
         merged_sites: Dict[int, ConstructionSite] = {site.market_id: site for site in local_sites}
 
-        for inara_site in inara_sites:
-            if inara_site.market_id not in merged_sites:
-                # This is a new site only found on Inara, add it
-                merged_sites[inara_site.market_id] = inara_site
-                await self._repository.add_construction_site(inara_site)
-            else:
-                # The site exists locally, so we'll merge Inara data into it
-                local_site = merged_sites[inara_site.market_id]
-                
-                # Inara is authoritative for names and completion status
-                local_site.station_name = inara_site.station_name
-                local_site.station_type = inara_site.station_type
-                local_site.construction_complete = inara_site.construction_complete
-                local_site.construction_failed = inara_site.construction_failed
+        # Index Inara sites by market_id
+        inara_by_id: Dict[int, ConstructionSite] = {
+            site.market_id: site for site in inara_sites
+        }
 
-                # Merge commodity data: update local with more recent Inara data
-                inara_commodities = {c.name: c for c in inara_site.commodities}
-                for local_comm in local_site.commodities:
-                    if local_comm.name in inara_commodities:
-                        inara_comm = inara_commodities[local_comm.name]
-                        # Inara may have more up-to-date provided amounts
-                        if inara_comm.provided_amount > local_comm.provided_amount:
-                            local_comm.provided_amount = inara_comm.provided_amount
-                
-                # Persist the merged data back to the database
+        # 1) Upgrade local sites to completed if Inara says they are completed.
+        for market_id, local_site in merged_sites.items():
+            inara_site = inara_by_id.get(market_id)
+            if inara_site and inara_site.construction_complete and not local_site.construction_complete:
+                logger.info(
+                    "Marking site %s in %s (market_id=%s) as completed from Inara data.",
+                    local_site.station_name,
+                    local_site.system_name,
+                    local_site.market_id,
+                )
+                # Upgrade completion status from Inara
+                local_site.construction_complete = True
+                local_site.construction_failed = inara_site.construction_failed
+                # Prefer the higher progress value
+                local_site.construction_progress = max(
+                    local_site.construction_progress,
+                    inara_site.construction_progress,
+                )
+                # Optionally ensure commodities look complete where possible
+                for comm in local_site.commodities:
+                    if comm.required_amount > 0 and comm.provided_amount < comm.required_amount:
+                        comm.provided_amount = comm.required_amount
                 await self._repository.add_construction_site(local_site)
-        
+
+        # 2) Add completed sites that only exist in Inara (no local data at all).
+        for market_id, inara_site in inara_by_id.items():
+            if inara_site.construction_complete and market_id not in merged_sites:
+                logger.info(
+                    "Adding completed site %s in %s (market_id=%s) from Inara only.",
+                    inara_site.station_name,
+                    inara_site.system_name,
+                    inara_site.market_id,
+                )
+                merged_sites[market_id] = inara_site
+                await self._repository.add_construction_site(inara_site)
+
+        # NOTE:
+        # We deliberately do NOT pull in INCOMPLETE sites from Inara if there is
+        # no local data. This avoids phantom in-progress stations that the
+        # commander has never seen in their own journals.
+
         return SystemColonizationData(
             system_name=system_name,
             construction_sites=sorted(merged_sites.values(), key=lambda s: s.station_name)

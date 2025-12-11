@@ -8,7 +8,7 @@ All commands below are run from the project root directory (no `cd` into subfold
 
 ```bash
 # Terminal 1 – backend (FastAPI)
-uvicorn backend.src.main:app --reload
+uvicorn backend.src.main:app
 ```
 
 Backend will be available at:
@@ -48,11 +48,30 @@ The backend is a FastAPI service that:
 - Aggregates colonization/construction site data
 - Exposes REST and WebSocket APIs for the frontend and GameGlass integration
 
-Key config file:
+Key config files:
 
-- [`backend/config.yaml`](backend/config.yaml) – journal path, server host/port, CORS origins, logging, etc.
+- [`backend/config.yaml`](backend/config.yaml:1) – journal path, server host/port, CORS origins, logging, etc.
+- [`backend/commander.yaml`](backend/commander.yaml:1) – local commander / Inara credentials (API key, commander name, optional app name). This file is **not** tracked by git (see [`.gitignore`](.gitignore:209)).
 
-For detailed API endpoints, testing, and operational notes, see [`backend/README.md`](backend/README.md).
+### Commander / Inara configuration
+
+Commander-specific and Inara secrets live in [`backend/commander.yaml`](backend/commander.yaml:1). Example:
+
+```yaml
+inara:
+  app_name: "ED Colonization Assistant"
+  api_key: "INARA-API-KEY-GOES-HERE"
+  commander_name: "CMDR Example"
+```
+
+Notes:
+
+- Do **not** commit your real API key or commander name; `backend/commander.yaml` is already ignored via [`.gitignore`](.gitignore:209).
+- You can populate this file in two ways:
+  - Via the **Settings** page in the UI (Inara API Key + Commander Name fields), which will write/update `backend/commander.yaml` for you.
+  - By creating/editing `backend/commander.yaml` manually using the structure above.
+
+For detailed API endpoints, testing, and operational notes, see [`backend/README.md`](backend/README.md:1).
 
 ## Frontend overview
 

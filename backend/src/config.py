@@ -61,23 +61,34 @@ def get_config() -> AppConfig:
     """Get the global configuration instance"""
     global _config
     if _config is None:
+        # Main (non-sensitive) config
         config_path = Path(__file__).parent.parent / "config.yaml"
+        # Sensitive commander-specific config (Inara, etc.)
+        commander_path = Path(__file__).parent.parent / "commander.yaml"
+
+        config_dict = {}
         if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config_dict = yaml.safe_load(f)
-            
-            _config = AppConfig(
-                journal=JournalConfig(**config_dict.get('journal', {})),
-                server=ServerConfig(**config_dict.get('server', {})),
-                websocket=WebSocketConfig(**config_dict.get('websocket', {})),
-                logging=LoggingConfig(**config_dict.get('logging', {})),
-            )
-        else:
-            _config = AppConfig()
-            
+            with open(config_path, "r", encoding="utf-8") as f:
+                config_dict = yaml.safe_load(f) or {}
+
+        commander_dict = {}
+        if commander_path.exists():
+            with open(commander_path, "r", encoding="utf-8") as f:
+                commander_dict = yaml.safe_load(f) or {}
+
+        inara_cfg = InaraConfig(**commander_dict.get("inara", {}))
+
+        _config = AppConfig(
+            journal=JournalConfig(**config_dict.get("journal", {})),
+            server=ServerConfig(**config_dict.get("server", {})),
+            websocket=WebSocketConfig(**config_dict.get("websocket", {})),
+            logging=LoggingConfig(**config_dict.get("logging", {})),
+            inara=inara_cfg,
+        )
+
         # Expand user path in journal directory
         _config.journal.directory = os.path.expandvars(_config.journal.directory)
-            
+
     return _config
 
 def set_config(config: AppConfig) -> None:

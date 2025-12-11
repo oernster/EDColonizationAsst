@@ -219,3 +219,6 @@ yarn-error.log*
 .npm/
 .yarn/
 .pnpm/
+
+# Local commander / Inara credentials (not tracked)
+backend/commander.yaml
