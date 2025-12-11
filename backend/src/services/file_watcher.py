@@ -189,6 +189,10 @@ class JournalFileHandler(FileSystemEventHandler):
         except Exception:
             current_station = None
 
+        # For depot snapshots, prefer any existing site metadata where present.
+        # These events can be incomplete (missing station/system), so we do not
+        # blindly overwrite good values with placeholders. Renames are handled
+        # primarily via Docked events.
         station_name = (
             (existing_site.station_name if existing_site else event.station_name)
             or current_station
@@ -263,30 +267,32 @@ class JournalFileHandler(FileSystemEventHandler):
         if existing_site:
             updated = False
 
-            if (not existing_site.station_name or existing_site.station_name == "Unknown Station") and event.station_name:
+            # Always trust the latest Docked metadata; this also allows renamed
+            # construction sites to be reflected correctly.
+            if event.station_name and event.station_name != existing_site.station_name:
                 existing_site.station_name = event.station_name
                 updated = True
 
-            if (not existing_site.station_type or existing_site.station_type == "Unknown") and event.station_type:
+            if event.station_type and event.station_type != existing_site.station_type:
                 existing_site.station_type = event.station_type
                 updated = True
 
-            if (not existing_site.system_name or existing_site.system_name == "Unknown System") and event.star_system:
+            if event.star_system and event.star_system != existing_site.system_name:
                 existing_site.system_name = event.star_system
                 updated = True
 
-            if not existing_site.system_address and event.system_address:
+            if event.system_address and event.system_address != existing_site.system_address:
                 existing_site.system_address = event.system_address
                 updated = True
 
             if updated:
                 await self.repository.add_construction_site(existing_site)
                 logger.info(
-                    "Upgraded construction site metadata from Docked event: %s in %s",
+                    "Updated construction site metadata from Docked event: %s in %s",
                     existing_site.station_name,
                     existing_site.system_name,
                 )
-            return  # Either upgraded, or already had good data
+            return  # Either updated, or already matched the latest metadata
 
         # No existing site: create placeholder from Docked data
         site = ConstructionSite(

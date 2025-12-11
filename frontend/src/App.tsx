@@ -33,9 +33,14 @@ const darkTheme = createTheme({
 function App() {
   const { currentSystem, systemData, loading, error } = useColonizationStore();
   const [currentTab, setCurrentTab] = useState(0);
+  const [systemViewTab, setSystemViewTab] = useState(0);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);
+  };
+
+  const handleSystemViewTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setSystemViewTab(newValue);
   };
 
   return (
@@ -83,7 +88,22 @@ function App() {
 
               {/* Site List */}
               {!loading && currentSystem && systemData && (
-                <SiteList />
+                <>
+                  <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+                    <Tabs
+                      value={systemViewTab}
+                      onChange={handleSystemViewTabChange}
+                      aria-label="system view detail tabs"
+                      textColor="primary"
+                      indicatorColor="primary"
+                    >
+                      <Tab label="System Commodities" />
+                      <Tab label="Stations" />
+                    </Tabs>
+                  </Box>
+
+                  <SiteList viewMode={systemViewTab === 0 ? 'system' : 'stations'} />
+                </>
               )}
 
               {/* Empty State */}

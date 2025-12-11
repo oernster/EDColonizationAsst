@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Typography, Paper, LinearProgress, Chip, Grid, Collapse, IconButton } from '@mui/material';
+import { Box, Typography, Paper, LinearProgress, Chip, Grid, Collapse, IconButton, Tabs, Tab } from '@mui/material';
 import { CheckCircle, Construction, ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useColonizationStore } from '../../stores/colonizationStore';
 import { ConstructionSite, CommodityStatus, CommodityAggregate } from '../../types/colonization';
@@ -82,9 +82,10 @@ const aggregateCommodities = (
   return aggregates;
 };
 
-export const SiteList = () => {
+export const SiteList = ({ viewMode = 'system' }: { viewMode?: 'system' | 'stations' }) => {
   const { systemData } = useColonizationStore();
   const [systemExpanded, setSystemExpanded] = useState(true);
+  const [stationTab, setStationTab] = useState(0);
 
   if (!systemData || systemData.construction_sites.length === 0) {
     return (
@@ -160,144 +161,180 @@ export const SiteList = () => {
         </Collapse>
       </Paper>
 
-      {/* System Shopping List */}
-      <Collapse in={systemExpanded} timeout="auto" unmountOnExit>
-        <Paper sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
-          <Typography variant="h6" gutterBottom>
-            System Shopping List
-          </Typography>
-
-          {shoppingList.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              No commodity requirements are currently available for this system.
-              Once construction sites advertise required commodities in the
-              journals or via Inara, they will appear here.
+      {/* System Shopping List (tab-controlled) */}
+      {viewMode === 'system' && (
+        <Collapse in={systemExpanded} timeout="auto" unmountOnExit>
+          <Paper sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
+            <Typography variant="h6" gutterBottom>
+              System Shopping List
             </Typography>
-          ) : (
-            <>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mb: 2 }}
-              >
-                Aggregated commodities still needed across all construction sites
-                in this system.
+
+            {shoppingList.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                No commodity requirements are currently available for this system.
+                Once construction sites advertise required commodities in the
+                journals or via Inara, they will appear here.
               </Typography>
-              {shoppingList.map((commodity) => (
-                <Box
-                  key={commodity.commodity_name}
-                  sx={{
-                    p: 2,
-                    mb: 1,
-                    bgcolor: 'background.default',
-                    borderRadius: 1,
-                    borderLeft: 4,
-                    borderColor:
-                      commodity.progress_percentage >= 100
-                        ? 'success.main'
-                        : 'warning.main',
-                  }}
+            ) : (
+              <>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 2 }}
                 >
+                  Aggregated commodities still needed across all construction sites
+                  in this system.
+                </Typography>
+                {shoppingList.map((commodity) => (
                   <Box
+                    key={commodity.commodity_name}
                     sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
+                      p: 2,
                       mb: 1,
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: 1,
-                    }}
-                  >
-                    <Typography variant="body1" fontWeight="medium">
-                      {commodity.commodity_name_localised}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Avg payment{' '}
-                      {Math.round(
-                        commodity.average_payment
-                      ).toLocaleString()}{' '}
-                      CR/t
-                    </Typography>
-                  </Box>
-
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      mb: 1,
-                      flexWrap: 'wrap',
-                      gap: 1,
-                    }}
-                  >
-                    <Typography variant="body2" color="text.secondary">
-                      {commodity.total_provided.toLocaleString()} /{' '}
-                      {commodity.total_required.toLocaleString()} total
-                      {commodity.total_remaining > 0 && (
-                        <span style={{ color: '#FF9800', marginLeft: 8 }}>
-                          (Need{' '}
-                          {commodity.total_remaining.toLocaleString()} more)
-                        </span>
-                      )}
-                    </Typography>
-                    <Typography variant="body2" fontWeight="bold">
-                      {commodity.progress_percentage.toFixed(1)}%
-                    </Typography>
-                  </Box>
-
-                  <LinearProgress
-                    variant="determinate"
-                    value={commodity.progress_percentage}
-                    sx={{
-                      height: 6,
+                      bgcolor: 'background.default',
                       borderRadius: 1,
-                      bgcolor: 'grey.800',
-                      '& .MuiLinearProgress-bar': {
-                        bgcolor:
-                          commodity.progress_percentage >= 100
-                            ? 'success.main'
-                            : 'warning.main',
-                      },
+                      borderLeft: 4,
+                      borderColor:
+                        commodity.progress_percentage >= 100
+                          ? 'success.main'
+                          : 'warning.main',
                     }}
-                  />
-
-                  {commodity.sites_requiring.length > 0 && (
+                  >
                     <Box
                       sx={{
-                        mt: 1,
                         display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: 0.5,
+                        justifyContent: 'space-between',
+                        mb: 1,
                         alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: 1,
                       }}
                     >
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ mr: 1 }}
-                      >
-                        Needed at:
+                      <Typography variant="body1" fontWeight="medium">
+                        {commodity.commodity_name_localised}
                       </Typography>
-                      {commodity.sites_requiring.map((station) => (
-                        <Chip
-                          key={station}
-                          label={station}
-                          size="small"
-                          variant="outlined"
-                        />
-                      ))}
+                      <Typography variant="body2" color="text.secondary">
+                        Avg payment{' '}
+                        {Math.round(
+                          commodity.average_payment
+                        ).toLocaleString()}{' '}
+                        CR/t
+                      </Typography>
                     </Box>
-                  )}
-                </Box>
-              ))}
-            </>
-          )}
-        </Paper>
-      </Collapse>
 
-      {/* Construction Sites */}
-      {systemData.construction_sites.map((site) => (
-        <SiteCard key={site.market_id} site={site} />
-      ))}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        mb: 1,
+                        flexWrap: 'wrap',
+                        gap: 1,
+                      }}
+                    >
+                      <Typography variant="body2" color="text.secondary">
+                        {commodity.total_provided.toLocaleString()} /{' '}
+                        {commodity.total_required.toLocaleString()} total
+                        {commodity.total_remaining > 0 && (
+                          <span style={{ color: '#FF9800', marginLeft: 8 }}>
+                            (Need{' '}
+                            {commodity.total_remaining.toLocaleString()} more)
+                          </span>
+                        )}
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        {commodity.progress_percentage.toFixed(1)}%
+                      </Typography>
+                    </Box>
+
+                    <LinearProgress
+                      variant="determinate"
+                      value={commodity.progress_percentage}
+                      sx={{
+                        height: 6,
+                        borderRadius: 1,
+                        bgcolor: 'grey.800',
+                        '& .MuiLinearProgress-bar': {
+                          bgcolor:
+                            commodity.progress_percentage >= 100
+                              ? 'success.main'
+                              : 'warning.main',
+                        },
+                      }}
+                    />
+
+                    {commodity.sites_requiring.length > 0 && (
+                      <Box
+                        sx={{
+                          mt: 1,
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: 0.5,
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ mr: 1 }}
+                        >
+                          Needed at:
+                        </Typography>
+                        {commodity.sites_requiring.map((station) => (
+                          <Chip
+                            key={station}
+                            label={station}
+                            size="small"
+                            variant="outlined"
+                          />
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                ))}
+              </>
+            )}
+          </Paper>
+        </Collapse>
+      )}
+
+      {/* Construction Sites (tab-controlled) */}
+      {viewMode === 'stations' && (
+        <>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+            <Tabs
+              value={stationTab}
+              onChange={(_, newValue: number) => setStationTab(newValue)}
+              aria-label="station tabs"
+              variant="scrollable"
+              scrollButtons="auto"
+            >
+              {systemData.construction_sites.map((site, index) => (
+                <Tab
+                  key={site.market_id}
+                  label={site.station_name}
+                  id={`station-tab-${index}`}
+                  aria-controls={`station-tabpanel-${index}`}
+                />
+              ))}
+            </Tabs>
+          </Box>
+
+          {systemData.construction_sites.length > 0 && (
+            <SiteCard
+              key={
+                systemData.construction_sites[
+                  stationTab < systemData.construction_sites.length ? stationTab : 0
+                ].market_id
+              }
+              site={
+                systemData.construction_sites[
+                  stationTab < systemData.construction_sites.length ? stationTab : 0
+                ]
+              }
+            />
+          )}
+        </>
+      )}
     </Box>
   );
 };
