@@ -37,18 +37,26 @@ function App() {
   const [systemViewTab, setSystemViewTab] = useState(0);
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
+  const [commanderName, setCommanderName] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadHealth = async () => {
+    const loadMeta = async () => {
       try {
         const health = await api.healthCheck();
         setAppVersion(health.version);
       } catch (err) {
         setHealthError('Failed to load version information');
       }
+
+      try {
+        const settings = await api.getAppSettings();
+        setCommanderName(settings.inara_commander_name);
+      } catch {
+        // Ignore settings load errors here; commander name is optional display
+      }
     };
 
-    loadHealth();
+    loadMeta();
   }, []);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -65,13 +73,41 @@ function App() {
       <Container maxWidth="xl">
         <Box sx={{ py: 4 }}>
           {/* Header */}
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h3" component="h1" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
-              Elite: Dangerous Colonization Assistant
-            </Typography>
-            <Typography variant="subtitle1" color="text.secondary">
-              Real-time tracking for colonization efforts
-            </Typography>
+          <Box
+            sx={{
+              mb: 4,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              flexWrap: 'wrap',
+              gap: 2,
+            }}
+          >
+            <Box>
+              <Typography
+                variant="h3"
+                component="h1"
+                gutterBottom
+                sx={{ color: 'primary.main', fontWeight: 'bold' }}
+              >
+                Elite: Dangerous Colonization Assistant
+              </Typography>
+              <Typography variant="subtitle1" color="text.secondary">
+                Real-time tracking for colonization efforts
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                textAlign: { xs: 'left', sm: 'right' },
+              }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                Commander:
+              </Typography>
+              <Typography variant="body1" fontWeight="medium">
+                {commanderName || 'Unknown'}
+              </Typography>
+            </Box>
           </Box>
           
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
