@@ -77,6 +77,7 @@ async def test_get_journal_status_no_files(tmp_path: Path):
 @pytest.mark.asyncio
 async def test_get_journal_status_handles_errors():
     """Errors from underlying utilities should surface as HTTP 500."""
+
     def _boom():
         raise FileNotFoundError("no saved games")
 
@@ -121,8 +122,12 @@ async def test_update_app_settings_writes_files_and_updates_config(tmp_path: Pat
     commander_path = settings_root / "commander.yaml"
 
     # Backup existing files (if any)
-    orig_config = config_path.read_text(encoding="utf-8") if config_path.exists() else None
-    orig_commander = commander_path.read_text(encoding="utf-8") if commander_path.exists() else None
+    orig_config = (
+        config_path.read_text(encoding="utf-8") if config_path.exists() else None
+    )
+    orig_commander = (
+        commander_path.read_text(encoding="utf-8") if commander_path.exists() else None
+    )
 
     try:
         new_journal_dir = str(tmp_path / "journals")

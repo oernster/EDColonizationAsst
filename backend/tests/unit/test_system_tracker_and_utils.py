@@ -79,7 +79,9 @@ def test_system_tracker_initial_state():
 
 def test_system_tracker_update_from_location_docked():
     tracker = SystemTracker()
-    event = _make_location_event("Test System", docked=True, station_name="Test Station", station_type="Coriolis")
+    event = _make_location_event(
+        "Test System", docked=True, station_name="Test Station", station_type="Coriolis"
+    )
 
     tracker.update_from_location(event)
 

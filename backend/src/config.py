@@ -1,4 +1,5 @@
 """Configuration management for the application"""
+
 import os
 from pathlib import Path
 from typing import List
@@ -10,52 +11,71 @@ from dotenv import load_dotenv
 # Load .env file at the top level of the module
 load_dotenv()
 
+
 class JournalConfig(BaseSettings):
     """Journal file configuration"""
+
     directory: str = Field(
         default=r"C:\Users\%USERNAME%\Saved Games\Frontier Developments\Elite Dangerous",
-        description="Path to Elite: Dangerous journal directory"
+        description="Path to Elite: Dangerous journal directory",
     )
-    watch_interval: float = Field(default=1.0, description="File watch interval in seconds")
+    watch_interval: float = Field(
+        default=1.0, description="File watch interval in seconds"
+    )
+
 
 class ServerConfig(BaseSettings):
     """Server configuration"""
+
     host: str = Field(default="0.0.0.0", description="Server host")
     port: int = Field(default=8000, description="Server port")
     cors_origins: List[str] = Field(
-        default=["http://localhost:5173"],
-        description="Allowed CORS origins"
+        default=["http://localhost:5173"], description="Allowed CORS origins"
     )
+
 
 class WebSocketConfig(BaseSettings):
     """WebSocket configuration"""
-    ping_interval: int = Field(default=30, description="WebSocket ping interval in seconds")
-    reconnect_attempts: int = Field(default=5, description="Number of reconnection attempts")
+
+    ping_interval: int = Field(
+        default=30, description="WebSocket ping interval in seconds"
+    )
+    reconnect_attempts: int = Field(
+        default=5, description="Number of reconnection attempts"
+    )
+
 
 class LoggingConfig(BaseSettings):
     """Logging configuration"""
+
     level: str = Field(default="INFO", description="Logging level")
     format: str = Field(
         default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        description="Log format string"
+        description="Log format string",
     )
+
 
 class InaraConfig(BaseSettings):
     """Inara API configuration"""
+
     api_key: str = os.getenv("INARA_API_KEY", "")
     commander_name: str | None = os.getenv("INARA_COMMANDER_NAME")
     app_name: str = os.getenv("INARA_APP_NAME", "")
 
+
 class AppConfig(BaseSettings):
     """Main application configuration"""
+
     journal: JournalConfig = Field(default_factory=JournalConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
     websocket: WebSocketConfig = Field(default_factory=WebSocketConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     inara: InaraConfig = Field(default_factory=InaraConfig)
 
+
 # Global config instance
 _config: AppConfig | None = None
+
 
 def get_config() -> AppConfig:
     """Get the global configuration instance"""
@@ -90,6 +110,7 @@ def get_config() -> AppConfig:
         _config.journal.directory = os.path.expandvars(_config.journal.directory)
 
     return _config
+
 
 def set_config(config: AppConfig) -> None:
     """Set the global configuration instance (mainly for testing)"""

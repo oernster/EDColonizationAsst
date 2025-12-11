@@ -1,4 +1,5 @@
 """Colonization data repository"""
+
 import asyncio
 import json
 import sqlite3
@@ -13,24 +14,25 @@ logger = get_logger(__name__)
 
 DB_FILE = Path(__file__).parent.parent / "colonization.db"
 
+
 class IColonizationRepository(ABC):
     """Interface for colonization data repository"""
-    
+
     @abstractmethod
     async def add_construction_site(self, site: ConstructionSite) -> None:
         """Add or update construction site data"""
         pass
-    
+
     @abstractmethod
     async def get_site_by_market_id(self, market_id: int) -> Optional[ConstructionSite]:
         """Get construction site by market ID"""
         pass
-    
+
     @abstractmethod
     async def get_sites_by_system(self, system_name: str) -> List[ConstructionSite]:
         """Get all construction sites in a system"""
         pass
-    
+
     @abstractmethod
     async def get_all_systems(self) -> List[str]:
         """Get list of all known systems with construction"""
@@ -45,17 +47,14 @@ class IColonizationRepository(ABC):
     async def get_stats(self) -> Dict[str, int]:
         """Get basic statistics about stored construction sites"""
         pass
-    
+
     @abstractmethod
     async def update_commodity(
-        self, 
-        market_id: int, 
-        commodity_name: str, 
-        provided_amount: int
+        self, market_id: int, commodity_name: str, provided_amount: int
     ) -> None:
         """Update commodity provided amount for a site"""
         pass
-    
+
     @abstractmethod
     async def clear_all(self) -> None:
         """Clear all data (mainly for testing)"""
@@ -66,7 +65,7 @@ class ColonizationRepository(IColonizationRepository):
     """
     SQLite-based persistent storage for colonization data.
     """
-    
+
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
         self._create_tables()
@@ -78,7 +77,8 @@ class ColonizationRepository(IColonizationRepository):
         """Create database tables if they don't exist"""
         with self._get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS construction_sites (
                     market_id INTEGER PRIMARY KEY,
                     station_name TEXT NOT NULL,
@@ -91,7 +91,8 @@ class ColonizationRepository(IColonizationRepository):
                     commodities TEXT,
                     last_updated TEXT
                 )
-            """)
+            """
+            )
             conn.commit()
 
     async def add_construction_site(self, site: ConstructionSite) -> None:
@@ -99,20 +100,30 @@ class ColonizationRepository(IColonizationRepository):
             site.last_updated = datetime.now(UTC)
             # Use model_dump (Pydantic v2) instead of deprecated dict()
             commodities_json = json.dumps([c.model_dump() for c in site.commodities])
-            
+
             with self._get_db_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT OR REPLACE INTO construction_sites
                     (market_id, station_name, station_type, system_name, system_address,
                     construction_progress, construction_complete, construction_failed,
                     commodities, last_updated)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    site.market_id, site.station_name, site.station_type, site.system_name, site.system_address,
-                    site.construction_progress, site.construction_complete, site.construction_failed,
-                    commodities_json, site.last_updated.isoformat()
-                ))
+                """,
+                    (
+                        site.market_id,
+                        site.station_name,
+                        site.station_type,
+                        site.system_name,
+                        site.system_address,
+                        site.construction_progress,
+                        site.construction_complete,
+                        site.construction_failed,
+                        commodities_json,
+                        site.last_updated.isoformat(),
+                    ),
+                )
                 conn.commit()
             logger.info(
                 "REPOSITORY: Added/updated site %s in %s with data: %s",
@@ -126,7 +137,9 @@ class ColonizationRepository(IColonizationRepository):
             with self._get_db_connection() as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM construction_sites WHERE market_id = ?", (market_id,))
+                cursor.execute(
+                    "SELECT * FROM construction_sites WHERE market_id = ?", (market_id,)
+                )
                 row = cursor.fetchone()
                 return self._row_to_site(row) if row else None
 
@@ -135,7 +148,10 @@ class ColonizationRepository(IColonizationRepository):
             with self._get_db_connection() as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM construction_sites WHERE system_name = ? ORDER BY station_name", (system_name,))
+                cursor.execute(
+                    "SELECT * FROM construction_sites WHERE system_name = ? ORDER BY station_name",
+                    (system_name,),
+                )
                 rows = cursor.fetchall()
                 return [self._row_to_site(row) for row in rows if row]
 
@@ -143,7 +159,9 @@ class ColonizationRepository(IColonizationRepository):
         async with self._lock:
             with self._get_db_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT DISTINCT system_name FROM construction_sites ORDER BY system_name")
+                cursor.execute(
+                    "SELECT DISTINCT system_name FROM construction_sites ORDER BY system_name"
+                )
                 rows = cursor.fetchall()
                 systems = [row[0] for row in rows]
                 logger.info(f"REPOSITORY: Returning {len(systems)} systems: {systems}")
@@ -154,7 +172,9 @@ class ColonizationRepository(IColonizationRepository):
             with self._get_db_connection() as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM construction_sites ORDER BY system_name, station_name")
+                cursor.execute(
+                    "SELECT * FROM construction_sites ORDER BY system_name, station_name"
+                )
                 rows = cursor.fetchall()
                 return [self._row_to_site(row) for row in rows if row]
 
@@ -185,7 +205,9 @@ class ColonizationRepository(IColonizationRepository):
         logger.info(f"REPOSITORY: Stats calculated: {stats}")
         return stats
 
-    async def update_commodity(self, market_id: int, commodity_name: str, provided_amount: int) -> None:
+    async def update_commodity(
+        self, market_id: int, commodity_name: str, provided_amount: int
+    ) -> None:
         """
         Update commodity provided amount for a site.
 
@@ -198,7 +220,9 @@ class ColonizationRepository(IColonizationRepository):
         """
         site = await self.get_site_by_market_id(market_id)
         if not site:
-            logger.warning(f"Cannot update commodity: site with market ID {market_id} not found")
+            logger.warning(
+                f"Cannot update commodity: site with market ID {market_id} not found"
+            )
             return
 
         updated = False
@@ -212,7 +236,9 @@ class ColonizationRepository(IColonizationRepository):
             await self.add_construction_site(site)
             logger.debug(f"Updated {commodity_name} at {site.station_name}")
         else:
-            logger.warning(f"Commodity {commodity_name} not found at site {site.station_name}")
+            logger.warning(
+                f"Commodity {commodity_name} not found at site {site.station_name}"
+            )
 
     async def clear_all(self) -> None:
         async with self._lock:
@@ -237,5 +263,5 @@ class ColonizationRepository(IColonizationRepository):
             construction_complete=row["construction_complete"],
             construction_failed=row["construction_failed"],
             commodities=commodities,
-            last_updated=datetime.fromisoformat(row["last_updated"])
+            last_updated=datetime.fromisoformat(row["last_updated"]),
         )

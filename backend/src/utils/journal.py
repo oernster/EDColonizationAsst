@@ -1,4 +1,5 @@
 """Utility functions for handling Elite: Dangerous journal files."""
+
 import os
 from pathlib import Path
 from typing import Optional

@@ -29,7 +29,11 @@ class _DummyInaraService:
 
 
 @pytest.fixture
-async def api_app(repository: ColonizationRepository, aggregator: DataAggregator, system_tracker: SystemTracker) -> FastAPI:
+async def api_app(
+    repository: ColonizationRepository,
+    aggregator: DataAggregator,
+    system_tracker: SystemTracker,
+) -> FastAPI:
     """Create a FastAPI app wired with real dependencies for the colonization API."""
     # Ensure Inara is offline-safe for tests
     aggregator._inara_service = _DummyInaraService()
@@ -133,7 +137,9 @@ async def test_system_lifecycle_and_stats(
         assert data["completed_sites"] == 0
 
         # /system/commodities returns aggregates for that system
-        resp = await client.get("/api/system/commodities", params={"name": "Alpha System"})
+        resp = await client.get(
+            "/api/system/commodities", params={"name": "Alpha System"}
+        )
         assert resp.status_code == 200
         commodities = resp.json()["commodities"]
         assert len(commodities) == 1
@@ -168,7 +174,9 @@ async def test_system_lifecycle_and_stats(
 
 
 @pytest.mark.asyncio
-async def test_get_current_system_endpoint(api_app: FastAPI, system_tracker: SystemTracker):
+async def test_get_current_system_endpoint(
+    api_app: FastAPI, system_tracker: SystemTracker
+):
     """Verify /systems/current reflects SystemTracker state."""
     # Simulate a DockedEvent updating the tracker
     event = DockedEvent(

@@ -1,4 +1,5 @@
 """Tests for DataAggregator service (no external mocking, in-memory data only)."""
+
 import pytest
 from datetime import datetime, UTC
 
@@ -23,7 +24,9 @@ class _DummyInaraService:
 
 
 @pytest.mark.asyncio
-async def test_aggregate_by_system_local_only(repository: ColonizationRepository, sample_construction_site):
+async def test_aggregate_by_system_local_only(
+    repository: ColonizationRepository, sample_construction_site
+):
     """When Inara has no data, aggregation should return local sites unchanged."""
     await repository.add_construction_site(sample_construction_site)
 
@@ -44,7 +47,9 @@ async def test_aggregate_by_system_local_only(repository: ColonizationRepository
 
 
 @pytest.mark.asyncio
-async def test_aggregate_by_system_inara_upgrades_local(repository: ColonizationRepository, sample_construction_site):
+async def test_aggregate_by_system_inara_upgrades_local(
+    repository: ColonizationRepository, sample_construction_site
+):
     """Inara data should upgrade completion/progress for existing local sites."""
     # Local site: incomplete, 50% progress, with one underfilled commodity
     await repository.add_construction_site(sample_construction_site)
@@ -165,12 +170,16 @@ async def test_aggregate_commodities_and_summary(repository: ColonizationReposit
     assert steel_agg.total_provided == 700
     assert steel_agg.total_remaining == 800
     # Both sites need Steel at some point
-    assert "Site A" in steel_agg.sites_requiring or "Site B" in steel_agg.sites_requiring
+    assert (
+        "Site A" in steel_agg.sites_requiring or "Site B" in steel_agg.sites_requiring
+    )
 
     summary = await aggregator.get_system_summary("Agg System")
     assert summary["system_name"] == "Agg System"
     assert summary["total_sites"] == 2
     assert summary["completed_sites"] == 0
     assert summary["in_progress_sites"] == 2
-    assert summary["total_commodities_needed"] == sum(c.total_remaining for c in commodities)
+    assert summary["total_commodities_needed"] == sum(
+        c.total_remaining for c in commodities
+    )
     assert summary["unique_commodities"] == len(commodities)

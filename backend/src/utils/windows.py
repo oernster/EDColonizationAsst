@@ -1,4 +1,5 @@
 """Windows specific utility functions"""
+
 import ctypes
 import os
 from pathlib import Path
@@ -25,7 +26,15 @@ def get_saved_games_path() -> Optional[Path]:
         # Use SHGetKnownFolderPath to get the path
         ptr = ctypes.c_wchar_p()
         ctypes.windll.shell32.SHGetKnownFolderPath(
-            ctypes.byref(GUID.from_buffer_copy(bytes.fromhex(FOLDERID_SavedGames.replace('-', '').replace('{', '').replace('}', '')))),
+            ctypes.byref(
+                GUID.from_buffer_copy(
+                    bytes.fromhex(
+                        FOLDERID_SavedGames.replace("-", "")
+                        .replace("{", "")
+                        .replace("}", "")
+                    )
+                )
+            ),
             0,
             None,
             ctypes.byref(ptr),

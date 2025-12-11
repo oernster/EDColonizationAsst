@@ -1,4 +1,5 @@
 """File watcher service for monitoring journal files"""
+
 import asyncio
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -12,7 +13,7 @@ from ..models.journal_events import (
     ColonizationContributionEvent,
     LocationEvent,
     FSDJumpEvent,
-    DockedEvent
+    DockedEvent,
 )
 from ..repositories.colonization_repository import IColonizationRepository
 from ..models.colonization import ConstructionSite, Commodity
@@ -23,17 +24,17 @@ logger = get_logger(__name__)
 
 class IFileWatcher(ABC):
     """Interface for file watching"""
-    
+
     @abstractmethod
     async def start_watching(self, directory: Path) -> None:
         """Start watching directory for changes"""
         pass
-    
+
     @abstractmethod
     async def stop_watching(self) -> None:
         """Stop watching directory"""
         pass
-    
+
     @abstractmethod
     def set_update_callback(self, callback: Callable) -> None:
         """Set callback for when data is updated"""
@@ -42,7 +43,7 @@ class IFileWatcher(ABC):
 
 class JournalFileHandler(FileSystemEventHandler):
     """Handler for journal file system events"""
-    
+
     def __init__(
         self,
         parser: IJournalParser,
@@ -58,7 +59,7 @@ class JournalFileHandler(FileSystemEventHandler):
         self._processed_files: Set[str] = set()
         # Event loop used to schedule async processing from watchdog threads
         self._loop = loop or asyncio.get_event_loop()
-    
+
     def on_modified(self, event: FileModifiedEvent) -> None:
         """Handle file modification events"""
         if event.is_directory:
@@ -67,7 +68,9 @@ class JournalFileHandler(FileSystemEventHandler):
         file_path = Path(event.src_path)
 
         # Only process journal files
-        if not file_path.name.startswith("Journal.") or not file_path.name.endswith(".log"):
+        if not file_path.name.startswith("Journal.") or not file_path.name.endswith(
+            ".log"
+        ):
             return
 
         logger.debug(f"Journal file modified: {file_path.name}")
@@ -76,7 +79,7 @@ class JournalFileHandler(FileSystemEventHandler):
             self._process_file(file_path),
             self._loop,
         )
-    
+
     def on_created(self, event: FileCreatedEvent) -> None:
         """Handle file creation events"""
         if event.is_directory:
@@ -85,7 +88,9 @@ class JournalFileHandler(FileSystemEventHandler):
         file_path = Path(event.src_path)
 
         # Only process journal files
-        if not file_path.name.startswith("Journal.") or not file_path.name.endswith(".log"):
+        if not file_path.name.startswith("Journal.") or not file_path.name.endswith(
+            ".log"
+        ):
             return
 
         logger.info(f"New journal file created: {file_path.name}")
@@ -94,24 +99,24 @@ class JournalFileHandler(FileSystemEventHandler):
             self._process_file(file_path),
             self._loop,
         )
-    
+
     async def _process_file(self, file_path: Path) -> None:
         """
         Process a journal file
-        
+
         Args:
             file_path: Path to journal file
         """
         try:
             # Parse the file
             events = self.parser.parse_file(file_path)
-            
+
             if not events:
                 return
-            
+
             # Process each event
             updated_systems: Set[str] = set()
-            
+
             for event in events:
                 # Update system tracker
                 if isinstance(event, LocationEvent):
@@ -121,10 +126,13 @@ class JournalFileHandler(FileSystemEventHandler):
                 elif isinstance(event, DockedEvent):
                     self.system_tracker.update_from_docked(event)
                     # Also check if this is a colonization site
-                    if "Colonisation" in event.station_type or "Construction" in event.station_type:
+                    if (
+                        "Colonisation" in event.station_type
+                        or "Construction" in event.station_type
+                    ):
                         await self._process_docked_at_construction_site(event)
                         updated_systems.add(event.star_system)
-                
+
                 # Process colonization events
                 if isinstance(event, ColonizationConstructionDepotEvent):
                     await self._process_construction_depot(event)
@@ -134,15 +142,15 @@ class JournalFileHandler(FileSystemEventHandler):
                     site = await self.repository.get_site_by_market_id(event.market_id)
                     if site:
                         updated_systems.add(site.system_name)
-            
+
             # Notify about updates
             if updated_systems and self.update_callback:
                 for system_name in updated_systems:
                     await self.update_callback(system_name)
-        
+
         except Exception as e:
             logger.error(f"Error processing file {file_path}: {e}")
-    
+
     async def _process_construction_depot(
         self,
         event: ColonizationConstructionDepotEvent,
@@ -232,23 +240,20 @@ class JournalFileHandler(FileSystemEventHandler):
             site.system_name,
             site.construction_progress,
         )
-    
-    async def _process_contribution(
-        self, 
-        event: ColonizationContributionEvent
-    ) -> None:
+
+    async def _process_contribution(self, event: ColonizationContributionEvent) -> None:
         """
         Process ColonizationContribution event
-        
+
         Args:
             event: Contribution event
         """
         await self.repository.update_commodity(
             market_id=event.market_id,
             commodity_name=event.commodity,
-            provided_amount=event.total_quantity
+            provided_amount=event.total_quantity,
         )
-        
+
         logger.info(
             f"Contribution recorded: {event.quantity} {event.commodity_localised or event.commodity} "
             f"(total: {event.total_quantity}, credits: {event.credits_received})"
@@ -281,7 +286,10 @@ class JournalFileHandler(FileSystemEventHandler):
                 existing_site.system_name = event.star_system
                 updated = True
 
-            if event.system_address and event.system_address != existing_site.system_address:
+            if (
+                event.system_address
+                and event.system_address != existing_site.system_address
+            ):
                 existing_site.system_address = event.system_address
                 updated = True
 
@@ -320,7 +328,7 @@ class FileWatcher(IFileWatcher):
     Watches Elite: Dangerous journal directory for changes.
     Uses Observer pattern to notify subscribers.
     """
-    
+
     def __init__(
         self,
         parser: IJournalParser,
@@ -336,33 +344,33 @@ class FileWatcher(IFileWatcher):
         self._update_callback: Optional[Callable] = None
         # Event loop used to schedule async processing from watchdog threads
         self._loop: asyncio.AbstractEventLoop = loop or asyncio.get_event_loop()
-    
+
     def set_update_callback(self, callback: Callable) -> None:
         """
         Set callback for when data is updated
-        
+
         Args:
             callback: Async function to call with system_name when updated
         """
         self._update_callback = callback
         if self._handler:
             self._handler.update_callback = callback
-    
+
     async def start_watching(self, directory: Path) -> None:
         """
         Start watching directory for changes
-        
+
         Args:
             directory: Path to journal directory
         """
         if self._observer is not None:
             logger.warning("File watcher already running")
             return
-        
+
         if not directory.exists():
             logger.error(f"Journal directory does not exist: {directory}")
             raise FileNotFoundError(f"Journal directory not found: {directory}")
-        
+
         # Create handler
         self._handler = JournalFileHandler(
             self.parser,
@@ -371,48 +379,47 @@ class FileWatcher(IFileWatcher):
             self._update_callback,
             loop=self._loop,
         )
-        
+
         # Create and start observer
         self._observer = Observer()
         self._observer.schedule(self._handler, str(directory), recursive=False)
         self._observer.start()
-        
+
         logger.info(f"Started watching journal directory: {directory}")
-        
+
         # Process existing files
         await self._process_existing_files(directory)
-    
+
     async def stop_watching(self) -> None:
         """Stop watching directory"""
         if self._observer is None:
             return
-        
+
         self._observer.stop()
         self._observer.join()
         self._observer = None
         self._handler = None
-        
+
         logger.info("Stopped watching journal directory")
-    
+
     async def _process_existing_files(self, directory: Path) -> None:
         """
         Process existing journal files in directory
-        
+
         Args:
             directory: Path to journal directory
         """
         logger.info("Processing existing journal files...")
-        
+
         # Find all journal files
         journal_files = sorted(
-            directory.glob("Journal.*.log"),
-            key=lambda p: p.stat().st_mtime
+            directory.glob("Journal.*.log"), key=lambda p: p.stat().st_mtime
         )
-        
+
         if not journal_files:
             logger.warning("No existing journal files found")
             return
-        
+
         # Process all existing files
         for file_path in journal_files:
             logger.info(f"Processing journal file: {file_path.name}")

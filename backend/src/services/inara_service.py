@@ -1,4 +1,5 @@
 """Service for fetching data from the Inara.cz API"""
+
 import os
 import asyncio
 from datetime import datetime, timedelta
@@ -31,7 +32,9 @@ class InaraService:
         self.app_name = inara_config.app_name
         self.app_version = "1.0.0"
 
-    async def get_system_colonization_data(self, system_name: str) -> List[Dict[str, Any]]:
+    async def get_system_colonization_data(
+        self, system_name: str
+    ) -> List[Dict[str, Any]]:
         """
         Fetch colonization-related data for a specific system from Inara.
 

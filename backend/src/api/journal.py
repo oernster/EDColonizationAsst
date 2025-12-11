@@ -1,4 +1,5 @@
 """API routes for Elite: Dangerous player journal"""
+
 from fastapi import APIRouter, HTTPException
 
 from ..services.journal_parser import JournalParser

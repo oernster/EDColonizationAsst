@@ -1,10 +1,11 @@
 """Tests for data models"""
+
 import pytest
 from src.models.colonization import (
     Commodity,
     CommodityStatus,
     ConstructionSite,
-    SystemColonizationData
+    SystemColonizationData,
 )
 
 
@@ -15,9 +16,9 @@ def test_commodity_remaining_amount():
         name_localised="Steel",
         required_amount=1000,
         provided_amount=600,
-        payment=1234
+        payment=1234,
     )
-    
+
     assert commodity.remaining_amount == 400
 
 
@@ -28,9 +29,9 @@ def test_commodity_progress_percentage():
         name_localised="Steel",
         required_amount=1000,
         provided_amount=750,
-        payment=1234
+        payment=1234,
     )
-    
+
     assert commodity.progress_percentage == 75.0
 
 
@@ -41,9 +42,9 @@ def test_commodity_status_completed():
         name_localised="Steel",
         required_amount=1000,
         provided_amount=1000,
-        payment=1234
+        payment=1234,
     )
-    
+
     assert commodity.status == CommodityStatus.COMPLETED
 
 
@@ -54,9 +55,9 @@ def test_commodity_status_in_progress():
         name_localised="Steel",
         required_amount=1000,
         provided_amount=500,
-        payment=1234
+        payment=1234,
     )
-    
+
     assert commodity.status == CommodityStatus.IN_PROGRESS
 
 
@@ -67,16 +68,16 @@ def test_commodity_status_not_started():
         name_localised="Steel",
         required_amount=1000,
         provided_amount=0,
-        payment=1234
+        payment=1234,
     )
-    
+
     assert commodity.status == CommodityStatus.NOT_STARTED
 
 
 def test_construction_site_is_complete(sample_construction_site):
     """Test construction site completion check"""
     assert not sample_construction_site.is_complete
-    
+
     sample_construction_site.construction_complete = True
     assert sample_construction_site.is_complete
 
@@ -106,7 +107,7 @@ def test_system_colonization_data_totals():
             construction_progress=100.0,
             construction_complete=True,
             construction_failed=False,
-            commodities=[]
+            commodities=[],
         ),
         ConstructionSite(
             market_id=2,
@@ -117,15 +118,14 @@ def test_system_colonization_data_totals():
             construction_progress=50.0,
             construction_complete=False,
             construction_failed=False,
-            commodities=[]
-        )
+            commodities=[],
+        ),
     ]
-    
+
     system_data = SystemColonizationData(
-        system_name="Test System",
-        construction_sites=sites
+        system_name="Test System", construction_sites=sites
     )
-    
+
     assert system_data.total_sites == 2
     assert system_data.completed_sites == 1
     assert system_data.in_progress_sites == 1

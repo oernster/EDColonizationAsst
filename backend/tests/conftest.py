@@ -1,4 +1,5 @@
 """Pytest configuration and fixtures"""
+
 import pytest
 from pathlib import Path
 from datetime import datetime, UTC
@@ -17,7 +18,7 @@ def sample_commodity() -> Commodity:
         name_localised="Steel",
         required_amount=1000,
         provided_amount=500,
-        payment=1234
+        payment=1234,
     )
 
 
@@ -39,17 +40,17 @@ def sample_construction_site() -> ConstructionSite:
                 name_localised="Steel",
                 required_amount=1000,
                 provided_amount=500,
-                payment=1234
+                payment=1234,
             ),
             Commodity(
                 name="CMMComposite",
                 name_localised="CMM Composite",
                 required_amount=2000,
                 provided_amount=2000,
-                payment=5678
-            )
+                payment=5678,
+            ),
         ],
-        last_updated=datetime.now(UTC)
+        last_updated=datetime.now(UTC),
     )
 
 

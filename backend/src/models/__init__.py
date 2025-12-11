@@ -1,10 +1,11 @@
 """Data models for the application"""
+
 from .colonization import (
     Commodity,
     CommodityStatus,
     ConstructionSite,
     SystemColonizationData,
-    CommodityAggregate
+    CommodityAggregate,
 )
 from .journal_events import (
     JournalEvent,
@@ -12,14 +13,14 @@ from .journal_events import (
     ColonizationContributionEvent,
     LocationEvent,
     FSDJumpEvent,
-    DockedEvent
+    DockedEvent,
 )
 from .api_models import (
     SystemResponse,
     SiteResponse,
     ErrorResponse,
     WebSocketMessage,
-    WebSocketMessageType
+    WebSocketMessageType,
 )
 
 __all__ = [

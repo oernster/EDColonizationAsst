@@ -1,4 +1,5 @@
 """Service layer modules"""
+
 from .journal_parser import JournalParser, IJournalParser
 from .file_watcher import FileWatcher, IFileWatcher
 from .data_aggregator import DataAggregator, IDataAggregator

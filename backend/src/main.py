@@ -1,4 +1,5 @@
 """Main FastAPI application entry point"""
+
 import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -34,25 +35,25 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     global repository, aggregator, system_tracker, file_watcher
-    
+
     logger.info("Starting Elite: Dangerous Colonization Assistant")
-    
+
     config = get_config()
-    
+
     # Initialize components
     repository = ColonizationRepository()
     aggregator = DataAggregator(repository)
     system_tracker = SystemTracker()
     parser = JournalParser()
     file_watcher = FileWatcher(parser, system_tracker, repository)
-    
+
     # Set dependencies for API routes
     set_dependencies(repository, aggregator, system_tracker)
     set_aggregator(aggregator)
-    
+
     # Set update callback for file watcher
     file_watcher.set_update_callback(notify_system_update)
-    
+
     # Start watching journal directory
     journal_dir = Path(config.journal.directory)
     try:
@@ -61,9 +62,9 @@ async def lifespan(app: FastAPI):
     except FileNotFoundError as e:
         logger.error(f"Failed to start file watcher: {e}")
         logger.warning("Application will start but journal monitoring is disabled")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Elite: Dangerous Colonization Assistant")
     await file_watcher.stop_watching()
@@ -74,7 +75,7 @@ app = FastAPI(
     title="Elite: Dangerous Colonization Assistant",
     description="Real-time tracking for Elite: Dangerous colonization efforts",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -103,18 +104,18 @@ async def root():
         "name": "Elite: Dangerous Colonization Assistant",
         "version": "1.0.0",
         "status": "running",
-        "docs": "/docs"
+        "docs": "/docs",
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     config = get_config()
     uvicorn.run(
         "src.main:app",
         host=config.server.host,
         port=config.server.port,
         reload=True,
-        log_level=config.logging.level.lower()
+        log_level=config.logging.level.lower(),
     )

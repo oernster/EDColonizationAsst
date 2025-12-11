@@ -1,4 +1,5 @@
 """API routes for application settings"""
+
 import yaml
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
@@ -15,7 +16,7 @@ async def get_app_settings():
     return AppSettings(
         journal_directory=config.journal.directory,
         inara_api_key=config.inara.api_key,
-        inara_commander_name=config.inara.commander_name
+        inara_commander_name=config.inara.commander_name,
     )
 
 
@@ -67,6 +68,7 @@ async def update_app_settings(settings: AppSettings):
 
     # Update in-memory config so the running app sees the changes
     from ..config import _config
+
     if _config is not None:
         _config.journal.directory = settings.journal_directory
         _config.inara.api_key = settings.inara_api_key or ""

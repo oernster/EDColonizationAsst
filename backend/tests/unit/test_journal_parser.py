@@ -1,4 +1,5 @@
 """Tests for journal parser"""
+
 import json
 from pathlib import Path
 
