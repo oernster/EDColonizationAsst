@@ -101,10 +101,14 @@ function App() {
                 textAlign: { xs: 'left', sm: 'right' },
               }}
             >
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{ color: 'primary.main' }}>
                 Commander:
               </Typography>
-              <Typography variant="body1" fontWeight="medium">
+              <Typography
+                variant="body1"
+                fontWeight="medium"
+                color="text.primary"
+              >
                 {commanderName || 'Unknown'}
               </Typography>
             </Box>
