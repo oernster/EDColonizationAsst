@@ -210,6 +210,18 @@ __marimo__/
 node_modules/
 dist/
 build/
+# Frontend production bundle (built by Vite)
+frontend/dist/
+# Installer / runtime build artefacts
+build_payload/
+guiinstaller.build/
+guiinstaller.dist/
+guiinstaller.onefile-build/
+runtime_entry.build/
+runtime_entry.dist/
+runtime_entry.onefile-build/
+EDColonizationAsstInstaller.exe
+EDColonizationAsst.exe
 .env.local
 .env.*.local
 npm-debug.log*

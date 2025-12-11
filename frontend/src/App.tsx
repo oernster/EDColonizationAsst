@@ -27,7 +27,8 @@ const darkTheme = createTheme({
     },
   },
   typography: {
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
   },
 });
 
@@ -59,11 +60,11 @@ function App() {
     loadMeta();
   }, []);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);
   };
 
-  const handleSystemViewTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleSystemViewTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setSystemViewTab(newValue);
   };
 
@@ -113,7 +114,7 @@ function App() {
               </Typography>
             </Box>
           </Box>
-          
+
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs value={currentTab} onChange={handleTabChange} aria-label="nav tabs">
               <Tab label="System View" />

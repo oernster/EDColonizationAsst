@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from . import __version__
 from .config import get_config
 from .utils.logger import setup_logging, get_logger
 from .services.journal_parser import JournalParser
@@ -19,6 +21,9 @@ from .api.websocket import websocket_endpoint, set_aggregator, notify_system_upd
 # Setup logging
 setup_logging()
 logger = get_logger(__name__)
+
+# Project root (installation root when packaged)
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # Application lifespan management
 
@@ -82,7 +87,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Elite: Dangerous Colonization Assistant",
     description="Real-time tracking for Elite: Dangerous colonization efforts",
-    version="1.0.0",
+    version=__version__,
     lifespan=lifespan,
 )
 
@@ -95,6 +100,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve the built frontend (React/Vite) as static files if available.
+# The expected layout is:
+#   <project_root>/frontend/dist/...
+frontend_dist = PROJECT_ROOT / "frontend" / "dist"
+if frontend_dist.exists():
+    logger.info("Mounting frontend static files from %s", frontend_dist)
+    app.mount(
+        "/app",
+        StaticFiles(directory=frontend_dist, html=True),
+        name="frontend",
+    )
+else:
+    logger.warning(
+        "Frontend dist directory not found at %s; /app will not serve the web UI.",
+        frontend_dist,
+    )
 
 # Include routers
 app.include_router(colonization_router)
@@ -110,7 +132,7 @@ async def root():
     """Root endpoint"""
     return {
         "name": "Elite: Dangerous Colonization Assistant",
-        "version": "1.0.0",
+        "version": __version__,
         "status": "running",
         "docs": "/docs",
     }

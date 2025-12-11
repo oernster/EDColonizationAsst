@@ -1,865 +1,589 @@
-# Elite: Dangerous Colonization Assistant - Architecture Plan
+# Elite: Dangerous Colonization Assistant – Architecture
 
-## 1. System Overview
+This document describes the current architecture of the Elite: Dangerous Colonization Assistant as implemented in this repository (version 1.2.0).
 
-### High-Level Architecture
+The system is split into:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        User Interface (React)                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐   │
-│  │System Search │  │ Site Filter  │  │  Commodity Display │   │
-│  │& Autocomplete│  │  & Selection │  │  with Color Coding │   │
-│  └──────────────┘  └──────────────┘  └────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-                              ▲
-                              │ WebSocket (Real-time updates)
-                              │ REST API (Initial data)
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Python Backend (FastAPI)                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐   │
-│  │   Journal    │  │     File     │  │       Data         │   │
-│  │    Parser    │  │   Watcher    │  │    Aggregator      │   │
-│  └──────────────┘  └──────────────┘  └────────────────────┘   │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐   │
-│  │  WebSocket   │  │  REST API    │  │   Data Store       │   │
-│  │   Server     │  │   Endpoints  │  │   (In-Memory)      │   │
-│  └──────────────┘  └──────────────┘  └────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-                              ▲
-                              │ File System Watch
-                              │
-┌─────────────────────────────────────────────────────────────────┐
-│              Elite: Dangerous Journal Files                      │
-│  C:\Users\%userprofile%\Saved Games\Frontier Developments\      │
-│                    Elite Dangerous\                              │
-│  - Journal.*.log (Line-delimited JSON)                          │
-│  - Status.json (Real-time ship status)                          │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## 2. Backend Architecture (Python)
-
-### 2.1 Technology Stack
-- **Framework**: FastAPI (async support, WebSocket, auto-documentation)
-- **File Watching**: watchdog
-- **Testing**: pytest, pytest-asyncio, pytest-cov
-- **Type Checking**: mypy
-- **Code Quality**: pylint, black, isort
-
-### 2.2 Project Structure
-
-```
-backend/
-├── src/
-│   ├── __init__.py
-│   ├── main.py                      # FastAPI application entry point
-│   ├── config.py                    # Configuration management
-│   ├── models/
-│   │   ├── __init__.py
-│   │   ├── journal_events.py        # Pydantic models for journal events
-│   │   ├── colonisation.py          # Colonisation-specific models
-│   │   └── api_models.py            # API request/response models
-│   ├── services/
-│   │   ├── __init__.py
-│   │   ├── journal_parser.py        # Parse journal files
-│   │   ├── file_watcher.py          # Watch for file changes
-│   │   ├── data_aggregator.py       # Aggregate colonisation data
-│   │   └── system_tracker.py        # Track current system
-│   ├── repositories/
-│   │   ├── __init__.py
-│   │   └── colonisation_repository.py  # Data access layer
-│   ├── api/
-│   │   ├── __init__.py
-│   │   ├── routes.py                # REST API endpoints
-│   │   └── websocket.py             # WebSocket handlers
-│   └── utils/
-│       ├── __init__.py
-│       ├── logger.py                # Logging configuration
-│       └── validators.py            # Custom validators
-├── tests/
-│   ├── __init__.py
-│   ├── conftest.py                  # Pytest fixtures
-│   ├── unit/
-│   │   ├── test_journal_parser.py
-│   │   ├── test_file_watcher.py
-│   │   ├── test_data_aggregator.py
-│   │   └── test_system_tracker.py
-│   ├── integration/
-│   │   ├── test_api_endpoints.py
-│   │   └── test_websocket.py
-│   └── fixtures/
-│       └── sample_journal_data.json
-├── requirements.txt
-├── requirements-dev.txt
-├── pytest.ini
-├── mypy.ini
-└── README.md
-```
-
-### 2.3 Core Components
-
-#### 2.3.1 Journal Parser Service
-**Responsibility**: Parse Elite: Dangerous journal files and extract relevant events
-
-```python
-# Interfaces (Abstract Base Classes)
-class IJournalParser(ABC):
-    @abstractmethod
-    def parse_file(self, file_path: Path) -> List[JournalEvent]:
-        """Parse a journal file and return list of events"""
-        pass
-    
-    @abstractmethod
-    def parse_line(self, line: str) -> Optional[JournalEvent]:
-        """Parse a single line from journal file"""
-        pass
-
-# Implementation
-class JournalParser(IJournalParser):
-    """
-    Parses Elite: Dangerous journal files.
-    Follows Single Responsibility Principle.
-    """
-    def __init__(self, event_factory: IEventFactory):
-        self._event_factory = event_factory
-    
-    def parse_file(self, file_path: Path) -> List[JournalEvent]:
-        # Implementation
-        pass
-    
-    def parse_line(self, line: str) -> Optional[JournalEvent]:
-        # Implementation
-        pass
-```
-
-**Key Events to Parse**:
-- `ColonizationConstructionDepot` - Construction site status
-- `ColonizationContribution` - Player contributions
-- `Location` - Current system/station
-- `FSDJump` - System changes
-- `Docked` - Station docking
-
-#### 2.3.2 File Watcher Service
-**Responsibility**: Monitor journal directory for changes and trigger parsing
-
-```python
-class IFileWatcher(ABC):
-    @abstractmethod
-    async def start_watching(self, directory: Path) -> None:
-        """Start watching directory for changes"""
-        pass
-    
-    @abstractmethod
-    async def stop_watching(self) -> None:
-        """Stop watching directory"""
-        pass
-
-class FileWatcher(IFileWatcher):
-    """
-    Watches Elite: Dangerous journal directory for changes.
-    Uses Observer pattern to notify subscribers.
-    """
-    def __init__(self, 
-                 parser: IJournalParser,
-                 event_bus: IEventBus):
-        self._parser = parser
-        self._event_bus = event_bus
-        self._observer = None
-    
-    async def start_watching(self, directory: Path) -> None:
-        # Implementation using watchdog
-        pass
-```
-
-#### 2.3.3 Data Aggregator Service
-**Responsibility**: Aggregate colonisation data by system and construction site
-
-```python
-class IDataAggregator(ABC):
-    @abstractmethod
-    def aggregate_by_system(self, 
-                           system_name: str) -> SystemColonisationData:
-        """Aggregate all construction sites in a system"""
-        pass
-    
-    @abstractmethod
-    def aggregate_commodities(self, 
-                             sites: List[ConstructionSite]) -> Dict[str, CommodityAggregate]:
-        """Aggregate commodities across multiple sites"""
-        pass
-
-class DataAggregator(IDataAggregator):
-    """
-    Aggregates colonisation data.
-    Follows Open/Closed Principle - extensible for new aggregation types.
-    """
-    def __init__(self, repository: IColonisationRepository):
-        self._repository = repository
-    
-    def aggregate_by_system(self, system_name: str) -> SystemColonizationData:
-        # Implementation
-        pass
-```
-
-#### 2.3.4 Colonization Repository
-**Responsibility**: Data access and storage (in-memory with thread-safe operations)
-
-```python
-class IColonizationRepository(ABC):
-    @abstractmethod
-    def add_construction_site(self, site: ConstructionSite) -> None:
-        """Add or update construction site data"""
-        pass
-    
-    @abstractmethod
-    def get_sites_by_system(self, system_name: str) -> List[ConstructionSite]:
-        """Get all construction sites in a system"""
-        pass
-    
-    @abstractmethod
-    def get_all_systems(self) -> List[str]:
-        """Get list of all known systems with construction"""
-        pass
-
-class ColonizationRepository(IColonizationRepository):
-    """
-    Thread-safe in-memory storage for colonization data.
-    Uses Repository pattern for data access abstraction.
-    """
-    def __init__(self):
-        self._data: Dict[str, Dict[int, ConstructionSite]] = {}
-        self._lock = asyncio.Lock()
-```
-
-### 2.4 Data Models
-
-```python
-from pydantic import BaseModel, Field
-from typing import List, Optional
-from datetime import datetime
-from enum import Enum
-
-class CommodityStatus(str, Enum):
-    COMPLETED = "completed"
-    IN_PROGRESS = "in_progress"
-    NOT_STARTED = "not_started"
-
-class Commodity(BaseModel):
-    """Represents a commodity requirement for construction"""
-    name: str
-    name_localised: str
-    required_amount: int
-    provided_amount: int
-    payment: int
-    
-    @property
-    def remaining_amount(self) -> int:
-        return max(0, self.required_amount - self.provided_amount)
-    
-    @property
-    def progress_percentage(self) -> float:
-        if self.required_amount == 0:
-            return 100.0
-        return (self.provided_amount / self.required_amount) * 100.0
-    
-    @property
-    def status(self) -> CommodityStatus:
-        if self.provided_amount >= self.required_amount:
-            return CommodityStatus.COMPLETED
-        elif self.provided_amount > 0:
-            return CommodityStatus.IN_PROGRESS
-        return CommodityStatus.NOT_STARTED
-
-class ConstructionSite(BaseModel):
-    """Represents a construction site (depot)"""
-    market_id: int
-    station_name: str
-    station_type: str
-    system_name: str
-    system_address: int
-    construction_progress: float
-    construction_complete: bool
-    construction_failed: bool
-    commodities: List[Commodity]
-    last_updated: datetime
-    
-    @property
-    def is_complete(self) -> bool:
-        return self.construction_complete
-    
-    @property
-    def total_commodities_needed(self) -> int:
-        return sum(c.remaining_amount for c in self.commodities)
-
-class SystemColonizationData(BaseModel):
-    """Aggregated colonization data for a system"""
-    system_name: str
-    construction_sites: List[ConstructionSite]
-    total_sites: int
-    completed_sites: int
-    in_progress_sites: int
-    
-    @property
-    def completion_percentage(self) -> float:
-        if self.total_sites == 0:
-            return 0.0
-        return (self.completed_sites / self.total_sites) * 100.0
-
-class CommodityAggregate(BaseModel):
-    """Aggregated commodity data across multiple sites"""
-    commodity_name: str
-    commodity_name_localised: str
-    total_required: int
-    total_provided: int
-    total_remaining: int
-    sites_requiring: List[str]  # List of station names
-    average_payment: float
-    
-    @property
-    def progress_percentage(self) -> float:
-        if self.total_required == 0:
-            return 100.0
-        return (self.total_provided / self.total_required) * 100.0
-```
-
-### 2.5 API Endpoints
-
-```python
-# REST API Endpoints
-GET  /api/systems                    # Get all systems with construction
-GET  /api/systems/{system_name}      # Get colonisation data for system
-GET  /api/systems/search?q={query}   # Search systems (autocomplete)
-GET  /api/sites/{market_id}          # Get specific construction site
-GET  /api/health                     # Health check
-
-# WebSocket Endpoint
-WS   /ws/colonization                # Real-time updates
-```
-
-### 2.6 WebSocket Protocol
-
-```json
-// Client -> Server (Subscribe to system)
-{
-  "type": "subscribe",
-  "system_name": "Lupus Dark Region BQ-Y d66"
-}
-
-// Server -> Client (Update notification)
-{
-  "type": "update",
-  "system_name": "Lupus Dark Region BQ-Y d66",
-  "data": {
-    "construction_sites": [...],
-    "timestamp": "2025-11-29T01:00:00Z"
-  }
-}
-
-// Server -> Client (Current system changed)
-{
-  "type": "system_changed",
-  "old_system": "System A",
-  "new_system": "System B",
-  "timestamp": "2025-11-29T01:00:00Z"
-}
-```
-
-## 3. Frontend Architecture (React)
-
-### 3.1 Technology Stack
-- **Framework**: React 18+ with TypeScript
-- **State Management**: Zustand (lightweight, simple)
-- **UI Library**: Material-UI (MUI) or Tailwind CSS + Headless UI
-- **WebSocket**: native WebSocket API with reconnection logic
-- **HTTP Client**: Axios
-- **Testing**: Jest, React Testing Library
-- **Build Tool**: Vite
-
-### 3.2 Project Structure
-
-```
-frontend/
-├── public/
-│   └── index.html
-├── src/
-│   ├── App.tsx
-│   ├── main.tsx
-│   ├── components/
-│   │   ├── SystemSelector/
-│   │   │   ├── SystemSelector.tsx
-│   │   │   ├── SystemSelector.test.tsx
-│   │   │   └── SystemAutocomplete.tsx
-│   │   ├── SiteList/
-│   │   │   ├── SiteList.tsx
-│   │   │   ├── SiteList.test.tsx
-│   │   │   ├── SiteCard.tsx
-│   │   │   └── SiteFilter.tsx
-│   │   ├── CommodityDisplay/
-│   │   │   ├── CommodityDisplay.tsx
-│   │   │   ├── CommodityDisplay.test.tsx
-│   │   │   ├── CommodityList.tsx
-│   │   │   ├── CommodityItem.tsx
-│   │   │   └── ProgressBar.tsx
-│   │   ├── Layout/
-│   │   │   ├── Header.tsx
-│   │   │   ├── Sidebar.tsx
-│   │   │   └── MainLayout.tsx
-│   │   └── common/
-│   │       ├── LoadingSpinner.tsx
-│   │       ├── ErrorBoundary.tsx
-│   │       └── StatusBadge.tsx
-│   ├── hooks/
-│   │   ├── useWebSocket.ts
-│   │   ├── useColonisationData.ts
-│   │   └── useSystemSearch.ts
-│   ├── services/
-│   │   ├── api.ts
-│   │   └── websocket.ts
-│   ├── stores/
-│   │   ├── colonisationStore.ts
-│   │   └── uiStore.ts
-│   ├── types/
-│   │   ├── colonisation.ts
-│   │   └── api.ts
-│   ├── utils/
-│   │   ├── formatters.ts
-│   │   └── colors.ts
-│   └── styles/
-│       └── theme.ts
-├── tests/
-│   └── setup.ts
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-└── README.md
-```
-
-### 3.3 Component Hierarchy
-
-```
-App
-├── MainLayout
-│   ├── Header
-│   │   └── SystemSelector
-│   │       └── SystemAutocomplete
-│   ├── Sidebar (optional - for filters/settings)
-│   │   └── SiteFilter
-│   └── MainContent
-│       ├── SiteList
-│       │   └── SiteCard (multiple)
-│       │       ├── StatusBadge
-│       │       ├── ProgressBar
-│       │       └── CommodityDisplay
-│       │           └── CommodityList
-│       │               └── CommodityItem (multiple)
-│       │                   ├── ProgressBar
-│       │                   └── StatusIndicator
-│       └── AggregatedView (optional)
-│           └── CommodityAggregate
-```
-
-### 3.4 Key Components
-
-#### 3.4.1 SystemSelector Component
-```typescript
-interface SystemSelectorProps {
-  onSystemSelect: (systemName: string) => void;
-  currentSystem?: string;
-}
-
-export const SystemSelector: React.FC<SystemSelectorProps> = ({
-  onSystemSelect,
-  currentSystem
-}) => {
-  // Auto-detect current system from backend
-  // Provide autocomplete search
-  // Show current system prominently
-};
-```
-
-#### 3.4.2 SiteCard Component
-```typescript
-interface SiteCardProps {
-  site: ConstructionSite;
-  expanded?: boolean;
-  onToggle?: () => void;
-}
-
-export const SiteCard: React.FC<SiteCardProps> = ({
-  site,
-  expanded,
-  onToggle
-}) => {
-  // Display site name, type, progress
-  // Show completion status with color coding
-  // Expandable to show commodity details
-};
-```
-
-#### 3.4.3 CommodityItem Component
-```typescript
-interface CommodityItemProps {
-  commodity: Commodity;
-  siteName: string;
-}
-
-export const CommodityItem: React.FC<CommodityItemProps> = ({
-  commodity,
-  siteName
-}) => {
-  // Color coding:
-  // - GREEN text for completed (provided >= required)
-  // - ORANGE text for in-progress (provided < required)
-  // Show: name, required, provided, remaining, progress bar, payment
-};
-```
-
-### 3.5 State Management (Zustand)
-
-```typescript
-interface ColonizationStore {
-  // State
-  currentSystem: string | null;
-  systemData: SystemColonizationData | null;
-  allSystems: string[];
-  selectedSites: Set<number>;
-  loading: boolean;
-  error: string | null;
-  
-  // Actions
-  setCurrentSystem: (system: string) => void;
-  updateSystemData: (data: SystemColonizationData) => void;
-  toggleSiteSelection: (marketId: number) => void;
-  clearSelection: () => void;
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-}
-
-export const useColonizationStore = create<ColonizationStore>((set) => ({
-  // Implementation
-}));
-```
-
-### 3.6 WebSocket Hook
-
-```typescript
-export const useWebSocket = (url: string) => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [lastMessage, setLastMessage] = useState<any>(null);
-  const ws = useRef<WebSocket | null>(null);
-  
-  useEffect(() => {
-    // Connect to WebSocket
-    // Handle reconnection
-    // Parse messages
-    // Update store
-  }, [url]);
-  
-  const sendMessage = useCallback((message: any) => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify(message));
-    }
-  }, []);
-  
-  return { isConnected, lastMessage, sendMessage };
-};
-```
-
-## 4. UI/UX Design Specifications
-
-### 4.1 Color Scheme
-
-```typescript
-export const theme = {
-  colors: {
-    // Status colors
-    completed: '#4CAF50',      // Green for completed commodities
-    inProgress: '#FF9800',     // Orange for needed commodities
-    notStarted: '#9E9E9E',     // Gray for not started
-    
-    // Site status
-    siteComplete: '#4CAF50',   // Green badge for complete sites
-    siteInProgress: '#2196F3', // Blue for in-progress sites
-    
-    // UI colors
-    background: '#1a1a1a',     // Dark background (Elite theme)
-    surface: '#2d2d2d',        // Card background
-    primary: '#FF6B00',        // Elite orange
-    text: '#FFFFFF',
-    textSecondary: '#B0B0B0',
-  }
-};
-```
-
-### 4.2 Layout Design
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Header                                                          │
-│  ┌────────────────────────────────────────────────────────┐    │
-│  │ 🔍 Search System: [Lupus Dark Region BQ-Y d66    ▼]   │    │
-│  │    Current: Lupus Dark Region BQ-Y d66 (Auto-detected)│    │
-│  └────────────────────────────────────────────────────────┘    │
-├─────────────────────────────────────────────────────────────────┤
-│  Filters: [All Sites ▼] [Show Completed ☑] [Aggregate View ☐] │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ 🟢 Sweet City O' Mine (COMPLETE)                         │  │
-│  │ Progress: ████████████████████████ 100%                  │  │
-│  │ Type: Planetary Construction Depot                       │  │
-│  │ ✓ All commodities delivered                             │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ 🔵 Sword Of Repentance (IN PROGRESS)                     │  │
-│  │ Progress: ████████████░░░░░░░░░░ 65%                    │  │
-│  │ Type: Orbital Construction Site                          │  │
-│  │                                                           │  │
-│  │ Commodities Required:                                    │  │
-│  │ ┌────────────────────────────────────────────────────┐  │  │
-│  │ │ ✓ Ceramic Composites                               │  │  │
-│  │ │   497 / 497 (100%) ████████████████████████        │  │  │
-│  │ │   Payment: 724 CR                                  │  │  │
-│  │ ├────────────────────────────────────────────────────┤  │  │
-│  │ │ 🟠 CMM Composite                                   │  │  │
-│  │ │   2519 / 3912 (64%) ████████████░░░░░░░░          │  │  │
-│  │ │   Remaining: 1393                                  │  │  │
-│  │ │   Payment: 6788 CR                                 │  │  │
-│  │ ├────────────────────────────────────────────────────┤  │  │
-│  │ │ 🟠 Steel                                           │  │  │
-│  │ │   783 / 1871 (42%) ████████░░░░░░░░░░░░          │  │  │
-│  │ │   Remaining: 1088                                  │  │  │
-│  │ │   Payment: 1234 CR                                 │  │  │
-│  │ └────────────────────────────────────────────────────┘  │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ 📊 Aggregated Commodities (All Sites)                    │  │
-│  │ ┌────────────────────────────────────────────────────┐  │  │
-│  │ │ 🟠 CMM Composite - 1393 needed                     │  │  │
-│  │ │   Required by: Sword Of Repentance                 │  │  │
-│  │ ├────────────────────────────────────────────────────┤  │  │
-│  │ │ 🟠 Steel - 1088 needed                             │  │  │
-│  │ │   Required by: Sword Of Repentance                 │  │  │
-│  │ └────────────────────────────────────────────────────┘  │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## 5. Testing Strategy
-
-### 5.1 Backend Testing
-
-```python
-# Unit Tests
-- test_journal_parser.py
-  - Test parsing valid journal lines
-  - Test parsing invalid/malformed data
-  - Test event type detection
-  - Test data extraction
-
-- test_file_watcher.py
-  - Test file change detection
-  - Test new file detection
-  - Test event emission
-  - Test error handling
-
-- test_data_aggregator.py
-  - Test system aggregation
-  - Test commodity aggregation
-  - Test progress calculations
-  - Test site delineation
-
-# Integration Tests
-- test_api_endpoints.py
-  - Test GET /api/systems
-  - Test GET /api/systems/{name}
-  - Test search functionality
-  - Test error responses
-
-- test_websocket.py
-  - Test connection establishment
-  - Test subscription mechanism
-  - Test real-time updates
-  - Test reconnection logic
-```
-
-### 5.2 Frontend Testing
-
-```typescript
-// Component Tests
-- SystemSelector.test.tsx
-  - Test autocomplete functionality
-  - Test system selection
-  - Test current system display
-
-- SiteCard.test.tsx
-  - Test completion status display
-  - Test color coding
-  - Test expand/collapse
-
-- CommodityItem.test.tsx
-  - Test progress calculation
-  - Test color coding (green/orange)
-  - Test data display
-
-// Integration Tests
-- Test WebSocket connection
-- Test real-time updates
-- Test state management
-- Test error handling
-```
-
-## 6. Design Patterns Applied
-
-### 6.1 SOLID Principles
-
-1. **Single Responsibility Principle**
-   - Each service has one clear responsibility
-   - JournalParser only parses
-   - FileWatcher only watches
-   - DataAggregator only aggregates
-
-2. **Open/Closed Principle**
-   - Services are open for extension via interfaces
-   - New event types can be added without modifying existing code
-   - New aggregation strategies can be added
-
-3. **Liskov Substitution Principle**
-   - All implementations can replace their interfaces
-   - Mock implementations for testing
-
-4. **Interface Segregation Principle**
-   - Small, focused interfaces
-   - Clients only depend on methods they use
-
-5. **Dependency Inversion Principle**
-   - High-level modules depend on abstractions
-   - Dependency injection throughout
-
-### 6.2 Other Patterns
-
-- **Repository Pattern**: Data access abstraction
-- **Observer Pattern**: File watching and event notifications
-- **Factory Pattern**: Event creation from JSON
-- **Strategy Pattern**: Different aggregation strategies
-- **Singleton Pattern**: Configuration and logger
-- **Facade Pattern**: API layer simplifies complex operations
-
-## 7. Deployment & Configuration
-
-### 7.1 Configuration File
-
-```yaml
-# config.yaml
-journal:
-  directory: "C:\\Users\\%USERNAME%\\Saved Games\\Frontier Developments\\Elite Dangerous"
-  watch_interval: 1.0  # seconds
-
-server:
-  host: "localhost"
-  port: 8000
-  cors_origins:
-    - "http://localhost:5173"  # Vite dev server
-
-websocket:
-  ping_interval: 30  # seconds
-  reconnect_attempts: 5
-
-logging:
-  level: "INFO"
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-```
-
-### 7.2 Environment Variables
-
-```bash
-# .env
-ED_JOURNAL_PATH=C:\Users\%USERNAME%\Saved Games\Frontier Developments\Elite Dangerous
-API_HOST=localhost
-API_PORT=8000
-WS_PORT=8000
-LOG_LEVEL=INFO
-```
-
-## 8. Development Workflow
-
-### 8.1 Backend Development
-
-```bash
-# Setup
-cd backend
-python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-pip install -r requirements-dev.txt
-
-# Run tests
-pytest tests/ -v --cov=src --cov-report=html
-
-# Type checking
-mypy src/
-
-# Code formatting
-black src/ tests/
-isort src/ tests/
-
-# Linting
-pylint src/
-
-# Run server
-python -m src.main
-```
-
-### 8.2 Frontend Development
-
-```bash
-# Setup
-cd frontend
-npm install
-
-# Run tests
-npm test
-
-# Type checking
-npm run type-check
-
-# Development server
-npm run dev
-
-# Build
-npm run build
-```
-
-## 9. Future Enhancements
-
-1. **Persistent Storage**: Add SQLite/PostgreSQL for historical data
-2. **Trade Route Suggestions**: Suggest where to buy needed commodities
-3. **Notifications**: Desktop notifications for construction completion
-4. **Multi-Commander Support**: Track multiple commanders
-5. **Export Functionality**: Export shopping lists
-6. **Mobile App**: React Native version
-7. **Community Features**: Share construction progress with squadron
-8. **Analytics Dashboard**: Historical progress tracking
-
-## 10. Performance Considerations
-
-1. **File Watching**: Debounce file change events (1 second)
-2. **WebSocket**: Throttle updates to max 1 per second per client
-3. **Data Aggregation**: Cache aggregated results, invalidate on update
-4. **Frontend**: Virtual scrolling for large commodity lists
-5. **Memory**: Limit stored journal events to last 24 hours
-
-## 11. Security Considerations
-
-1. **File Access**: Validate journal file paths
-2. **WebSocket**: Implement connection limits
-3. **API**: Rate limiting on endpoints
-4. **Input Validation**: Sanitize all user inputs
-5. **CORS**: Restrict to known origins
+- A Python **backend** that ingests Elite: Dangerous journal files, tracks colonization construction sites, and exposes REST+WebSocket APIs.
+- A React/TypeScript **frontend** that visualizes system and site progress.
+- Optional **GameGlass** integration assets.
 
 ---
 
-This architecture provides a solid foundation for a maintainable, testable, and extensible Elite: Dangerous Colonization Assistant application.
+## 1. System overview
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                          React Frontend (Vite)                     │
+│  - System selector, site list, settings UI                         │
+│  - Talks to backend via:                                           │
+│      • REST  → http://localhost:8000/api/*                         │
+│      • WebSocket → ws://localhost:8000/ws/colonization             │
+└─────────────────────────────────────────────────────────────────────┘
+                            ▲                  ▲
+                            │                  │
+                   JSON over HTTP        JSON over WS
+                            │                  │
+                            ▼                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Python Backend (FastAPI)                         │
+│                                                                     │
+│  FastAPI app: [`backend/src/main.py`](backend/src/main.py:1)        │
+│                                                                     │
+│  - Journal ingestion pipeline                                       │
+│      • Watches Elite journals via watchdog                          │
+│      • Parses relevant events                                       │
+│      • Updates SQLite-backed repository                             │
+│  - Aggregation services                                             │
+│      • Aggregates data per system/site                              │
+│      • Optionally enriches with Inara API data                      │
+│  - APIs                                                             │
+│      • REST routes under /api/*                                     │
+│      • WebSocket endpoint /ws/colonization                          │
+│                                                                     │
+│  Persistence: [`backend/src/colonization.db`](backend/src/colonization.db) (*) │
+│    (*) created at runtime by                                         │
+│        [`ColonizationRepository`](backend/src/repositories/colonization_repository.py:64) │
+└─────────────────────────────────────────────────────────────────────┘
+                            ▲
+                            │  filesystem (journal directory)
+                            │
+┌─────────────────────────────────────────────────────────────────────┐
+│                 Elite: Dangerous Journal Files                      │
+│  - Journal.*.log  (line-delimited JSON events)                     │
+│  - Status.json (not currently parsed directly)                     │
+│  Location (FSDJump, Docked, Location) events provide system/station│
+│  Colonization* events provide construction depot state             │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. Backend architecture
+
+### 2.1 Technology stack
+
+- **Framework**: FastAPI + Uvicorn (`uvicorn backend.src.main:app`)
+- **Language/runtime**: Python 3.10+
+- **Config & settings**:
+  - Pydantic v2 + `pydantic-settings` in [`backend/src/config.py`](backend/src/config.py:1)
+  - YAML configuration in [`backend/config.yaml`](backend/config.yaml:1)
+  - Commander/Inara secrets in `backend/commander.yaml` (user-created from example)
+- **Persistence**: SQLite via `sqlite3` in [`ColonizationRepository`](backend/src/repositories/colonization_repository.py:64)
+- **File watching**: `watchdog` in [`FileWatcher`](backend/src/services/file_watcher.py:326)
+- **HTTP client**: `httpx` (for Inara integration) in [`backend/src/services/inara_service.py`](backend/src/services/inara_service.py:1)
+- **WebSockets**: FastAPI WebSocket support in [`backend/src/api/websocket.py`](backend/src/api/websocket.py:1)
+- **Logging**: Standard library logging configured in [`backend/src/utils/logger.py`](backend/src/utils/logger.py:1)
+- **Tests**: `pytest` and friends under [`backend/tests/unit`](backend/tests/unit:1)
+
+### 2.2 Project structure (backend)
+
+```text
+backend/
+├── config.yaml                        # Main runtime configuration
+├── example.commander.yaml             # Example per‑commander/Inara config
+├── requirements.txt                   # Runtime dependencies
+├── requirements-dev.txt               # Dev/test tooling
+├── src/
+│   ├── __init__.py                    # Package root, defines __version__
+│   ├── main.py                        # FastAPI app, lifespan, entrypoint
+│   ├── config.py                      # Pydantic settings and config loader
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── routes.py                  # Core REST API under /api
+│   │   ├── websocket.py               # /ws/colonization endpoint, broadcast
+│   │   ├── settings.py                # /api/settings endpoints
+│   │   └── journal.py                 # /api/journal/status, etc.
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── api_models.py              # Response models for REST
+│   │   ├── colonization.py            # Core domain models (sites, commodities)
+│   │   └── journal_events.py          # Typed journal event models
+│   ├── repositories/
+│   │   ├── __init__.py
+│   │   └── colonization_repository.py # SQLite-backed repository
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── journal_parser.py          # Parses Journal.*.log events
+│   │   ├── file_watcher.py            # Watchdog integration and event pipeline
+│   │   ├── data_aggregator.py         # Aggregates per-system data, Inara merge
+│   │   ├── system_tracker.py          # Tracks current system/station
+│   │   └── inara_service.py           # Thin wrapper around Inara API
+│   └── utils/
+│       ├── __init__.py
+│       ├── journal.py                 # Journal-specific helpers
+│       ├── logger.py                  # Logging configuration and helpers
+│       └── windows.py                 # Windows-specific utilities (e.g. paths)
+└── tests/
+    ├── unit/                          # Unit and integration-style tests
+    ├── fixtures/                      # Test data
+    └── conftest.py                    # Shared pytest fixtures
+```
+
+### 2.3 Application lifecycle
+
+The main FastAPI application is defined in [`backend/src/main.py`](backend/src/main.py:1).
+
+Key points:
+
+- A lifespan context manager (`lifespan`) is registered with the app to handle startup and shutdown.
+- On startup, the following instances are created:
+
+  - `ColonizationRepository` (SQLite) from [`colonization_repository.py`](backend/src/repositories/colonization_repository.py:64)
+  - `DataAggregator` from [`data_aggregator.py`](backend/src/services/data_aggregator.py:36)
+  - `SystemTracker` from [`system_tracker.py`](backend/src/services/system_tracker.py:1)
+  - `JournalParser` from [`journal_parser.py`](backend/src/services/journal_parser.py:36)
+  - `FileWatcher` from [`file_watcher.py`](backend/src/services/file_watcher.py:326)
+
+- These instances are stored on `app.state` and also passed into:
+
+  - `set_dependencies` in [`backend/src/api/routes.py`](backend/src/api/routes.py:32) so REST handlers can access the repository, aggregator and tracker.
+  - `set_aggregator` in [`backend/src/api/websocket.py`](backend/src/api/websocket.py:1) so WebSocket broadcast handlers can query aggregated system data.
+
+- The `FileWatcher`:
+
+  - Uses configuration from [`backend/config.yaml`](backend/config.yaml:1) to locate the notebook/journal directory (`journal.directory`).
+  - Starts a `watchdog.Observer` watching for `Journal.*.log` changes.
+  - On startup, also runs an initial pass over all existing journal files to populate the repository.
+
+- A callback (`notify_system_update` from [`websocket.py`](backend/src/api/websocket.py:1)) is registered via `file_watcher.set_update_callback(...)` so that when journal files change and system data is updated, connected WebSocket clients are notified.
+
+- On shutdown, the lifespan handler stops the `FileWatcher` and its observer.
+
+The root endpoint (`/`) in [`backend/src/main.py`](backend/src/main.py:108) returns static metadata including the current version and a link to `/docs` (FastAPI’s OpenAPI UI).
+
+### 2.4 Configuration
+
+Configuration is defined in [`backend/src/config.py`](backend/src/config.py:1) and loaded using `get_config()`.
+
+Key config sources:
+
+- **YAML** – [`backend/config.yaml`](backend/config.yaml:1)
+  - Journal directory path.
+  - Server host/port and allowed CORS origins.
+  - WebSocket ping/reconnect behaviour.
+  - Logging format and level.
+
+- **Environment variables** (optionally) – used by `pydantic-settings` to override YAML values, typically for deployment scenarios.
+
+Commander and Inara‑specific settings are stored separately:
+
+- Example: [`backend/example.commander.yaml`](backend/example.commander.yaml:1)
+- Actual: `backend/commander.yaml` (created by the user or written by the settings API / UI).
+
+### 2.5 Data model overview
+
+Core colonization-related models live in [`backend/src/models/colonization.py`](backend/src/models/colonization.py:1):
+
+- **Commodity**
+  - `name`, `name_localised`
+  - `required_amount`, `provided_amount`
+  - `payment`
+  - Derived properties such as remaining amount and progress percentage.
+
+- **ConstructionSite**
+  - `market_id` (unique identifier per depot)
+  - `station_name`, `station_type`
+  - `system_name`, `system_address`
+  - `construction_progress` (percentage)
+  - `construction_complete` / `construction_failed`
+  - `commodities: list[Commodity]`
+  - `last_updated`
+
+- **SystemColonizationData**
+  - `system_name`
+  - `construction_sites: list[ConstructionSite]`
+  - `total_sites`, `completed_sites`, `in_progress_sites`
+  - `completion_percentage` (derived)
+
+- **CommodityAggregate**
+  - Aggregated per‑commodity totals (required/provided/remaining) across all sites in a system.
+
+API‑facing response models are defined in [`backend/src/models/api_models.py`](backend/src/models/api_models.py:1).
+
+Typed journal event models (e.g. `ColonizationConstructionDepotEvent`, `ColonizationContributionEvent`, `LocationEvent`, `FSDJumpEvent`, `DockedEvent`, `CommanderEvent`) live in [`backend/src/models/journal_events.py`](backend/src/models/journal_events.py:1).
+
+### 2.6 Repository and persistence
+
+[`ColonizationRepository`](backend/src/repositories/colonization_repository.py:64) is the central abstraction over persistent colonization data:
+
+- Stores `ConstructionSite` records in SQLite (`construction_sites` table).
+- Serializes `commodities` as JSON per row.
+- Guards concurrent access with an `asyncio.Lock`:
+
+  - Methods that modify or read multiple rows acquire the lock.
+  - Care is taken to avoid deadlocks (e.g. `update_commodity` defers locking to operations it calls).
+
+- Exposes asynchronous methods, including:
+
+  - `add_construction_site(site)`
+  - `get_site_by_market_id(market_id)`
+  - `get_sites_by_system(system_name)`
+  - `get_all_systems()`
+  - `get_all_sites()`
+  - `get_stats()` (total systems/sites, in‑progress vs completed)
+  - `update_commodity(market_id, commodity_name, provided_amount)`
+  - `clear_all()` (primarily for test and debug purposes)
+
+### 2.7 Journal ingestion pipeline
+
+The ingestion pipeline is implemented primarily in:
+
+- [`backend/src/services/journal_parser.py`](backend/src/services/journal_parser.py:36)
+- [`backend/src/services/file_watcher.py`](backend/src/services/file_watcher.py:326)
+- [`backend/src/services/system_tracker.py`](backend/src/services/system_tracker.py:1)
+- [`backend/src/repositories/colonization_repository.py`](backend/src/repositories/colonization_repository.py:64)
+
+**Flow:**
+
+1. The `FileWatcher` registers a `JournalFileHandler` with `watchdog.Observer` for the configured journal directory.
+2. When `Journal.*.log` files are created or modified, the handler schedules asynchronous processing on the main event loop.
+3. The `JournalParser`:
+
+   - Reads each line in the journal file.
+   - Parses JSON and filters to a set of **relevant** events:
+     - `ColonizationConstructionDepot` / `ColonisationConstructionDepot`
+     - `ColonizationContribution` / `ColonisationContribution`
+     - `Location`
+     - `FSDJump`
+     - `Docked`
+     - `Commander`
+   - Creates strongly‑typed event instances defined in [`journal_events.py`](backend/src/models/journal_events.py:1).
+
+4. For each event type:
+
+   - `Location`, `FSDJump`, `Docked`:
+     - Update the `SystemTracker`, which maintains the commander’s current system, station and docked status.
+   - `Docked` at a colonization site:
+     - Creates or updates a placeholder `ConstructionSite` with correct station and system metadata if needed.
+   - `ColonizationConstructionDepot`:
+     - Normalizes different journal payload styles (old `Commodities` vs new `ResourcesRequired`).
+     - Merges with existing site metadata when present.
+     - Updates or inserts a `ConstructionSite` in the repository.
+   - `ColonizationContribution`:
+     - Updates the corresponding `Commodity`’s `provided_amount` for the relevant site using `update_commodity`.
+
+5. After processing a file, the handler collects the set of systems that changed and invokes the update callback (if configured). This callback is typically wired to WebSocket broadcasting so that connected clients receive live updates when:
+
+   - Sites are discovered.
+   - Commodity contributions change.
+   - Construction sites complete.
+
+The debug endpoint `/api/debug/reload-journals` in [`backend/src/api/routes.py`](backend/src/api/routes.py:199) uses the same parser/handler logic to rebuild state from scratch.
+
+### 2.8 Aggregation and Inara integration
+
+[`DataAggregator`](backend/src/services/data_aggregator.py:36) is responsible for:
+
+- Fetching all sites in a given system from the repository.
+- Optionally fetching additional colonization data from Inara via [`InaraService`](backend/src/services/inara_service.py:1).
+- Combining local (journal‑derived) and remote (Inara) information according to the following rules:
+
+  - Local, incomplete sites remain driven by journal data.
+  - Inara can **upgrade** local sites to completed if Inara reports them as complete.
+  - Inara can add completed sites that do not exist locally.
+  - Inara data is never allowed to downgrade or create “phantom” incomplete sites that the commander has never seen.
+
+- Providing:
+
+  - `aggregate_by_system(system_name) → SystemColonizationData`
+  - `aggregate_commodities(sites) → list[CommodityAggregate]`
+  - `get_system_summary(system_name)` – convenience summary (counts, most‑needed commodity etc.)
+
+This aggregation logic underpins:
+
+- `/api/system`
+- `/api/system/commodities`
+- `/api/sites` (which walks all systems and uses aggregated views).
+
+### 2.9 REST API
+
+Core REST routes are implemented in [`backend/src/api/routes.py`](backend/src/api/routes.py:1) and use the repository, aggregator and system tracker injected via `set_dependencies`.
+
+Key endpoints:
+
+- **Health and meta**
+
+  - `GET /api/health` – basic health check and journal directory accessibility.
+
+- **Systems and sites**
+
+  - `GET /api/systems` – list of all systems that have at least one construction site.
+  - `GET /api/systems/search?q=...` – simple case‑insensitive substring search over known systems (for autocomplete).
+  - `GET /api/systems/current` – current system/station and docked status from `SystemTracker`.
+  - `GET /api/system?name=...` – full `SystemColonizationData` view for a system.
+  - `GET /api/system/commodities?name=...` – aggregated per‑commodity “shopping list” for a system.
+  - `GET /api/sites` – global view of all sites, split into in‑progress vs completed.
+  - `GET /api/sites/{market_id}` – details for a single `ConstructionSite`.
+  - `GET /api/stats` – high‑level stats from the repository.
+
+- **Debug**
+
+  - `POST /api/debug/reload-journals` – clears repository state and reprocesses all journal files using the same pipeline as the live watcher.
+
+Additional routers:
+
+- [`backend/src/api/settings.py`](backend/src/api/settings.py:1)
+  - `GET /api/settings` and `POST /api/settings` to read/update config (including Inara settings and journal directory).
+- [`backend/src/api/journal.py`](backend/src/api/journal.py:1)
+  - `GET /api/journal/status` for a minimal, journaling‑oriented status view.
+
+### 2.10 WebSocket endpoint
+
+The WebSocket endpoint is implemented in [`backend/src/api/websocket.py`](backend/src/api/websocket.py:1) and mounted at:
+
+- `WS /ws/colonization`
+
+Responsibilities:
+
+- Maintain active WebSocket client connections.
+- Support simple message types, such as:
+
+  - Subscribe/unsubscribe to specific systems.
+  - Receive `update` messages when a subscribed system’s data changes (via the file watcher callback).
+
+Under the hood, `websocket.py` uses the `DataAggregator` to fetch up‑to‑date `SystemColonizationData` for systems whenever journal events lead to repository changes.
+
+---
+
+## 3. Frontend architecture
+
+### 3.1 Technology stack
+
+- **Framework**: React 18 with TypeScript
+- **State management**: Zustand
+- **UI components**: Material‑UI (MUI)
+- **HTTP client**: Axios
+- **Build tool / dev server**: Vite
+- **Testing**: Vitest + Testing Library
+
+### 3.2 Project structure (frontend)
+
+```text
+frontend/
+├── index.html                    # Root HTML template
+├── package.json                  # NPM scripts and dependencies
+├── tsconfig.json                 # TypeScript config
+├── vite.config.ts                # Vite config (incl. dev proxy to backend)
+└── src/
+    ├── main.tsx                  # React entry point
+    ├── App.tsx                   # Top‑level app component
+    ├── index.css                 # Global styles
+    ├── components/
+    │   ├── SystemSelector/
+    │   │   └── SystemSelector.tsx
+    │   ├── SiteList/
+    │   │   └── SiteList.tsx
+    │   └── Settings/
+    │       └── SettingsPage.tsx
+    ├── services/
+    │   └── api.ts                # Axios client and typed API helpers
+    ├── stores/
+    │   └── colonizationStore.ts  # Zustand store for colonization data
+    ├── types/
+    │   ├── colonization.ts       # Shared frontend types for colonization data
+    │   └── settings.ts           # Types for settings/inara config
+    ├── gameglass/
+    │   ├── app.js
+    │   ├── index.html
+    │   └── style.css
+    └── test/
+        └── setup.ts              # Vitest + Testing Library setup
+```
+
+### 3.3 Data flow
+
+- The frontend obtains **initial data** via REST:
+
+  - `/api/systems` to populate the system selector.
+  - `/api/system` and `/api/system/commodities` to show system‑level and aggregated commodity views.
+  - `/api/journal/status` and `/api/settings` for status/settings screens.
+
+- For **live updates**, it connects to `ws://localhost:8000/ws/colonization`:
+
+  - Subscribes to one or more systems.
+  - Receives update messages whenever the backend’s file watcher processes new journal events and notifies the WebSocket layer.
+
+- State is centralized in the `colonizationStore` in [`frontend/src/stores/colonizationStore.ts`](frontend/src/stores/colonizationStore.ts:1):
+
+  - Stores the current system selection, latest `SystemColonizationData` for that system, commodity aggregates, loading/error states, etc.
+  - Exposes actions to update system selection, handle incoming WebSocket messages, and refresh REST data.
+
+### 3.4 Key components (frontend)
+
+- **SystemSelector** – [`frontend/src/components/SystemSelector/SystemSelector.tsx`](frontend/src/components/SystemSelector/SystemSelector.tsx:1)
+
+  - Renders a dropdown/autocomplete of known systems.
+  - Uses `/api/systems` and `/api/systems/search` for options.
+  - Updates the selected system in the store and triggers data fetch/subscription.
+
+- **SiteList** – [`frontend/src/components/SiteList/SiteList.tsx`](frontend/src/components/SiteList/SiteList.tsx:1)
+
+  - Displays construction sites for the currently selected system.
+  - Groups by in‑progress vs completed.
+  - Shows commodity requirements and per‑site completion.
+
+- **SettingsPage** – [`frontend/src/components/Settings/SettingsPage.tsx`](frontend/src/components/Settings/SettingsPage.tsx:1)
+
+  - Manages journal directory and Inara/commander settings through `/api/settings`.
+  - Writes changes back to the backend (which in turn persists to YAML).
+
+- **App / main** – [`frontend/src/App.tsx`](frontend/src/App.tsx:1), [`frontend/src/main.tsx`](frontend/src/main.tsx:1)
+
+  - Compose the layout, routes (if any) and top‑level state providers.
+  - Wire WebSocket connection and REST fetches into the store.
+
+---
+
+## 4. Journal, settings and commander/Inara configuration
+
+### 4.1 Journal configuration
+
+The backend reads its journal directory from config:
+
+- [`backend/config.yaml`](backend/config.yaml:1) → `journal.directory`
+- Overrideable via environment variables via [`backend/src/config.py`](backend/src/config.py:1)
+
+The journal directory typically points to:
+
+```text
+C:\Users\%USERNAME%\Saved Games\Frontier Developments\Elite Dangerous
+```
+
+### 4.2 Commander and Inara configuration
+
+Per‑commander settings live in a YAML file:
+
+- Example template: [`backend/example.commander.yaml`](backend/example.commander.yaml:1)
+- Runtime file: `backend/commander.yaml` (ignored by Git; created/updated by the settings UI or manually)
+
+The Inara service in [`backend/src/services/inara_service.py`](backend/src/services/inara_service.py:1) reads this configuration to:
+
+- Obtain API key and commander name.
+- Call Inara’s API to fetch colonization site status and progress.
+- Provide structured data to `DataAggregator` for merging with local journal data.
+
+---
+
+## 5. GameGlass integration
+
+GameGlass‑specific assets are in:
+
+- [`frontend/src/gameglass`](frontend/src/gameglass:1)
+
+and are documented in detail in:
+
+- [`GameGlass-Integration.md`](GameGlass-Integration.md:1)
+
+These assets and docs cover:
+
+- How GameGlass shards can call the backend APIs.
+- Which endpoints to use for system lists, per‑site data and aggregated commodities.
+- How to use the WebSocket endpoint for live updates inside a GameGlass‑hosted web view.
+
+---
+
+## 6. Deployment and local usage
+
+### 6.1 Local development / usage
+
+For non‑developers, the primary entrypoint is:
+
+- Windows: [`run-edca.bat`](run-edca.bat:1)
+- Linux/macOS: [`run-edca.sh`](run-edca.sh:1)
+
+These scripts:
+
+- Ensure Python and Node.js dependencies are installed.
+- Start:
+
+  - Backend on `http://localhost:8000`
+  - Frontend on `http://localhost:5173`
+
+Developers can also run:
+
+- Backend from the project root:
+
+  ```bash
+  uvicorn backend.src.main:app --reload
+  ```
+
+- Frontend from the project root:
+
+  ```bash
+  npm --prefix frontend run dev
+  ```
+
+or follow the more detailed workflows in [`DEVELOPMENT_README.md`](DEVELOPMENT_README.md:1).
+
+### 6.2 Towards bundling / packaging
+
+High‑level packaging options (also sketched in [`DEVELOPMENT_README.md`](DEVELOPMENT_README.md:1)) include:
+
+- Building the frontend into static assets (`npm run build` → `frontend/dist`).
+- Serving those assets via FastAPI `StaticFiles`, potentially at `/` or `/app`.
+- Freezing the backend + static frontend into:
+
+  - Windows: PyInstaller / cx_Freeze / PyOxidizer bundles.
+  - Linux: per‑distro packages or self‑contained binaries.
+  - macOS: `.app` bundles via Briefcase/PyInstaller.
+
+The live architecture (journal watcher → repository → aggregator → REST/WS → React UI) stays the same; only the deployment shape changes.
+
+---
+
+## 7. Testing and quality
+
+### 7.1 Backend
+
+Backend tests live under [`backend/tests/unit`](backend/tests/unit:1) and include coverage of:
+
+- Journal parsing (`test_journal_parser.py`)
+- File watching and event handling (`test_file_watcher.py`)
+- Data aggregation (`test_data_aggregator.py`)
+- System tracking and utility functions (`test_system_tracker_and_utils.py`)
+- API routes (`test_api_routes.py`, `test_api_journal_and_settings.py`)
+- WebSocket behaviour (`test_websocket.py`)
+- Repository persistence (`test_repository.py`)
+- Main app wiring (`test_main_app.py`)
+- Domain models (`test_models.py`)
+
+Quality tooling:
+
+- Type checking via `mypy` (configured in [`backend/mypy.ini`](backend/mypy.ini:1))
+- Formatting via `black` and `isort`
+- Linting via `pylint` (see [`backend/requirements-dev.txt`](backend/requirements-dev.txt:1))
+
+### 7.2 Frontend
+
+Frontend tests and setup live under:
+
+- [`frontend/src/App.test.tsx`](frontend/src/App.test.tsx:1)
+- [`frontend/src/test/setup.ts`](frontend/src/test/setup.ts:1)
+
+The stack uses:
+
+- Vitest for running tests.
+- React Testing Library for DOM interaction.
+- TypeScript’s compiler for type checking.
+
+Linting and type checks can be run via the NPM scripts in [`frontend/package.json`](frontend/package.json:1).
+
+---
+
+## 8. Future enhancements
+
+The current architecture is designed to be:
+
+- **Extensible** – new event types, aggregation strategies and views can be added without disrupting existing layers.
+- **Testable** – key components are covered by unit and integration‑style tests.
+- **Deployable** – supports lightweight local use and can be evolved towards per‑OS packaged binaries or wrapped desktop apps (e.g. Electron/Tauri) as needed.
+
+Potential future directions include:
+
+- Richer analytics and history (e.g. long‑term storage of progress over time).
+- Smarter trade‑route suggestions based on required commodities.
+- Multi‑commander support and squadron sharing.
+- Tighter integration between GameGlass shards and the React UI.
+
+This document reflects the current code layout and behaviour of the backend and frontend in this repository. For detailed implementation specifics, consult the linked modules and tests throughout this file.

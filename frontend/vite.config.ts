@@ -4,6 +4,10 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // The built app is served by FastAPI under /app, so we set the base
+  // path accordingly. In development, the Vite dev server will also
+  // serve the app at http://localhost:5173/app/.
+  base: '/app/',
   plugins: [react()],
   resolve: {
     alias: {

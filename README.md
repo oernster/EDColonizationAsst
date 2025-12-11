@@ -4,28 +4,71 @@ Elite Dangerous colonization support site and shard integration for GameGlass.
 
 ## Quick start (from project root)
 
-All commands below are run from the project root directory (no `cd` into subfolders needed):
+This section is aimed at non-developers who just want to run the tool locally.
 
-```bash
-# Terminal 1 – backend (FastAPI)
-uvicorn backend.src.main:app
-```
+Both the backend (API server) and frontend (web UI) are started for you by simple launch scripts in the project root.
 
-Backend will be available at:
+### Windows
 
-- API: http://localhost:8000
-- API docs (Swagger): http://localhost:8000/docs
-- WebSocket: ws://localhost:8000/ws/colonization
+1. Make sure you have:
+   - **Python 3.10+** installed
+   - **Node.js 18+** (which includes `npm`) installed
 
-```bash
-# Terminal 2 – frontend (Vite + React)
-npm --prefix frontend run dev
-```
+2. From File Explorer, double-click:
 
-Frontend will be available at:
-http://localhost:5173
+   - `run-edca.bat`
 
-> Note: The frontend is already configured to proxy API requests to `http://localhost:8000`, so make sure the backend is running before starting the frontend.
+   or from PowerShell / Command Prompt:
+
+   ```bash
+   .\run-edca.bat
+   ```
+
+The script will:
+
+- Install Python dependencies for the backend (first run may take a little longer).
+- Install Node.js dependencies for the frontend if needed.
+- Start the backend API on `http://localhost:8000`.
+- Start the frontend on `http://localhost:5173`.
+
+Once it is running, open a browser on the same PC and go to:
+
+- `http://localhost:5173`
+
+When you are finished, close the browser tab and press `Ctrl+C` in the frontend window. You can then close the backend window.
+
+### Linux / macOS
+
+1. Make sure you have:
+   - **Python 3.10+** installed (`python3 --version`)
+   - **Node.js 18+** installed (`node --version`)
+
+2. In a terminal, from the project root, make the script executable (only needed once):
+
+   ```bash
+   chmod +x ./run-edca.sh
+   ```
+
+3. Then start the app:
+
+   ```bash
+   ./run-edca.sh
+   ```
+
+The script will:
+
+- Install Python dependencies for the backend (first run may take a little longer).
+- Install Node.js dependencies for the frontend if needed.
+- Start the backend API on `http://localhost:8000`.
+- Start the frontend on `http://localhost:5173`.
+
+Open a browser on the same machine and go to:
+
+- `http://localhost:5173`
+
+Press `Ctrl+C` in the terminal when you are finished; the script will stop both the frontend and backend.
+
+> Developer note: if you prefer to run `uvicorn` and `npm` commands manually, see the **Backend development** and **Frontend development** sections in `DEVELOPMENT_README.md`.
 
 ---
 
