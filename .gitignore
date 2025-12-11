@@ -222,3 +222,6 @@ yarn-error.log*
 
 # Local commander / Inara credentials (not tracked)
 backend/commander.yaml
+
+# colonization database
+backend/src/colonization.db
