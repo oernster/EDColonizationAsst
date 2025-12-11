@@ -15,7 +15,8 @@ INARA_API_URL = "https://inara.cz/inapi/v1/"
 
 # Simple in-process rate limiting and per-system caching for Inara API calls
 # NOTE: These limits are intentionally conservative to avoid Inara API bans.
-_MIN_CALL_INTERVAL_SECONDS = 30.0  # minimum delay between any two Inara calls
+# Community guidance is ~2 requests/min; 35s keeps us safely under that.
+_MIN_CALL_INTERVAL_SECONDS = 35.0  # minimum delay between any two Inara calls
 _CACHE_TTL = timedelta(minutes=15)
 
 _last_call_at: Optional[datetime] = None
