@@ -31,7 +31,8 @@ http://localhost:5173
 
 ## Commander / Inara configuration
 
-The backend may need your Inara credentials in order to enrich colonization data for your commander in future; to add those...
+The backend may need your Inara credentials in order to enrich colonization data for your commander in future.
+However, it wil definitely need your commander name.
 
 Configuration is stored in a YAML file in the `backend` directory:
 
