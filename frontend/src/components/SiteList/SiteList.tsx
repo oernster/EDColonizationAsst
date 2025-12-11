@@ -1,5 +1,6 @@
-import { Box, Typography, Paper, LinearProgress, Chip, Grid } from '@mui/material';
-import { CheckCircle, Construction } from '@mui/icons-material';
+import { useState } from 'react';
+import { Box, Typography, Paper, LinearProgress, Chip, Grid, Collapse, IconButton } from '@mui/material';
+import { CheckCircle, Construction, ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useColonizationStore } from '../../stores/colonizationStore';
 import { ConstructionSite, CommodityStatus, CommodityAggregate } from '../../types/colonization';
 
@@ -83,6 +84,7 @@ const aggregateCommodities = (
 
 export const SiteList = () => {
   const { systemData } = useColonizationStore();
+  const [systemExpanded, setSystemExpanded] = useState(true);
 
   if (!systemData || systemData.construction_sites.length === 0) {
     return (
@@ -101,175 +103,196 @@ export const SiteList = () => {
   return (
     <Box>
       {/* System Summary */}
-      <Paper sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
-        <Typography variant="h5" gutterBottom>
-          {systemData.system_name}
-        </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="body2" color="text.secondary">
-              Total Sites
-            </Typography>
-            <Typography variant="h6">{systemData.total_sites}</Typography>
+      <Paper sx={{ p: 3, mb: 2, bgcolor: 'background.paper' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: systemExpanded ? 2 : 0,
+          }}
+        >
+          <Typography variant="h5">
+            {systemData.system_name}
+          </Typography>
+          <IconButton
+            size="small"
+            onClick={() => setSystemExpanded((prev) => !prev)}
+            aria-label={systemExpanded ? 'Collapse system details' : 'Expand system details'}
+          >
+            {systemExpanded ? <ExpandLess /> : <ExpandMore />}
+          </IconButton>
+        </Box>
+
+        <Collapse in={systemExpanded} timeout="auto" unmountOnExit>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="body2" color="text.secondary">
+                Total Sites
+              </Typography>
+              <Typography variant="h6">{systemData.total_sites}</Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="body2" color="text.secondary">
+                Completed
+              </Typography>
+              <Typography variant="h6" color="success.main">
+                {systemData.completed_sites}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="body2" color="text.secondary">
+                In Progress
+              </Typography>
+              <Typography variant="h6" color="warning.main">
+                {systemData.in_progress_sites}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="body2" color="text.secondary">
+                Overall Progress
+              </Typography>
+              <Typography variant="h6">
+                {systemData.completion_percentage.toFixed(1)}%
+              </Typography>
+            </Grid>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="body2" color="text.secondary">
-              Completed
-            </Typography>
-            <Typography variant="h6" color="success.main">
-              {systemData.completed_sites}
-            </Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="body2" color="text.secondary">
-              In Progress
-            </Typography>
-            <Typography variant="h6" color="warning.main">
-              {systemData.in_progress_sites}
-            </Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="body2" color="text.secondary">
-              Overall Progress
-            </Typography>
-            <Typography variant="h6">
-              {systemData.completion_percentage.toFixed(1)}%
-            </Typography>
-          </Grid>
-        </Grid>
+        </Collapse>
       </Paper>
 
       {/* System Shopping List */}
-      <Paper sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
-        <Typography variant="h6" gutterBottom>
-          System Shopping List
-        </Typography>
-
-        {shoppingList.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            No commodity requirements are currently available for this system.
-            Once construction sites advertise required commodities in the
-            journals or via Inara, they will appear here.
+      <Collapse in={systemExpanded} timeout="auto" unmountOnExit>
+        <Paper sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
+          <Typography variant="h6" gutterBottom>
+            System Shopping List
           </Typography>
-        ) : (
-          <>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ mb: 2 }}
-            >
-              Aggregated commodities still needed across all construction sites
-              in this system.
+
+          {shoppingList.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No commodity requirements are currently available for this system.
+              Once construction sites advertise required commodities in the
+              journals or via Inara, they will appear here.
             </Typography>
-            {shoppingList.map((commodity) => (
-              <Box
-                key={commodity.commodity_name}
-                sx={{
-                  p: 2,
-                  mb: 1,
-                  bgcolor: 'background.default',
-                  borderRadius: 1,
-                  borderLeft: 4,
-                  borderColor:
-                    commodity.progress_percentage >= 100
-                      ? 'success.main'
-                      : 'warning.main',
-                }}
+          ) : (
+            <>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mb: 2 }}
               >
+                Aggregated commodities still needed across all construction sites
+                in this system.
+              </Typography>
+              {shoppingList.map((commodity) => (
                 <Box
+                  key={commodity.commodity_name}
                   sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
+                    p: 2,
                     mb: 1,
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: 1,
-                  }}
-                >
-                  <Typography variant="body1" fontWeight="medium">
-                    {commodity.commodity_name_localised}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Avg payment:{' '}
-                    {Math.round(
-                      commodity.average_payment
-                    ).toLocaleString()}{' '}
-                    CR/t
-                  </Typography>
-                </Box>
-
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    mb: 1,
-                    flexWrap: 'wrap',
-                    gap: 1,
-                  }}
-                >
-                  <Typography variant="body2" color="text.secondary">
-                    {commodity.total_provided.toLocaleString()} /{' '}
-                    {commodity.total_required.toLocaleString()} total
-                    {commodity.total_remaining > 0 && (
-                      <span style={{ color: '#FF9800', marginLeft: 8 }}>
-                        (Need{' '}
-                        {commodity.total_remaining.toLocaleString()} more)
-                      </span>
-                    )}
-                  </Typography>
-                  <Typography variant="body2" fontWeight="bold">
-                    {commodity.progress_percentage.toFixed(1)}%
-                  </Typography>
-                </Box>
-
-                <LinearProgress
-                  variant="determinate"
-                  value={commodity.progress_percentage}
-                  sx={{
-                    height: 6,
+                    bgcolor: 'background.default',
                     borderRadius: 1,
-                    bgcolor: 'grey.800',
-                    '& .MuiLinearProgress-bar': {
-                      bgcolor:
-                        commodity.progress_percentage >= 100
-                          ? 'success.main'
-                          : 'warning.main',
-                    },
+                    borderLeft: 4,
+                    borderColor:
+                      commodity.progress_percentage >= 100
+                        ? 'success.main'
+                        : 'warning.main',
                   }}
-                />
-
-                {commodity.sites_requiring.length > 0 && (
+                >
                   <Box
                     sx={{
-                      mt: 1,
                       display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 0.5,
+                      justifyContent: 'space-between',
+                      mb: 1,
                       alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: 1,
                     }}
                   >
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ mr: 1 }}
-                    >
-                      Needed at:
+                    <Typography variant="body1" fontWeight="medium">
+                      {commodity.commodity_name_localised}
                     </Typography>
-                    {commodity.sites_requiring.map((station) => (
-                      <Chip
-                        key={station}
-                        label={station}
-                        size="small"
-                        variant="outlined"
-                      />
-                    ))}
+                    <Typography variant="body2" color="text.secondary">
+                      Avg payment{' '}
+                      {Math.round(
+                        commodity.average_payment
+                      ).toLocaleString()}{' '}
+                      CR/t
+                    </Typography>
                   </Box>
-                )}
-              </Box>
-            ))}
-          </>
-        )}
-      </Paper>
+
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      mb: 1,
+                      flexWrap: 'wrap',
+                      gap: 1,
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      {commodity.total_provided.toLocaleString()} /{' '}
+                      {commodity.total_required.toLocaleString()} total
+                      {commodity.total_remaining > 0 && (
+                        <span style={{ color: '#FF9800', marginLeft: 8 }}>
+                          (Need{' '}
+                          {commodity.total_remaining.toLocaleString()} more)
+                        </span>
+                      )}
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold">
+                      {commodity.progress_percentage.toFixed(1)}%
+                    </Typography>
+                  </Box>
+
+                  <LinearProgress
+                    variant="determinate"
+                    value={commodity.progress_percentage}
+                    sx={{
+                      height: 6,
+                      borderRadius: 1,
+                      bgcolor: 'grey.800',
+                      '& .MuiLinearProgress-bar': {
+                        bgcolor:
+                          commodity.progress_percentage >= 100
+                            ? 'success.main'
+                            : 'warning.main',
+                      },
+                    }}
+                  />
+
+                  {commodity.sites_requiring.length > 0 && (
+                    <Box
+                      sx={{
+                        mt: 1,
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 0.5,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ mr: 1 }}
+                      >
+                        Needed at:
+                      </Typography>
+                      {commodity.sites_requiring.map((station) => (
+                        <Chip
+                          key={station}
+                          label={station}
+                          size="small"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+              ))}
+            </>
+          )}
+        </Paper>
+      </Collapse>
 
       {/* Construction Sites */}
       {systemData.construction_sites.map((site) => (
@@ -283,11 +306,12 @@ const SiteCard = ({ site }: { site: ConstructionSite }) => {
   const isComplete = site.construction_complete;
   const statusColor = isComplete ? 'success.main' : 'info.main';
   const statusIcon = isComplete ? <CheckCircle /> : <Construction />;
+  const [expanded, setExpanded] = useState(true);
 
   return (
     <Paper sx={{ p: 3, mb: 2, bgcolor: 'background.paper' }}>
       {/* Site Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: expanded ? 2 : 0 }}>
         <Box sx={{ color: statusColor }}>{statusIcon}</Box>
         <Box sx={{ flex: 1 }}>
           <Typography variant="h6">{site.station_name}</Typography>
@@ -306,118 +330,128 @@ const SiteCard = ({ site }: { site: ConstructionSite }) => {
           variant="outlined"
           sx={{ ml: 1 }}
         />
+        <IconButton
+          size="small"
+          onClick={() => setExpanded((prev) => !prev)}
+          aria-label={expanded ? 'Collapse site' : 'Expand site'}
+          sx={{ ml: 1 }}
+        >
+          {expanded ? <ExpandLess /> : <ExpandMore />}
+        </IconButton>
       </Box>
 
-      {/* Progress Bar */}
-      <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            Construction Progress
-          </Typography>
-          <Typography variant="body2" fontWeight="bold">
-            {site.construction_progress.toFixed(1)}%
-          </Typography>
+      <Collapse in={expanded} timeout="auto" unmountOnExit>
+        {/* Progress Bar */}
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Construction Progress
+            </Typography>
+            <Typography variant="body2" fontWeight="bold">
+              {site.construction_progress.toFixed(1)}%
+            </Typography>
+          </Box>
+          <LinearProgress
+            variant="determinate"
+            value={site.construction_progress}
+            sx={{
+              height: 8,
+              borderRadius: 1,
+              bgcolor: 'grey.800',
+              '& .MuiLinearProgress-bar': {
+                bgcolor: isComplete ? 'success.main' : 'info.main',
+              },
+            }}
+          />
         </Box>
-        <LinearProgress
-          variant="determinate"
-          value={site.construction_progress}
-          sx={{
-            height: 8,
-            borderRadius: 1,
-            bgcolor: 'grey.800',
-            '& .MuiLinearProgress-bar': {
-              bgcolor: isComplete ? 'success.main' : 'info.main',
-            },
-          }}
-        />
-      </Box>
 
-      {/* Commodities */}
-      {site.commodities.length > 0 && (
-        <Box>
-          <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
-            Commodities Required:
-          </Typography>
-          {site.commodities.map((commodity, index) => (
-            <Box
-              key={index}
-              sx={{
-                p: 2,
-                mb: 1,
-                bgcolor: 'background.default',
-                borderRadius: 1,
-                borderLeft: 4,
-                borderColor:
-                  commodity.status === CommodityStatus.COMPLETED
-                    ? 'success.main'
-                    : commodity.status === CommodityStatus.IN_PROGRESS
-                    ? 'warning.main'
-                    : 'grey.700',
-              }}
-            >
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography
-                  variant="body1"
-                  fontWeight="medium"
-                  sx={{
-                    color:
-                      commodity.status === CommodityStatus.COMPLETED
-                        ? 'success.main'
-                        : commodity.status === CommodityStatus.IN_PROGRESS
-                        ? 'warning.main'
-                        : 'text.primary',
-                  }}
-                >
-                  {commodity.status === CommodityStatus.COMPLETED && '✓ '}
-                  {commodity.name_localised}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Payment: {commodity.payment.toLocaleString()} CR
-                </Typography>
-              </Box>
-
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                  {commodity.provided_amount.toLocaleString()} /{' '}
-                  {commodity.required_amount.toLocaleString()}
-                  {commodity.remaining_amount > 0 && (
-                    <span style={{ color: '#FF9800', marginLeft: 8 }}>
-                      (Need {commodity.remaining_amount.toLocaleString()} more)
-                    </span>
-                  )}
-                </Typography>
-                <Typography variant="body2" fontWeight="bold">
-                  {commodity.progress_percentage.toFixed(1)}%
-                </Typography>
-              </Box>
-
-              <LinearProgress
-                variant="determinate"
-                value={commodity.progress_percentage}
+        {/* Commodities */}
+        {site.commodities.length > 0 && (
+          <Box>
+            <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+              Commodities Required:
+            </Typography>
+            {site.commodities.map((commodity, index) => (
+              <Box
+                key={index}
                 sx={{
-                  height: 6,
+                  p: 2,
+                  mb: 1,
+                  bgcolor: 'background.default',
                   borderRadius: 1,
-                  bgcolor: 'grey.800',
-                  '& .MuiLinearProgress-bar': {
-                    bgcolor:
-                      commodity.status === CommodityStatus.COMPLETED
-                        ? 'success.main'
-                        : 'warning.main',
-                  },
+                  borderLeft: 4,
+                  borderColor:
+                    commodity.status === CommodityStatus.COMPLETED
+                      ? 'success.main'
+                      : commodity.status === CommodityStatus.IN_PROGRESS
+                      ? 'warning.main'
+                      : 'grey.700',
                 }}
-              />
-            </Box>
-          ))}
-        </Box>
-      )}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography
+                    variant="body1"
+                    fontWeight="medium"
+                    sx={{
+                      color:
+                        commodity.status === CommodityStatus.COMPLETED
+                          ? 'success.main'
+                          : commodity.status === CommodityStatus.IN_PROGRESS
+                          ? 'warning.main'
+                          : 'text.primary',
+                    }}
+                  >
+                    {commodity.status === CommodityStatus.COMPLETED && '✓ '}
+                    {commodity.name_localised}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Payment: {commodity.payment.toLocaleString()} CR
+                  </Typography>
+                </Box>
 
-      {isComplete && (
-        <Box sx={{ mt: 2, p: 2, bgcolor: 'success.dark', borderRadius: 1 }}>
-          <Typography color="success.contrastText" textAlign="center">
-            ✓ All commodities delivered - Construction complete!
-          </Typography>
-        </Box>
-      )}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {commodity.provided_amount.toLocaleString()} /{' '}
+                    {commodity.required_amount.toLocaleString()}
+                    {commodity.remaining_amount > 0 && (
+                      <span style={{ color: '#FF9800', marginLeft: 8 }}>
+                        (Need {commodity.remaining_amount.toLocaleString()} more)
+                      </span>
+                    )}
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {commodity.progress_percentage.toFixed(1)}%
+                  </Typography>
+                </Box>
+
+                <LinearProgress
+                  variant="determinate"
+                  value={commodity.progress_percentage}
+                  sx={{
+                    height: 6,
+                    borderRadius: 1,
+                    bgcolor: 'grey.800',
+                    '& .MuiLinearProgress-bar': {
+                      bgcolor:
+                        commodity.status === CommodityStatus.COMPLETED
+                          ? 'success.main'
+                          : 'warning.main',
+                    },
+                  }}
+                />
+              </Box>
+            ))}
+          </Box>
+        )}
+
+        {isComplete && (
+          <Box sx={{ mt: 2, p: 2, bgcolor: 'success.dark', borderRadius: 1 }}>
+            <Typography color="success.contrastText" textAlign="center">
+              ✓ All commodities delivered - Construction complete!
+            </Typography>
+          </Box>
+        )}
+      </Collapse>
     </Paper>
   );
 };
