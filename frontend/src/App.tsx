@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ThemeProvider, createTheme, CssBaseline, Container, Box, Typography, Tabs, Tab } from '@mui/material';
 import { SystemSelector } from './components/SystemSelector/SystemSelector';
 import { SiteList } from './components/SiteList/SiteList';
 import { useColonizationStore } from './stores/colonizationStore';
 import { SettingsPage } from './components/Settings/SettingsPage';
+import { api } from './services/api';
 
 const darkTheme = createTheme({
   palette: {
@@ -34,6 +35,21 @@ function App() {
   const { currentSystem, systemData, loading, error } = useColonizationStore();
   const [currentTab, setCurrentTab] = useState(0);
   const [systemViewTab, setSystemViewTab] = useState(0);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadHealth = async () => {
+      try {
+        const health = await api.healthCheck();
+        setAppVersion(health.version);
+      } catch (err) {
+        setHealthError('Failed to load version information');
+      }
+    };
+
+    loadHealth();
+  }, []);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);
@@ -62,6 +78,7 @@ function App() {
             <Tabs value={currentTab} onChange={handleTabChange} aria-label="nav tabs">
               <Tab label="System View" />
               <Tab label="Settings" />
+              <Tab label="About" />
             </Tabs>
           </Box>
 
@@ -120,6 +137,25 @@ function App() {
           {currentTab === 1 && (
             <Box sx={{ pt: 4 }}>
               <SettingsPage />
+            </Box>
+          )}
+
+          {currentTab === 2 && (
+            <Box sx={{ pt: 4 }}>
+              <Typography variant="h5" gutterBottom>
+                Application Name: EDColonizationAsst
+              </Typography>
+              <Typography variant="body1" sx={{ mb: 1 }}>
+                Author: Oliver Ernster
+              </Typography>
+              <Typography variant="body1">
+                Version: {appVersion ?? 'Loading...'}
+              </Typography>
+              {healthError && (
+                <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                  {healthError}
+                </Typography>
+              )}
             </Box>
           )}
         </Box>
