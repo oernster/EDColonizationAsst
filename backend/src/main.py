@@ -1,6 +1,5 @@
 """Main FastAPI application entry point"""
 
-import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
@@ -21,33 +20,37 @@ from .api.websocket import websocket_endpoint, set_aggregator, notify_system_upd
 setup_logging()
 logger = get_logger(__name__)
 
-# Global instances
-repository: ColonizationRepository
-aggregator: DataAggregator
-system_tracker: SystemTracker
-file_watcher: FileWatcher
+# Application lifespan management
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Lifespan context manager for startup and shutdown events
-    """
-    # Startup
-    global repository, aggregator, system_tracker, file_watcher
+    Lifespan context manager for startup and shutdown events.
 
+    Responsible for:
+    - constructing core services and repositories
+    - wiring FastAPI route and WebSocket dependencies
+    - starting and stopping the journal file watcher
+    """
     logger.info("Starting Elite: Dangerous Colonization Assistant")
 
     config = get_config()
 
-    # Initialize components
+    # Initialize core components
     repository = ColonizationRepository()
     aggregator = DataAggregator(repository)
     system_tracker = SystemTracker()
     parser = JournalParser()
     file_watcher = FileWatcher(parser, system_tracker, repository)
 
-    # Set dependencies for API routes
+    # Expose components via application state for other parts of the app
+    app.state.repository = repository
+    app.state.aggregator = aggregator
+    app.state.system_tracker = system_tracker
+    app.state.file_watcher = file_watcher
+
+    # Set dependencies for API routes and WebSocket layer
     set_dependencies(repository, aggregator, system_tracker)
     set_aggregator(aggregator)
 
@@ -60,14 +63,19 @@ async def lifespan(app: FastAPI):
         await file_watcher.start_watching(journal_dir)
         logger.info("File watcher started successfully")
     except FileNotFoundError as e:
-        logger.error(f"Failed to start file watcher: {e}")
+        logger.error("Failed to start file watcher: %s", e)
         logger.warning("Application will start but journal monitoring is disabled")
 
-    yield
-
-    # Shutdown
-    logger.info("Shutting down Elite: Dangerous Colonization Assistant")
-    await file_watcher.stop_watching()
+    try:
+        yield
+    finally:
+        # Shutdown
+        logger.info("Shutting down Elite: Dangerous Colonization Assistant")
+        file_watcher_from_state: FileWatcher | None = getattr(
+            app.state, "file_watcher", None
+        )
+        if file_watcher_from_state is not None:
+            await file_watcher_from_state.stop_watching()
 
 
 # Create FastAPI application

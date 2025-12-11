@@ -44,9 +44,20 @@ class DataAggregator(IDataAggregator):
       - add a completed site that is missing locally.
     """
 
-    def __init__(self, repository: IColonizationRepository) -> None:
+    def __init__(
+        self,
+        repository: IColonizationRepository,
+        inara_service: InaraService | None = None,
+    ) -> None:
+        """Create a DataAggregator with its required dependencies.
+
+        Args:
+            repository: Repository used to persist and retrieve colonization data.
+            inara_service: Optional InaraService; if omitted a default instance
+                will be resolved via get_inara_service().
+        """
         self._repository = repository
-        self._inara_service = get_inara_service()
+        self._inara_service = inara_service or get_inara_service()
 
     async def aggregate_by_system(self, system_name: str) -> SystemColonizationData:
         """
