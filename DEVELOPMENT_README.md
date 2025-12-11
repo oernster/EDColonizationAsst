@@ -100,25 +100,31 @@ uvicorn src.main:app --host 0.0.0.0 --port 8000
 
 ### Testing (backend)
 
-From the **`backend/` directory**:
+From the **`backend/` directory**, with your virtual environment activated:
 
-#### Run all tests
+- To run the full backend test suite:
 
-```bash
-pytest
-```
+  ```bash
+  pytest
+  ```
 
-#### Run with coverage
+- To run with coverage and see missing lines in the terminal:
 
-```bash
-pytest --cov=src --cov-report=html
-```
+  ```bash
+  pytest --cov=src --cov-report=term-missing
+  ```
 
-#### Run specific test file
+- To generate an HTML coverage report (open `backend/htmlcov/index.html` in a browser):
 
-```bash
-pytest tests/unit/test_models.py -v
-```
+  ```bash
+  pytest --cov=src --cov-report=html
+  ```
+
+- To run a specific test file (for example, the models tests):
+
+  ```bash
+  pytest tests/unit/test_models.py -v
+  ```
 
 ### Code quality (backend)
 
