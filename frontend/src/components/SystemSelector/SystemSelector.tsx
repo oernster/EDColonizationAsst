@@ -25,32 +25,33 @@ export const SystemSelector = () => {
  } = useColonizationStore();
 
  const [searchQuery, setSearchQuery] = useState('');
-  const [loadingSystems, setLoadingSystems] = useState(false);
+ const [loadingSystems, setLoadingSystems] = useState(false);
 
-  // Load all systems on mount
-  useEffect(() => {
-    const loadSystems = async () => {
-      try {
-        setLoadingSystems(true);
+ // Load all known systems from the backend on mount (and when settings change).
+ // Autocomplete filtering is then handled purely client-side by MUI.
+ useEffect(() => {
+   const loadSystems = async () => {
+     try {
+       setLoadingSystems(true);
        const systems = await api.getSystems();
        console.log("SYSTEMS FROM API:", systems);
        setAllSystems(systems);
        
        // Also get current system info
-        const currentInfo = await api.getCurrentSystem();
-        setCurrentSystemInfo(currentInfo);
-        
-        // Auto-select current system if available
-        if (currentInfo.current_system && systems.includes(currentInfo.current_system)) {
-          handleSystemSelect(currentInfo.current_system);
-        }
-      } catch (error) {
-        console.error('Failed to load systems:', error);
-        setError('Failed to load systems');
-      } finally {
-        setLoadingSystems(false);
-      }
-    };
+       const currentInfo = await api.getCurrentSystem();
+       setCurrentSystemInfo(currentInfo);
+       
+       // Auto-select current system if available
+       if (currentInfo.current_system && systems.includes(currentInfo.current_system)) {
+         handleSystemSelect(currentInfo.current_system);
+       }
+     } catch (error) {
+       console.error('Failed to load systems:', error);
+       setError('Failed to load systems');
+     } finally {
+       setLoadingSystems(false);
+     }
+   };
 
    loadSystems();
  }, [settingsVersion]);
@@ -87,6 +88,7 @@ export const SystemSelector = () => {
         onInputChange={(_, newInputValue) => setSearchQuery(newInputValue)}
         options={allSystems}
         loading={loadingSystems}
+        noOptionsText="No known systems with colonization data"
         renderInput={(params) => (
           <TextField
             {...params}
