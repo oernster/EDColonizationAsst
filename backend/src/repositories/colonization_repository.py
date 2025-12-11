@@ -40,6 +40,11 @@ class IColonizationRepository(ABC):
     async def get_all_sites(self) -> List[ConstructionSite]:
         """Get all construction sites from the database"""
         pass
+
+    @abstractmethod
+    async def get_stats(self) -> Dict[str, int]:
+        """Get basic statistics about stored construction sites"""
+        pass
     
     @abstractmethod
     async def update_commodity(
@@ -92,7 +97,8 @@ class ColonizationRepository(IColonizationRepository):
     async def add_construction_site(self, site: ConstructionSite) -> None:
         async with self._lock:
             site.last_updated = datetime.now(UTC)
-            commodities_json = json.dumps([c.dict() for c in site.commodities])
+            # Use model_dump (Pydantic v2) instead of deprecated dict()
+            commodities_json = json.dumps([c.model_dump() for c in site.commodities])
             
             with self._get_db_connection() as conn:
                 cursor = conn.cursor()
@@ -108,7 +114,12 @@ class ColonizationRepository(IColonizationRepository):
                     commodities_json, site.last_updated.isoformat()
                 ))
                 conn.commit()
-            logger.info(f"REPOSITORY: Added/updated site {site.station_name} in {site.system_name} with data: {site.dict()}")
+            logger.info(
+                "REPOSITORY: Added/updated site %s in %s with data: %s",
+                site.station_name,
+                site.system_name,
+                site.model_dump(),
+            )
 
     async def get_site_by_market_id(self, market_id: int) -> Optional[ConstructionSite]:
         async with self._lock:
@@ -147,25 +158,61 @@ class ColonizationRepository(IColonizationRepository):
                 rows = cursor.fetchall()
                 return [self._row_to_site(row) for row in rows if row]
 
-    async def update_commodity(self, market_id: int, commodity_name: str, provided_amount: int) -> None:
-        async with self._lock:
-            site = await self.get_site_by_market_id(market_id)
-            if not site:
-                logger.warning(f"Cannot update commodity: site with market ID {market_id} not found")
-                return
+    async def get_stats(self) -> Dict[str, int]:
+        """
+        Get basic statistics about stored construction sites.
 
-            updated = False
-            for commodity in site.commodities:
-                if commodity.name == commodity_name:
-                    commodity.provided_amount = provided_amount
-                    updated = True
-                    break
-            
-            if updated:
-                await self.add_construction_site(site)
-                logger.debug(f"Updated {commodity_name} at {site.station_name}")
-            else:
-                logger.warning(f"Commodity {commodity_name} not found at site {site.station_name}")
+        Returns:
+            Dict[str, int]: {
+                "total_systems": number of distinct systems,
+                "total_sites": total number of sites,
+                "in_progress_sites": sites not yet completed,
+                "completed_sites": completed sites,
+            }
+        """
+        sites = await self.get_all_sites()
+        total_sites = len(sites)
+        completed_sites = sum(1 for s in sites if s.construction_complete)
+        in_progress_sites = total_sites - completed_sites
+        total_systems = len({s.system_name for s in sites})
+
+        stats = {
+            "total_systems": total_systems,
+            "total_sites": total_sites,
+            "in_progress_sites": in_progress_sites,
+            "completed_sites": completed_sites,
+        }
+        logger.info(f"REPOSITORY: Stats calculated: {stats}")
+        return stats
+
+    async def update_commodity(self, market_id: int, commodity_name: str, provided_amount: int) -> None:
+        """
+        Update commodity provided amount for a site.
+
+        Note:
+            This method intentionally does NOT acquire self._lock directly,
+            because both get_site_by_market_id() and add_construction_site()
+            handle their own locking. Acquiring the lock here and then calling
+            those methods would result in a deadlock with the non-reentrant
+            asyncio.Lock.
+        """
+        site = await self.get_site_by_market_id(market_id)
+        if not site:
+            logger.warning(f"Cannot update commodity: site with market ID {market_id} not found")
+            return
+
+        updated = False
+        for commodity in site.commodities:
+            if commodity.name == commodity_name:
+                commodity.provided_amount = provided_amount
+                updated = True
+                break
+
+        if updated:
+            await self.add_construction_site(site)
+            logger.debug(f"Updated {commodity_name} at {site.station_name}")
+        else:
+            logger.warning(f"Commodity {commodity_name} not found at site {site.station_name}")
 
     async def clear_all(self) -> None:
         async with self._lock:

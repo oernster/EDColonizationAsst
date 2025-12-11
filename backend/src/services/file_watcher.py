@@ -48,41 +48,52 @@ class JournalFileHandler(FileSystemEventHandler):
         parser: IJournalParser,
         system_tracker: ISystemTracker,
         repository: IColonizationRepository,
-        update_callback: Optional[Callable] = None
+        update_callback: Optional[Callable] = None,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
     ):
         self.parser = parser
         self.system_tracker = system_tracker
         self.repository = repository
         self.update_callback = update_callback
         self._processed_files: Set[str] = set()
+        # Event loop used to schedule async processing from watchdog threads
+        self._loop = loop or asyncio.get_event_loop()
     
     def on_modified(self, event: FileModifiedEvent) -> None:
         """Handle file modification events"""
         if event.is_directory:
             return
-        
+
         file_path = Path(event.src_path)
-        
+
         # Only process journal files
         if not file_path.name.startswith("Journal.") or not file_path.name.endswith(".log"):
             return
-        
+
         logger.debug(f"Journal file modified: {file_path.name}")
-        asyncio.create_task(self._process_file(file_path))
+        # Schedule processing on the main event loop from the watchdog thread
+        asyncio.run_coroutine_threadsafe(
+            self._process_file(file_path),
+            self._loop,
+        )
     
     def on_created(self, event: FileCreatedEvent) -> None:
         """Handle file creation events"""
         if event.is_directory:
             return
-        
+
         file_path = Path(event.src_path)
-        
+
         # Only process journal files
         if not file_path.name.startswith("Journal.") or not file_path.name.endswith(".log"):
             return
-        
+
         logger.info(f"New journal file created: {file_path.name}")
-        asyncio.create_task(self._process_file(file_path))
+        # Schedule processing on the main event loop from the watchdog thread
+        asyncio.run_coroutine_threadsafe(
+            self._process_file(file_path),
+            self._loop,
+        )
     
     async def _process_file(self, file_path: Path) -> None:
         """
@@ -231,7 +242,8 @@ class FileWatcher(IFileWatcher):
         self,
         parser: IJournalParser,
         system_tracker: ISystemTracker,
-        repository: IColonizationRepository
+        repository: IColonizationRepository,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
     ):
         self.parser = parser
         self.system_tracker = system_tracker
@@ -239,6 +251,8 @@ class FileWatcher(IFileWatcher):
         self._observer: Optional[Observer] = None
         self._handler: Optional[JournalFileHandler] = None
         self._update_callback: Optional[Callable] = None
+        # Event loop used to schedule async processing from watchdog threads
+        self._loop: asyncio.AbstractEventLoop = loop or asyncio.get_event_loop()
     
     def set_update_callback(self, callback: Callable) -> None:
         """
@@ -271,7 +285,8 @@ class FileWatcher(IFileWatcher):
             self.parser,
             self.system_tracker,
             self.repository,
-            self._update_callback
+            self._update_callback,
+            loop=self._loop,
         )
         
         # Create and start observer
