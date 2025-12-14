@@ -8,5 +8,6 @@ mypy==1.7.1
 black==23.11.0
 isort==5.12.0
 pylint==3.0.3
+pytest
 httpx==0.25.2
 nuitka==2.8.9

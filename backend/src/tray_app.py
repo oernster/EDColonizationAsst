@@ -106,7 +106,7 @@ class TrayController:
         - The same run-edca.log used by run-edca.bat in the install root.
  
         Secondary target (best-effort):
-        - A user-local log under %LOCALAPPDATA%\EDColonizationAsst\run-edca.log
+        - A user-local log under %LOCALAPPDATA%\\EDColonizationAsst\\run-edca.log
           to avoid any filesystem virtualisation / permission issues writing
           directly into Program Files.
         """

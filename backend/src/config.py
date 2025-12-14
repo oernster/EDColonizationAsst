@@ -142,7 +142,7 @@ def get_config_paths() -> tuple[Path, Path]:
 
     - In the packaged (frozen) runtime we store configuration alongside
       the installed executable so that the DB, logs and config all live
-      under the single install directory (e.g. AppData\Local\EDColonizationAssistant).
+      under the single install directory (e.g. AppData\\Local\\EDColonizationAssistant).
     """
     if _is_frozen():
         # Directory containing the running EXE (install root when packaged).
