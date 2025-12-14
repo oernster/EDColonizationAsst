@@ -957,14 +957,12 @@ class InstallerWindow(QMainWindow):
 
         Shortcut strategy for the installed app:
 
-        - If EDColonizationAsst.exe exists, shortcuts point **directly** at the
-          runtime EXE so the process name and taskbar icon are EDColonizationAsst.
-        - If for some reason the runtime EXE is missing, shortcuts fall back to
-          run-edca.bat, which in turn prefers EDColonizationAsst.exe when it
-          becomes available.
-
-        In both cases, the shortcut icon is EDColonizationAsst.ico so the user
-        never sees a Python icon for the installed application.
+        - Shortcuts target a tiny VBScript launcher (run-edca-hidden.vbs) that
+          starts run-edca.bat with a *hidden* console window.
+        - run-edca.bat in turn prefers EDColonizationAsst.exe when present, so
+          the actual application process is still the packaged runtime EXE.
+        - The shortcut icon is always EDColonizationAsst.ico from the install
+          directory, so the user never sees a Python icon for the app.
         """
         if not sys.platform.startswith("win"):
             return
@@ -972,16 +970,35 @@ class InstallerWindow(QMainWindow):
         runtime_exe = self.install_dir / "EDColonizationAsst.exe"
         bat_launcher = self.install_dir / "run-edca.bat"
 
-        if runtime_exe.exists():
+        if not bat_launcher.exists() and not runtime_exe.exists():
+            self._log(
+                "Neither runtime EXE nor batch launcher found in install directory; "
+                "skipping shortcut creation."
+            )
+            return
+
+        # Always ensure the hidden VBScript launcher exists so shortcuts can
+        # start the app without flashing a console window.
+        self._ensure_windows_hidden_launcher()
+        vbs_launcher = self.install_dir / "run-edca-hidden.vbs"
+
+        # Prefer the hidden VBScript launcher when available, falling back to
+        # the runtime EXE, and finally the batch file as a last resort.
+        if vbs_launcher.exists():
+            target = vbs_launcher
+            self._log(f"Using hidden VBScript launcher for shortcuts: {target}")
+        elif runtime_exe.exists():
             target = runtime_exe
             self._log(f"Using runtime EXE for shortcuts: {target}")
         else:
             target = bat_launcher
-            self._log(
-                f"Runtime EXE missing; using batch launcher for shortcuts: {target}"
-            )
+            self._log(f"Using batch launcher for shortcuts: {target}")
 
         icon = self.install_dir / "EDColonizationAsst.ico"
+        if not icon.exists():
+            # Fallback so the shortcut still has *some* icon even if the ICO
+            # went missing for any reason.
+            icon = runtime_exe if runtime_exe.exists() else target
 
         if not target.exists():
             self._log(f"Shortcut target does not exist: {target}")

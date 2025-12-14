@@ -32,6 +32,7 @@ import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+import sys
 
 import uvicorn
 from fastapi import FastAPI
@@ -71,13 +72,58 @@ class RuntimeEnvironment:
 
     @property
     def icon_path(self) -> Path:
-        return self.project_root / "EDColonizationAsst.ico"
+        """
+        Best-effort resolution of the EDCA icon on disk.
+
+        In a frozen onefile build we prefer the install directory that contains
+        EDColonizationAsst.exe (so that the tray and any Qt surfaces use the
+        same icon as the runtime EXE). In dev mode we fall back to the
+        project_root next to backend/, which matches the existing layout.
+        """
+        candidates: list[Path] = []
+
+        # 1) Directory of the running executable (frozen) or script (dev).
+        try:
+            exe_dir = Path(sys.argv[0]).resolve().parent
+            candidates.append(exe_dir / "EDColonizationAsst.ico")
+        except Exception:
+            pass
+
+        # 2) Project root as detected by RuntimeEnvironment.detect().
+        candidates.append(self.project_root / "EDColonizationAsst.ico")
+
+        for path in candidates:
+            if path.exists():
+                return path
+
+        # 3) Fallback: return the executable path itself so Qt can still
+        # extract an icon resource from the EXE if available.
+        try:
+            return Path(sys.argv[0]).resolve()
+        except Exception:
+            return self.project_root
 
     @classmethod
     def detect(cls) -> "RuntimeEnvironment":
+        """
+        Detect the current runtime environment, including a sensible project root.
+
+        - In DEV mode we keep using the source layout
+          (backend/src/runtime_entry.py -> src -> backend -> project_root).
+        - In FROZEN mode we treat the directory containing the runtime EXE as
+          the project root, which is also where the installer places the icon
+          and other payload files.
+        """
         mode = get_runtime_mode()
-        # backend/src/runtime_entry.py -> src -> backend -> project_root
-        project_root = Path(__file__).resolve().parents[2]
+
+        if mode is RuntimeMode.FROZEN:
+            try:
+                project_root = Path(sys.argv[0]).resolve().parent
+            except Exception:
+                project_root = Path(__file__).resolve().parents[2]
+        else:
+            project_root = Path(__file__).resolve().parents[2]
+
         return cls(mode=mode, project_root=project_root)
 
 
