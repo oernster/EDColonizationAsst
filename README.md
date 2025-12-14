@@ -2,11 +2,34 @@
 
 Elite Dangerous colonization support site and shard integration for GameGlass.
 
-## Quick start (from project root)
+## Windows installer (recommended on Windows)
 
-This section is aimed at non-developers who just want to run the tool locally.
+If you downloaded a packaged Windows release that includes a GUI installer executable,
+you do **not** need Python or Node.js on your machine.
 
-Both the backend (API server) and frontend (web UI) are started for you by simple launch scripts in the project root.
+1. Download the Windows installer executable for EDCA (typically named
+   `EDColonizationAsstInstaller.exe`) from the project's release page.
+2. Double-click it and follow the on-screen instructions (Install / Repair / Uninstall).
+3. After installation, launch **Elite: Dangerous Colonization Assistant** from the
+   Start Menu or Desktop shortcut. This starts a bundled runtime that opens your
+   browser at:
+
+   ```text
+   http://127.0.0.1:8000/app/
+   ```
+
+The rest of this README assumes you are running from a source checkout. If you are
+using the installer, you can skip to the **Commander / Inara configuration** section.
+
+---
+
+## Quick start from source (project root)
+
+This section is aimed at non-developers who have cloned the repository and want
+to run the tool locally from the project directory.
+
+Both the backend (API server) and frontend (web UI) are started for you by simple
+launch scripts in the project root.
 
 ### Windows
 

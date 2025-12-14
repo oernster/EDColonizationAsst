@@ -55,6 +55,17 @@ def build_installer() -> None:
             "Place the .ico file in the project root or update buildguiinstaller.py."
         )
 
+    # Hard-require the self-contained runtime executable so that all shortcuts
+    # created by the installer can point at EDColonizationAsst.exe and never
+    # fall back to the Python/Node-based developer scripts.
+    runtime_exe = project_root / "EDColonizationAsst.exe"
+    if not runtime_exe.exists():
+        raise FileNotFoundError(
+            f"Could not find runtime EXE at: {runtime_exe}\n"
+            "Run `uv run python buildruntime.py` to build EDColonizationAsst.exe "
+            "before building the GUI installer."
+        )
+
     license_file = project_root / "LICENSE"
 
     # Ensure the frontend has a production build (frontend/dist) so that the

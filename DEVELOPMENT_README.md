@@ -629,11 +629,20 @@ The resulting installer:
 - Installs EDCA into a **user-writable directory** under
   `%LOCALAPPDATA%\EDColonizationAssistant` by default (no elevation required).
 - Ships:
-  - Python backend + virtualenv bootstrap logic.
-  - Pre-built frontend assets (`frontend/dist`) served by the backend.
-  - A GUI launcher ([`backend/src/launcher.py`](backend/src/launcher.py:173))
-    which starts the tray and backend, then opens the web UI.
-- Does **not** require Node.js/npm on the end-user machine at runtime.
+  - `EDColonizationAsst.exe` – the self-contained runtime executable built
+    from [`backend/src/runtime_entry.py`](backend/src/runtime_entry.py:1) via
+    [`buildruntime.py`](buildruntime.py:49). This embeds the Python runtime and
+    backend dependencies and is the primary entrypoint for end users.
+  - Pre-built frontend assets (`frontend/dist`) served by FastAPI at `/app`.
+  - Backend configuration and support files (for example
+    [`backend/config.yaml`](backend/config.yaml:1) and
+    [`backend/example.commander.yaml`](backend/example.commander.yaml:1)).
+  - Developer-oriented scripts such as [`run-edca.bat`](run-edca.bat:1),
+    [`backend/src/launcher.py`](backend/src/launcher.py:1) and
+    [`backend/src/tray_app.py`](backend/src/tray_app.py:1) for advanced and
+    legacy workflows; these are **not** used by the Start Menu / Desktop
+    shortcuts created by the installer.
+- Does **not** require Python or Node.js/npm on the end-user machine at runtime.
 
 ### Prerequisites (developer machine)
 
@@ -651,6 +660,12 @@ On the **developer** machine (where you build the installer):
   .venv\Scripts\activate   # or source .venv/bin/activate on Unix
   uv pip install -r requirements-dev.txt
   ```
+
+  The `backend/requirements-dev.txt` file includes all backend and installer
+  build dependencies, including **Nuitka**. Nuitka is required for:
+
+  - [`buildruntime.py`](buildruntime.py:49) → builds `EDColonizationAsst.exe`
+  - [`buildguiinstaller.py`](buildguiinstaller.py:40) → builds `EDColonizationAsstInstaller.exe`
 
   The dev requirements include FastAPI, PySide6, and other libraries used by
   the backend and installer.
@@ -740,34 +755,29 @@ Run `EDColonizationAsstInstaller.exe` on Windows:
 
 After installation:
 
-- The Start Menu / Desktop shortcuts point to a small VBScript launcher
-  (`run-edca-hidden.vbs`), which runs [`run-edca.bat`](run-edca.bat:1)
-  **without** showing a console window.
+- The Start Menu / Desktop shortcuts created by the installer point directly
+  to `EDColonizationAsst.exe` in the install directory.
 
-- [`run-edca.bat`](run-edca.bat:1):
+- `EDColonizationAsst.exe` is a Nuitka-built wrapper around
+  [`RuntimeApplication`](backend/src/runtime_entry.py:280):
 
-  - Logs to `run-edca.log` in the install directory.
-  - Ensures Python is available.
-  - Starts the PySide6 GUI launcher:
-
-    ```bat
-    python backend\src\launcher.py
-    ```
-
-- [`Launcher`](backend/src/launcher.py:173):
-
-  - Detects the install root.
-  - Ensures `backend/venv` exists and installs backend dependencies from
-    [`backend/requirements.txt`](backend/requirements.txt:1) into it.
-  - Starts the tray controller
-    ([`backend/src/tray_app.py`](backend/src/tray_app.py:49)) using the venv
-    Python.
-  - Waits for the backend to become available at:
+  - It detects that it is running in **FROZEN** mode via
+    [`get_runtime_mode()`](backend/src/utils/runtime.py:36).
+  - It starts an in-process `uvicorn.Server` hosting the FastAPI app from
+    [`backend/src/main.py`](backend/src/main.py:1) on
+    `http://127.0.0.1:8000` using
+    [`BackendServerController`](backend/src/runtime_entry.py:87).
+  - It waits for the backend and static frontend to become available at:
 
     - `http://127.0.0.1:8000/api/health`
     - `http://127.0.0.1:8000/app/`
 
-  - Once ready, enables the “Open Web UI” button, which opens:
+    via [`wait_until_ready()`](backend/src/runtime_entry.py:128).
+
+  - It shows a system tray icon managed by
+    [`TrayUIController`](backend/src/runtime_entry.py:205) with **Open Web UI**
+    and **Exit** actions.
+  - On first launch it automatically opens the default browser to:
 
     ```text
     http://127.0.0.1:8000/app/
