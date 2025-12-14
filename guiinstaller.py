@@ -320,6 +320,20 @@ class InstallerWindow(QMainWindow):
             if existing is not None and not _is_under_program_files(existing):
                 self.install_dir = existing
 
+        # Installed version information (from HKCU uninstall key) and its
+        # relationship to the installer version:
+        #   -1 => installed older than this installer
+        #    0 => same version
+        #    1 => installed newer than this installer
+        self.installed_version: str | None = None
+        self._version_cmp: int | None = None
+
+        if sys.platform.startswith("win"):
+            installed_version = _windows_get_installed_version()
+            if installed_version:
+                self.installed_version = installed_version
+                self._version_cmp = _compare_versions(installed_version, self.version)
+
         self.current_theme = "dark"  # start in dark mode by default
         self.total_files: int = 0
         self.copied_files: int = 0
@@ -335,6 +349,7 @@ class InstallerWindow(QMainWindow):
 
         self._log(f"{APP_NAME} Installer v{self.version}")
         self._log(f"Default install directory: {self.install_dir}")
+        self._refresh_versions_and_buttons()
 
     # ------------------------------------------------------------------ UI setup
 
@@ -379,17 +394,14 @@ class InstallerWindow(QMainWindow):
         title_label.setObjectName("titleLabel")
         title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
-        subtitle_label = QLabel(
-            f"Version {self.version} · Choose an action below to install, repair, or uninstall.",
-            self,
-        )
-        subtitle_label.setWordWrap(True)
+        self.subtitle_label = QLabel("", self)
+        self.subtitle_label.setWordWrap(True)
 
         # Header row: title/subtitle on the left, theme switch + labels on the right
         header_layout = QHBoxLayout()
         header_text_layout = QVBoxLayout()
         header_text_layout.addWidget(title_label)
-        header_text_layout.addWidget(subtitle_label)
+        header_text_layout.addWidget(self.subtitle_label)
 
         # Theme switch styled as a slider, with labels "Light" and "Dark"
         theme_row = QHBoxLayout()
@@ -513,6 +525,34 @@ class InstallerWindow(QMainWindow):
         self.setStatusBar(status)
         status.showMessage("Ready")
 
+    def _update_version_labels(self) -> None:
+        """Update header subtitle with installer and installed version information."""
+        if self.installed_version:
+            text = (
+                f"Installer version {self.version} · "
+                f"Installed version {self.installed_version} at {self.install_dir}"
+            )
+        else:
+            text = (
+                f"Installer version {self.version} · "
+                "No existing installation detected"
+            )
+        self.subtitle_label.setText(text)
+
+    def _refresh_versions_and_buttons(self) -> None:
+        """Refresh version labels and action button enabled states."""
+        self._update_version_labels()
+
+        has_installed = (
+            self.installed_version is not None and self.install_dir.exists()
+        )
+
+        # Install is always available.
+        self.install_button.setEnabled(True)
+
+        # Repair is only meaningful when something is installed.
+        self.repair_button.setEnabled(bool(has_installed))
+
     # ------------------------------------------------------------------ theme
 
     def _apply_theme(self, mode: str) -> None:
@@ -609,6 +649,34 @@ class InstallerWindow(QMainWindow):
         self.choose_dir_action.setEnabled(False)
         try:
             self._log("Starting installation...")
+
+            # If an older version is installed, ask whether to uninstall it first.
+            if self.installed_version is not None and self._version_cmp == -1:
+                if not self._confirm(
+                    "Existing installation detected",
+                    (
+                        f"A previous version ({self.installed_version}) is installed at:\n"
+                        f"{self.install_dir}\n\n"
+                        f"To install version {self.version}, the old version should be "
+                        "uninstalled first.\n\n"
+                        "Do you want to uninstall the old version now?"
+                    ),
+                ):
+                    self._log(
+                        "Installation cancelled; user chose not to uninstall the "
+                        f"older version {self.installed_version}."
+                    )
+                    return
+
+                # Perform uninstall as if the Uninstall button had been clicked,
+                # but without prompting the user a second time.
+                self._perform_uninstall(confirm=False)
+                self._log(
+                    "Old version removed at user's request via Install; "
+                    "no new installation started automatically."
+                )
+                return
+
             payload_root = get_payload_root()
             if payload_root is None:
                 self._show_error(
@@ -633,9 +701,12 @@ class InstallerWindow(QMainWindow):
                 self._register_windows_app()
 
             self._finish_progress("Installation complete")
+            self.installed_version = self.version
+            self._version_cmp = 0
+            self._refresh_versions_and_buttons()
             self._show_info(
                 "Installation complete",
-                f"{APP_NAME} has been installed to:\n{self.install_dir}",
+                f"{APP_NAME} version {self.version} has been installed to:\n{self.install_dir}",
             )
         except Exception as exc:
             self._finish_progress("Install failed")
@@ -665,6 +736,30 @@ class InstallerWindow(QMainWindow):
                     "Could not locate the installer payload for repair.",
                 )
                 return
+
+            # Provide informational messaging when repairing across version
+            # boundaries, but do not block the repair.
+            if self.installed_version is not None and self._version_cmp is not None:
+                if self._version_cmp == -1:
+                    self._show_info(
+                        "Repairing older installation",
+                        (
+                            f"Repair will copy files for installer version {self.version} "
+                            f"over the existing installation (currently version "
+                            f"{self.installed_version})."
+                        ),
+                    )
+                elif self._version_cmp == 1:
+                    self._show_info(
+                        "Repair may downgrade",
+                        (
+                            f"Repair will copy files for installer version {self.version} "
+                            f"over an installation that reports version "
+                            f"{self.installed_version}. This may effectively "
+                            "downgrade some files."
+                        ),
+                    )
+
             self._log(f"Repairing installation at {self.install_dir} from {payload_root}")
 
             total_files = self._count_files(payload_root)
@@ -677,9 +772,12 @@ class InstallerWindow(QMainWindow):
                 self._create_windows_shortcuts()
 
             self._finish_progress("Repair complete")
+            self.installed_version = self.version
+            self._version_cmp = 0
+            self._refresh_versions_and_buttons()
             self._show_info(
                 "Repair complete",
-                f"{APP_NAME} has been repaired at:\n{self.install_dir}",
+                f"{APP_NAME} version {self.version} has been repaired at:\n{self.install_dir}",
             )
         except Exception as exc:
             self._finish_progress("Repair failed")
@@ -694,49 +792,7 @@ class InstallerWindow(QMainWindow):
         # Prevent changing the install location while an operation is in progress.
         self.choose_dir_action.setEnabled(False)
         try:
-            self._log("Starting uninstall...")
- 
-            # Best-effort attempt to stop a running tray controller before
-            # removing files, to avoid "files in use" issues on Windows.
-            self._stop_running_tray()
- 
-            if not self.install_dir.exists():
-                self._finish_progress("Uninstall failed")
-                self._show_error(
-                    "Not installed",
-                    f"No existing installation found at:\n{self.install_dir}",
-                )
-                return
- 
-            # Count files in the install directory so the progress bar shows a
-            # meaningful label instead of "(no files)".
-            total_files = self._count_files(self.install_dir)
-            if total_files <= 0:
-                # At least show a 0→100% transition even if no files were
-                # counted (e.g. empty directory or permission issues).
-                total_files = 1
-            self._prepare_progress(total_files, "Uninstalling")
-
-            if not self._confirm(
-                "Confirm uninstall",
-                f"Are you sure you want to remove {APP_NAME} from:\n{self.install_dir}?",
-            ):
-                self._finish_progress("Uninstall cancelled")
-                return
-
-            # Delete files with progress updates so the UI remains responsive.
-            self._delete_tree(self.install_dir)
-
-            # Windows-only: remove shortcuts and unregister Add/Remove entry
-            if sys.platform.startswith("win"):
-                self._remove_windows_shortcuts()
-                self._unregister_windows_app()
-
-            self._finish_progress("Uninstall complete")
-            self._show_info(
-                "Uninstall complete",
-                f"{APP_NAME} has been removed from:\n{self.install_dir}",
-            )
+            self._perform_uninstall(confirm=True)
         except Exception as exc:
             self._finish_progress("Uninstall failed")
             self._show_error(
@@ -887,6 +943,70 @@ class InstallerWindow(QMainWindow):
         except Exception as exc:
             self._log(f"Failed to delete install root {root}: {exc}")
  
+    def _perform_uninstall(self, confirm: bool = True) -> None:
+        """
+        Core uninstall logic shared by the Uninstall button and the
+        Install-based upgrade flow.
+
+        If confirm is True, a confirmation dialog is shown before files
+        are removed. When invoked from on_install_clicked during an
+        upgrade, confirm is False so that the user is not prompted twice.
+        """
+        self._log("Starting uninstall...")
+
+        # Best-effort attempt to stop a running tray controller before
+        # removing files, to avoid "files in use" issues on Windows.
+        self._stop_running_tray()
+
+        if not self.install_dir.exists():
+            self._finish_progress("Uninstall failed")
+            self._show_error(
+                "Not installed",
+                f"No existing installation found at:\n{self.install_dir}",
+            )
+            return
+
+        # Count files in the install directory so the progress bar shows a
+        # meaningful label instead of "(no files)".
+        total_files = self._count_files(self.install_dir)
+        if total_files <= 0:
+            # At least show a 0→100% transition even if no files were
+            # counted (e.g. empty directory or permission issues).
+            total_files = 1
+        self._prepare_progress(total_files, "Uninstalling")
+
+        installed_version = self.installed_version or "previously installed"
+
+        if confirm:
+            if not self._confirm(
+                "Confirm uninstall",
+                (
+                    f"Are you sure you want to remove {APP_NAME} version "
+                    f"{installed_version} from:\n{self.install_dir}?"
+                ),
+            ):
+                self._finish_progress("Uninstall cancelled")
+                return
+
+        # Delete files with progress updates so the UI remains responsive.
+        self._delete_tree(self.install_dir)
+
+        # Windows-only: remove shortcuts and unregister Add/Remove entry
+        if sys.platform.startswith("win"):
+            self._remove_windows_shortcuts()
+            self._unregister_windows_app()
+
+        # Clear installed-version state and refresh UI.
+        self.installed_version = None
+        self._version_cmp = None
+
+        self._finish_progress("Uninstall complete")
+        self._refresh_versions_and_buttons()
+        self._show_info(
+            "Uninstall complete",
+            f"{APP_NAME} version {installed_version} has been removed from:\n{self.install_dir}",
+        )
+
     def _stop_running_tray(self) -> None:
         """
         Attempt to stop any running EDCA tray/runtime process before uninstalling.
@@ -1306,6 +1426,72 @@ def _is_under_program_files(path: Path) -> bool:
                 continue
 
     return False
+
+
+def _compare_versions(installed: str, installer: str) -> int:
+    """
+    Compare two dotted version strings.
+
+    Returns:
+        -1 if installed < installer
+         0 if installed == installer
+         1 if installed > installer
+    """
+
+    def _parse(v: str) -> list[int]:
+        parts = v.split(".")
+        nums: list[int] = []
+        for part in parts:
+            num = 0
+            for ch in part:
+                if ch.isdigit():
+                    num = num * 10 + int(ch)
+                else:
+                    break
+            nums.append(num)
+        return nums
+
+    try:
+        a = _parse(installed)
+        b = _parse(installer)
+    except Exception:
+        # Fall back to "equal" on unexpected parsing issues.
+        return 0
+
+    max_len = max(len(a), len(b))
+    a.extend([0] * (max_len - len(a)))
+    b.extend([0] * (max_len - len(b)))
+
+    for av, bv in zip(a, b, strict=False):
+        if av < bv:
+            return -1
+        if av > bv:
+            return 1
+    return 0
+
+
+def _windows_get_installed_version() -> Optional[str]:
+    """
+    Look up the existing installed version (DisplayVersion) from the HKCU
+    uninstall key, if any.
+    """
+    if not sys.platform.startswith("win"):
+        return None
+
+    try:
+        import winreg  # type: ignore[import-not-found]
+    except ImportError:
+        return None
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, WINDOWS_UNINSTALL_KEY) as key:
+            value, _ = winreg.QueryValueEx(key, "DisplayVersion")
+            if isinstance(value, str) and value:
+                return value
+    except OSError:
+        return None
+
+    return None
 
 
 def _windows_get_install_location() -> Optional[Path]:
