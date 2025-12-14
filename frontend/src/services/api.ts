@@ -43,11 +43,11 @@ export const api = {
     return response.data;
   },
 
-  // Health check
-  async healthCheck(): Promise<{ status: string; version: string }> {
-    const response = await axios.get(`${API_BASE_URL}/health`);
-    return response.data;
-  },
+    // Health check
+    async healthCheck(): Promise<{ status: string; version: string; python_version: string }> {
+      const response = await axios.get(`${API_BASE_URL}/health`);
+      return response.data;
+    },
 
   // Get app settings
   async getAppSettings(): Promise<AppSettings> {

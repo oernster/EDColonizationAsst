@@ -27,7 +27,7 @@ Requirements (Windows developer machine):
 
 - Windows 10/11 x64.
 - Windows PowerShell 5+ or PowerShell 7+ (recommended).
-- **Python 3.12+** installed and available on `PATH`.
+- **Python 3.13+** installed and available on `PATH` (3.12 remains supported where needed).
 - **Visual Studio 2022 Build Tools** with the *Desktop development with C++*
   workload (MSVC v143 toolset) and a recent Windows 10/11 SDK installed
   (see [Windows compiler requirements for Nuitka](#windows-compiler-requirements-for-nuitka)).
@@ -112,7 +112,7 @@ steps. You can use them if you need to debug or customise specific stages.
 
 On the machine where you build the installer:
 
-- Python 3.12+ installed and on `PATH`.
+- Python 3.13+ installed and on `PATH` (3.12 remains supported).
 - [`uv`](https://docs.astral.sh/uv/getting-started/) installed.
 - Node.js + npm installed (for building the frontend only).
 - A working **C/C++ toolchain** suitable for Nuitka (details in
@@ -513,7 +513,7 @@ Commander/Inara settings are stored separately in [`backend/commander.yaml`](bac
   - Run `uv pip install -r requirements-dev.txt` from the `backend/` directory.
 
 - **Tests failing**
-  - Check Python version (3.10+ recommended).
+  - Check Python version (3.12+ recommended; 3.13 is the primary target).
   - Ensure all dependencies are installed.
   - Run `pytest -v` for detailed output.
 
@@ -684,14 +684,15 @@ export PATH="$HOME/.local/bin:$PATH"
 uv --version
 ```
 
-2) **Install Python 3.12 locally via uv (recommended)**
+2) **Install Python 3.13 locally via uv (recommended)**
 
-Some newer distros (including Ubuntu “questing”) may not provide `python3.12` via the default package repos.
+Some newer distros may not yet provide `python3.13` via the default package repos.
 Using `uv` avoids system package constraints and prevents Rust build issues with
-older pinned dependencies (for example `pydantic==2.5.0`).
+older pinned dependencies (for example `pydantic-core` wheels). If your distro
+cannot provide 3.13 via uv for some reason, 3.12 remains a supported fallback.
 
 ```bash
-uv python install 3.12
+uv python install 3.13
 ```
 
 3) **(Optional) Install Node.js/npm**
@@ -708,10 +709,10 @@ Recommended first run (Debian default: use system Python 3.13 if available):
 ./run-edca-built-debian.sh
 ```
 
-If you want to force a specific Python (recommended fallback if you hit `pydantic-core` build issues on 3.13), use uv-managed Python 3.12:
+If you want to force a specific Python, use uv-managed Python 3.13:
 
 ```bash
-EDCA_PYTHON=python3.12 EDCA_VENV_DIR=.venv312 ./run-edca-built-debian.sh
+EDCA_PYTHON=python3.13 EDCA_VENV_DIR=.venv313 ./run-edca-built-debian.sh
 ```
 
 If you do not have Node installed and also do not have `frontend/dist` yet, the script
@@ -737,7 +738,7 @@ will error with a clear message. In that case either:
   ```
 - Recreate the venv if it was created with the wrong Python version:
   ```bash
-  EDCA_PYTHON=python3.12 EDCA_VENV_DIR=.venv312 EDCA_RECREATE_VENV=1 ./run-edca-built-debian.sh
+  EDCA_PYTHON=python3.13 EDCA_VENV_DIR=.venv313 EDCA_RECREATE_VENV=1 ./run-edca-built-debian.sh
   ```
 
 This workflow intentionally prioritizes simplicity and avoiding heavyweight packaging steps.
@@ -752,7 +753,7 @@ The following scripts are provided as convenience entry points for other distrib
 - RHEL/Rocky/Alma: [`run-edca-built-rhel.sh`](run-edca-built-rhel.sh:1) (UNTESTED)
 - Void: [`run-edca-built-void.sh`](run-edca-built-void.sh:1) (UNTESTED)
 
-They follow the same overall approach as [`run-edca-built-debian.sh`](run-edca-built-debian.sh:1) (uv + Python 3.12 via uv, optional Node for building `frontend/dist`) but include distro-specific prerequisite hints.
+They follow the same overall approach as [`run-edca-built-debian.sh`](run-edca-built-debian.sh:1) (uv + Python 3.13 via uv by default, with 3.12 as a supported fallback, optional Node for building `frontend/dist`) but include distro-specific prerequisite hints.
 
 ### Root‑level launch scripts
 
@@ -865,7 +866,7 @@ On the **developer** machine (where you build the installer):
 Nuitka compiles Python code to C/C++ and then uses a platform C/C++ compiler.
 On Windows, this project is tested and supported with **MSVC**, not Cygwin GCC.
 
-**For Python 3.12 (current default backend version):**
+**For Python 3.13 (current default backend version):**
 
 - Nuitka requires **MSVC 14.3 (v143 toolset) or later**.
 - This is provided by **Visual Studio 2022 Build Tools**:
@@ -882,11 +883,11 @@ On Windows, this project is tested and supported with **MSVC**, not Cygwin GCC.
        - A recent **Windows 10 SDK** or **Windows 11 SDK**
 
 - MSVC 14.2 (Visual Studio 2019, v142 toolset) is **not sufficient** for
-  Python 3.12; Nuitka will fail with:
+  Python 3.13; Nuitka will fail with an error similar to:
 
-  > `Nuitka-Scons: For Python version 3.12 MSVC 14.3 or later is required, not 14.2 which is too old.`
+  > `Nuitka-Scons: For Python version 3.13 MSVC 14.3 or later is required, not 14.2 which is too old.`
 
-**If you choose to build with Python 3.11 instead of 3.12:**
+**If you choose to build with Python 3.11 or 3.12 instead of 3.13:**
 
 - Nuitka can still use **MSVC 14.2 (v142)**.
 - You must ensure the backend venv is explicitly created with a Python 3.11

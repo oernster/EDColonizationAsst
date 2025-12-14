@@ -188,42 +188,49 @@ class BackendServerController:
 
     def start(self) -> None:
         """Start the backend server appropriate for the current runtime mode."""
+        _debug_log(f"[BackendServerController] start() mode={self._env.mode}")
         if self._env.mode is RuntimeMode.FROZEN:
             self._start_inprocess()
         else:
             # For now DEV mode is handled by the existing launcher; we leave
             # this hook in place for possible future use.
-            logger.info("BackendServerController.start() called in DEV mode; "
-                        "no-op (launcher handles backend in development).")
-
+            logger.info(
+                "BackendServerController.start() called in DEV mode; "
+                "no-op (launcher handles backend in development)."
+            )
+ 
     def stop(self) -> None:
         """Stop the backend server if it was started in-process."""
+        _debug_log(f"[BackendServerController] stop() mode={self._env.mode}")
         if self._env.mode is not RuntimeMode.FROZEN:
+            _debug_log("[BackendServerController] stop() no-op in DEV mode")
             return
-
+ 
         if self._server is None:
+            _debug_log("[BackendServerController] stop() called with no server instance")
             return
-
+ 
         logger.info("Stopping in-process uvicorn server...")
         self._server.should_exit = True
         if self._thread is not None and self._thread.is_alive():
             self._thread.join(timeout=10.0)
         logger.info("In-process uvicorn server stopped.")
-
+        _debug_log("[BackendServerController] in-process uvicorn server stopped")
+ 
     def wait_until_ready(self, timeout: float = 60.0) -> bool:
         """
         Wait until the backend responds on /api/health and /app/ or timeout.
-
+ 
         Returns True if both endpoints appear to be available, False if the
         timeout elapses.
         """
         import urllib.error
         import urllib.request
-
+ 
         base = f"http://127.0.0.1:{self._env.backend_port}"
         health_url = f"{base}/api/health"
         frontend_url = f"{base}/app/"
-
+ 
         def _probe(url: str) -> bool:
             try:
                 with urllib.request.urlopen(url, timeout=1) as resp:
@@ -231,25 +238,31 @@ class BackendServerController:
                     return 200 <= code < 400
             except urllib.error.URLError:
                 return False
-
+ 
         logger.info(
             "Waiting for backend at %s and frontend at %s...",
             health_url,
             frontend_url,
         )
-
+        _debug_log(
+            f"[BackendServerController] wait_until_ready() "
+            f"health_url={health_url} frontend_url={frontend_url} timeout={timeout}"
+        )
+ 
         deadline = time.time() + timeout
         while time.time() < deadline:
             backend_ok = _probe(health_url)
             frontend_ok = _probe(frontend_url)
             if backend_ok and frontend_ok:
                 logger.info("Backend and frontend are ready.")
+                _debug_log("[BackendServerController] backend/frontend reported ready")
                 return True
             time.sleep(1.0)
-
+ 
         logger.warning(
             "Timeout waiting for backend/frontend readiness; continuing anyway."
         )
+        _debug_log("[BackendServerController] wait_until_ready() timed out")
         return False
 
     # ------------------------------- internals -----------------------------
@@ -257,16 +270,16 @@ class BackendServerController:
     def _start_inprocess(self) -> None:
         """
         Start uvicorn.Server with backend.src.main:app in a background thread.
-
+ 
         In the frozen onefile build, uvicorn's default logging configuration can
         fail when it tries to attach a colourising formatter to a handler whose
         stream does not expose 'isatty()' in the way it expects. This manifests
         as:
-
+ 
             ValueError("Unable to configure formatter 'default'")
-
+ 
         when uvicorn.Config.configure_logging() calls logging.config.dictConfig.
-
+ 
         To avoid this entirely, we subclass uvicorn.Config and override
         configure_logging() as a no-op so that uvicorn does not touch the
         logging configuration at all. We then rely solely on the application's
@@ -274,13 +287,14 @@ class BackendServerController:
         """
         if self._server is not None:
             logger.info("In-process uvicorn server already started.")
+            _debug_log("[BackendServerController] _start_inprocess() called but server already running")
             return
-
+ 
         class _QuietUvicornConfig(uvicorn.Config):
             def configure_logging(self) -> None:  # type: ignore[override]
                 # Do not let uvicorn interfere with logging setup in the frozen runtime.
                 return
-
+ 
         # Derive the bind host from the application's configuration so that
         # we can listen on 0.0.0.0 when configured, allowing LAN access.
         try:
@@ -288,12 +302,17 @@ class BackendServerController:
                 from .config import get_config  # type: ignore[import-not-found]
             except ImportError:
                 from backend.src.config import get_config  # type: ignore[import-error]
-
+ 
             _cfg = get_config()
             host = getattr(getattr(_cfg, "server", _cfg), "host", "127.0.0.1") or "127.0.0.1"
-        except Exception:
+        except Exception as exc:
             host = "127.0.0.1"
-
+            _debug_log(f"[BackendServerController] Failed to read config for host; defaulting to 127.0.0.1: {exc!r}")
+ 
+        _debug_log(
+            f"[BackendServerController] starting in-process uvicorn on {host}:{self._env.backend_port}"
+        )
+ 
         config = _QuietUvicornConfig(
             app=fastapi_app,
             host=host,
@@ -303,7 +322,7 @@ class BackendServerController:
         )
         server = uvicorn.Server(config=config)
         self._server = server
-
+ 
         def _run() -> None:
             try:
                 logger.info(
@@ -311,13 +330,19 @@ class BackendServerController:
                     host,
                     self._env.backend_port,
                 )
+                _debug_log(
+                    f"[BackendServerController] uvicorn.Server.run() starting on {host}:{self._env.backend_port}"
+                )
                 server.run()
-            except Exception:  # noqa: BLE001
+                _debug_log("[BackendServerController] uvicorn.Server.run() returned normally")
+            except Exception as exc:  # noqa: BLE001
                 logger.exception("In-process uvicorn server crashed.")
-
+                _debug_log(f"[BackendServerController] In-process uvicorn server crashed: {exc!r}")
+ 
         thread = threading.Thread(target=_run, name="uvicorn-inprocess", daemon=True)
         self._thread = thread
         thread.start()
+        _debug_log("[BackendServerController] uvicorn-inprocess thread started")
 
 
 # --------------------------------------------------------------------------- tray UI (frozen mode)
@@ -432,13 +457,16 @@ class RuntimeApplication:
     def __init__(self) -> None:
         self._env = RuntimeEnvironment.detect()
         self._backend = BackendServerController(self._env)
-
+        _debug_log(f"[RuntimeApplication] detected environment: mode={self._env.mode}, project_root={self._env.project_root}")
+ 
     def run(self) -> int:
         if self._env.mode is RuntimeMode.DEV:
             logger.info("RuntimeApplication starting in DEV mode.")
+            _debug_log("[RuntimeApplication] run() entering DEV mode")
             return self._run_dev()
-
+ 
         logger.info("RuntimeApplication starting in FROZEN mode.")
+        _debug_log("[RuntimeApplication] run() entering FROZEN mode")
         return self._run_frozen()
 
     # -------------------- DEV mode -------------------------------------------
@@ -470,59 +498,46 @@ class RuntimeApplication:
     def _run_frozen(self) -> int:
         """
         Frozen (packaged EXE) behaviour.
-
+ 
         - Starts the backend in-process.
         - Waits for readiness (health + /app).
         - Shows a tray icon with Open Web UI / Exit.
         """
+        _debug_log("[RuntimeApplication] _run_frozen() starting")
         app = QApplication([])
         app.setApplicationName("Elite: Dangerous Colonization Assistant")
         app.setQuitOnLastWindowClosed(False)
-
+ 
         # Ensure the runtime EXE has the correct icon in the Windows taskbar.
         # In frozen mode this process is the Nuitka-built EDColonizationAsst.exe,
         # not python.exe, so Qt will use this icon for the taskbar button.
         icon_path = self._env.icon_path
         if icon_path.exists():
             app.setWindowIcon(QIcon(str(icon_path)))
-
+ 
         # Start backend in-process.
+        _debug_log("[RuntimeApplication] starting in-process backend")
         self._backend.start()
-        self._backend.wait_until_ready(timeout=60.0)
-
+        ready = self._backend.wait_until_ready(timeout=60.0)
+        _debug_log(f"[RuntimeApplication] backend readiness wait completed; ready={ready}")
+ 
         # Create and show tray UI.
         tray = TrayUIController(app, self._env, self._backend)
         tray.show()
-
+        _debug_log("[RuntimeApplication] TrayUIController created and shown")
+ 
         # Optionally auto-open the web UI on first run.
         webbrowser.open(self._env.frontend_url)
-
-        return app.exec()
+        _debug_log(f"[RuntimeApplication] Opening web UI at {self._env.frontend_url}")
+ 
+        result = app.exec()
+        _debug_log(f"[RuntimeApplication] Qt event loop exited with code {result}")
+        return result
 
 
 # --------------------------------------------------------------------------- entrypoint
 
 
-def _debug_log(message: str) -> None:
-    """
-    Lightweight debug logger for the frozen runtime.
-
-    Writes to EDColonizationAsst-runtime.log next to the EXE so that we can
-    see how far startup progresses even if the Qt tray/icon never appears.
-    This deliberately does not depend on the backend logging config.
-    """
-    try:
-        try:
-            exe_dir = Path(sys.argv[0]).resolve().parent
-        except Exception:
-            exe_dir = Path.cwd()
-
-        log_path = exe_dir / "EDColonizationAsst-runtime.log"
-        with log_path.open("a", encoding="utf-8") as f:
-            f.write(message + "\n")
-    except Exception:
-        # Never let debug logging break the runtime.
-        pass
 
 
 def main() -> int:

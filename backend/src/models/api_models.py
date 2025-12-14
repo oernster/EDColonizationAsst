@@ -63,6 +63,7 @@ class HealthResponse(BaseModel):
 
     status: str = Field(default="healthy", description="Service status")
     version: str = Field(description="Application version")
+    python_version: str = Field(description="Python runtime version")
     journal_directory: str = Field(description="Configured journal directory")
     journal_accessible: bool = Field(
         description="Whether journal directory is accessible"

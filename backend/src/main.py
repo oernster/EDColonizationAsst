@@ -91,8 +91,24 @@ async def lifespan(app: FastAPI):
         await file_watcher.start_watching(journal_dir)
         logger.info("File watcher started successfully")
     except FileNotFoundError as e:
+        # Expected "directory missing" case – log clearly but do not block startup.
         logger.error("Failed to start file watcher: %s", e)
         logger.warning("Application will start but journal monitoring is disabled")
+    except Exception as e:  # noqa: BLE001
+        # On some environments (or Python/runtime combinations), watchdog or the
+        # underlying OS file notification APIs can raise unexpected exceptions
+        # (for example, permission or low-level OS errors). In the packaged
+        # runtime, an unhandled exception here would cause the entire FastAPI
+        # app startup to fail, which in turn makes the embedded uvicorn server
+        # exit immediately and the browser cannot reach /api/health or /app/.
+        #
+        # To keep the application usable even when journal monitoring cannot be
+        # initialised, we treat any unexpected error as non-fatal: log it with
+        # full details and continue starting the API without an active watcher.
+        logger.exception("Unexpected error while starting file watcher: %s", e)
+        logger.warning(
+            "Application will start but journal monitoring is disabled due to the error above"
+        )
 
     try:
         yield

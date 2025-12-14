@@ -1,7 +1,12 @@
 """REST API routes"""
 
-from fastapi import APIRouter, HTTPException, Query
+from pathlib import Path
+import platform
 from typing import List, Optional
+
+from fastapi import APIRouter, HTTPException, Query
+
+from ..config import get_config
 from ..models.api_models import (
     SystemResponse,
     SiteResponse,
@@ -11,12 +16,10 @@ from ..models.api_models import (
     ErrorResponse,
     HealthResponse,
 )
+from ..repositories.colonization_repository import IColonizationRepository
 from ..services.data_aggregator import IDataAggregator
 from ..services.system_tracker import ISystemTracker
-from ..repositories.colonization_repository import IColonizationRepository
-from ..config import get_config
 from ..utils.logger import get_logger
-from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -52,6 +55,7 @@ async def health_check() -> HealthResponse:
     return HealthResponse(
         status="healthy",
         version=__version__,
+        python_version=platform.python_version(),
         journal_directory=str(journal_dir),
         journal_accessible=journal_dir.exists(),
     )

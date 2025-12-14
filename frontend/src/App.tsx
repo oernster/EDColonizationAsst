@@ -37,6 +37,7 @@ function App() {
   const [currentTab, setCurrentTab] = useState(0);
   const [systemViewTab, setSystemViewTab] = useState(0);
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [pythonVersion, setPythonVersion] = useState<string | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [commanderName, setCommanderName] = useState<string | null>(null);
 
@@ -45,6 +46,9 @@ function App() {
       try {
         const health = await api.healthCheck();
         setAppVersion(health.version);
+        // New in 1.5.0+: surface the actual Python runtime version reported by the backend.
+        // This lets us verify at a glance which embedded interpreter the packaged EXE is using.
+        setPythonVersion(health.python_version ?? null);
       } catch (err) {
         setHealthError('Failed to load version information');
       }
@@ -193,8 +197,11 @@ function App() {
               <Typography variant="body1" sx={{ mb: 2 }}>
                 Author: Oliver Ernster
               </Typography>
-              <Typography variant="body1" sx={{ mb: 3 }}>
+              <Typography variant="body1" sx={{ mb: 1.5 }}>
                 Version: {appVersion ?? 'Loading...'}
+              </Typography>
+              <Typography variant="body1" sx={{ mb: 3 }}>
+                Python runtime: {pythonVersion ?? 'Loading...'}
               </Typography>
               {healthError && (
                 <Typography variant="body2" color="error" sx={{ mt: 1, mb: 2 }}>
