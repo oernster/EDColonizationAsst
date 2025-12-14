@@ -113,3 +113,12 @@ class AppSettings(BaseModel):
     journal_directory: str
     inara_api_key: str | None
     inara_commander_name: str | None
+    prefer_local_for_commander_systems: bool = Field(
+        default=True,
+        description=(
+            "When true (default), prefer local journal data for systems where the "
+            "current commander has construction sites, and use Inara data primarily "
+            "for other systems. When false, Inara data is preferred wherever it is "
+            "available."
+        ),
+    )

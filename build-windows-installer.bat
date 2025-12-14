@@ -154,7 +154,7 @@ for %%F in (
     if exist "%%F" del /f /q "%%F"
 )
 
-echo [CLEAN] Removing frontend artefacts...
+echo [CLEAN] Removing frontend artifacts...
 
 pushd frontend >nul
 if exist "node_modules" (

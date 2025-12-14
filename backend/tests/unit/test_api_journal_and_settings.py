@@ -128,6 +128,7 @@ async def test_get_app_settings_round_trip():
     assert hasattr(settings, "journal_directory")
     assert hasattr(settings, "inara_api_key")
     assert hasattr(settings, "inara_commander_name")
+    assert hasattr(settings, "prefer_local_for_commander_systems")
 
 
 @pytest.mark.asyncio
@@ -157,6 +158,8 @@ async def test_update_app_settings_writes_files_and_updates_config(tmp_path: Pat
             journal_directory=new_journal_dir,
             inara_api_key="TESTKEY",
             inara_commander_name="CMDR Test",
+            # Explicitly set to exercise persistence of this flag
+            prefer_local_for_commander_systems=False,
         )
 
         # ----------------------
@@ -186,6 +189,7 @@ async def test_update_app_settings_writes_files_and_updates_config(tmp_path: Pat
         inara_cfg = commander.get("inara", {})
         assert inara_cfg.get("api_key") == "TESTKEY"
         assert inara_cfg.get("commander_name") == "CMDR Test"
+        assert inara_cfg.get("prefer_local_for_commander_systems") is False
 
         # ----------------------
         # 2) Files exist but missing sections: exercise "journal"/"inara" insertion

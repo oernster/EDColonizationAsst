@@ -17,6 +17,9 @@ async def get_app_settings():
         journal_directory=config.journal.directory,
         inara_api_key=config.inara.api_key,
         inara_commander_name=config.inara.commander_name,
+        prefer_local_for_commander_systems=(
+            config.inara.prefer_local_for_commander_systems
+        ),
     )
 
 
@@ -63,6 +66,9 @@ async def update_app_settings(settings: AppSettings):
 
     commander_data["inara"]["api_key"] = settings.inara_api_key or ""
     commander_data["inara"]["commander_name"] = settings.inara_commander_name or ""
+    commander_data["inara"][
+        "prefer_local_for_commander_systems"
+    ] = settings.prefer_local_for_commander_systems
 
     with open(commander_path, "w", encoding="utf-8") as f:
         yaml.dump(commander_data, f, default_flow_style=False)
@@ -74,5 +80,8 @@ async def update_app_settings(settings: AppSettings):
         _config.journal.directory = settings.journal_directory
         _config.inara.api_key = settings.inara_api_key or ""
         _config.inara.commander_name = settings.inara_commander_name
+        _config.inara.prefer_local_for_commander_systems = (
+            settings.prefer_local_for_commander_systems
+        )
 
     return settings

@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, TextField, Button, Paper, CircularProgress, Alert } from '@mui/material';
+import { Box, Typography, TextField, Button, Paper, CircularProgress, Alert, Checkbox, FormControlLabel } from '@mui/material';
 import { api } from '../../services/api';
 import { AppSettings } from '../../types/settings';
 import { useColonizationStore } from '../../stores/colonizationStore';
 
 export const SettingsPage = () => {
   const { updateSettings } = useColonizationStore();
-  const [settings, setSettings] = useState<AppSettings>({ journal_directory: '', inara_api_key: '', inara_commander_name: '' });
+  const [settings, setSettings] = useState<AppSettings>({
+    journal_directory: '',
+    inara_api_key: '',
+    inara_commander_name: '',
+    prefer_local_for_commander_systems: true,
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +30,15 @@ export const SettingsPage = () => {
       try {
         setLoading(true);
         const fetchedSettings = await api.getAppSettings();
-        setSettings(fetchedSettings);
+
+        // Normalise the boolean so that it is effectively "true by default" even
+        // if older backends do not return this field yet. This ensures the UI
+        // checkbox starts in the intended checked state.
+        setSettings({
+          ...fetchedSettings,
+          prefer_local_for_commander_systems:
+            fetchedSettings.prefer_local_for_commander_systems ?? true,
+        });
       } catch (err) {
         setError('Failed to load settings.');
       } finally {
@@ -55,6 +68,13 @@ export const SettingsPage = () => {
     setSettings({
       ...settings,
       [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleBooleanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSettings({
+      ...settings,
+      [e.target.name]: e.target.checked,
     });
   };
 
@@ -120,6 +140,30 @@ export const SettingsPage = () => {
           variant="outlined"
           sx={{ mb: 3 }}
         />
+
+        <FormControlLabel
+          control={
+            <Checkbox
+              name="prefer_local_for_commander_systems"
+              color="primary"
+              checked={settings.prefer_local_for_commander_systems}
+              onChange={handleBooleanChange}
+            />
+          }
+          label={
+            <Typography variant="body2">
+              Prefer local journal data for this commander's systems (use Inara only for systems without any local colonization data).
+            </Typography>
+          }
+          sx={{ alignItems: 'flex-start', mb: 1 }}
+        />
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: 'block', mb: 3 }}
+        >
+          When unchecked, Inara data is preferred wherever it is available.
+        </Typography>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
           <Button

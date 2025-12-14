@@ -78,7 +78,7 @@ def build_installer() -> None:
     # as needed so users don't have to manage it manually.
     payload_src: Path = _ensure_payload_dir(project_root)
 
-    # Write a simple VERSION file based on backend/src/__init__.py so the
+    # Ensure a simple VERSION file exists in the project root so the
     # installer can reliably report the correct version at runtime, even
     # when backend sources are not directly visible.
     version_file = _ensure_version_file(project_root)
@@ -247,10 +247,16 @@ def _ensure_payload_dir(project_root: Path) -> Path:
     # NOTE: EDColonizationAsst.exe is the Nuitka-built runtime that embeds
     # Python and all backend dependencies so that end users do not need a
     # system-wide Python installation.
+    # VERSION is the single source of truth for the application version and is
+    # used by both the backend (__version__) and the installer UI. Including it
+    # here ensures that the installed runtime directory always contains a
+    # VERSION file next to EDColonizationAsst.exe, so the packaged backend can
+    # report the correct version instead of falling back to "0.0.0".
     curated_files = [
         "EDColonizationAsst.ico",
         "EDColonizationAsst.png",
         "LICENSE",
+        "VERSION",
         "EDColonizationAsst.exe",
     ]
 
@@ -382,44 +388,53 @@ def _ensure_payload_dir(project_root: Path) -> Path:
     return payload_dir
 
 
-def _get_backend_version_from_source(project_root: Path) -> str:
+def _read_version_from_version_file(project_root: Path) -> str:
     """
-    Read __version__ from backend/src/__init__.py in the source tree.
-    Fallback to "0.0.0" if anything fails.
-    """
-    init_py = project_root / "backend" / "src" / "__init__.py"
-    if not init_py.exists():
-        return "0.0.0"
+    Read the canonical version from the top-level VERSION file.
 
+    This makes VERSION the single source of truth that is shared by:
+    - the backend (__version__ in backend/src/__init__.py)
+    - the installer (for About dialogs / metadata)
+    - any external tooling that wants to know the app version.
+    """
+    version_file = project_root / "VERSION"
     try:
-        text = init_py.read_text(encoding="utf-8")
-        for line in text.splitlines():
-            line = line.strip()
-            if line.startswith("__version__"):
-                parts = line.split("=", 1)
-                if len(parts) == 2:
-                    return parts[1].strip().strip('"').strip("'")
+        return version_file.read_text(encoding="utf-8").strip()
     except Exception:
         return "0.0.0"
-
-    return "0.0.0"
 
 
 def _ensure_version_file(project_root: Path) -> Path:
     """
-    Ensure a simple VERSION file exists in the project root, containing the
-    backend version string. This is bundled with the installer so that
-    guiinstaller.py can report the correct version even when backend sources
-    are not directly visible at runtime.
+    Ensure a VERSION file exists in the project root.
+
+    If it already exists, we leave its contents unchanged and log the value.
+    If it does not exist, we create it with a safe default ("0.0.0") and
+    instruct the developer to update it before shipping.
     """
     version_file = project_root / "VERSION"
-    version = _get_backend_version_from_source(project_root)
-    try:
-        version_file.write_text(version + "\n", encoding="utf-8")
-    except OSError as exc:
-        print(f"[buildguiinstaller] WARNING: Failed to write VERSION file: {exc}")
+
+    if not version_file.exists():
+        try:
+            version_file.write_text("0.0.0\n", encoding="utf-8")
+            print(
+                "[buildguiinstaller] VERSION file not found; created default 0.0.0. "
+                "Update this file to match your release version."
+            )
+        except OSError as exc:
+            print(f"[buildguiinstaller] WARNING: Failed to create VERSION file: {exc}")
     else:
-        print(f"[buildguiinstaller] Wrote VERSION file with backend version: {version}")
+        try:
+            version = version_file.read_text(encoding="utf-8").strip()
+            print(
+                f"[buildguiinstaller] Using existing VERSION file with version: {version}"
+            )
+        except OSError as exc:
+            print(
+                "[buildguiinstaller] WARNING: Failed to read VERSION file: "
+                f"{exc}. Installer will fall back to 0.0.0."
+            )
+
     return version_file
 
 

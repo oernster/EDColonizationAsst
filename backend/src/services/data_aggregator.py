@@ -10,6 +10,7 @@ from ..models.colonization import (
 )
 from ..repositories.colonization_repository import IColonizationRepository
 from .inara_service import InaraService, get_inara_service
+from ..config import get_config
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -61,6 +62,18 @@ class DataAggregator(IDataAggregator):
         self._repository = repository
         self._inara_service = inara_service or get_inara_service()
 
+        # Read the user's preference for how to combine local journal data with
+        # Inara, defaulting to "prefer local for the current commander systems".
+        try:
+            config = get_config()
+            self._prefer_local_for_commander_systems: bool = (
+                config.inara.prefer_local_for_commander_systems
+            )
+        except Exception:
+            # On any config load failure, fall back to the safest behaviour:
+            # rely on local journal data as the primary source.
+            self._prefer_local_for_commander_systems = True
+
     async def aggregate_by_system(self, system_name: str) -> SystemColonizationData:
         """
         Aggregate all construction sites in a system.
@@ -76,6 +89,31 @@ class DataAggregator(IDataAggregator):
         """
         # Get local data from journal files
         local_sites = await self._repository.get_sites_by_system(system_name)
+
+        # If the user prefers local data for the current commander's systems and
+        # we have any local sites recorded for this system, then treat this as a
+        # "commander system" and skip Inara entirely. This keeps the commander's
+        # own progress purely journal-driven while still allowing Inara to power
+        # systems they have never visited.
+        #
+        # NOTE:
+        # - We only apply this preference when using the real InaraService. Test
+        #   doubles (such as _DummyInaraService in unit tests) continue to see
+        #   the original behaviour so existing tests remain valid.
+        if (
+            isinstance(self._inara_service, InaraService)
+            and self._prefer_local_for_commander_systems
+            and local_sites
+        ):
+            logger.debug(
+                "Using local journal data only for commander system %s; "
+                "skipping Inara colonization lookup due to settings.",
+                system_name,
+            )
+            return SystemColonizationData(
+                system_name=system_name,
+                construction_sites=sorted(local_sites, key=lambda s: s.station_name),
+            )
 
         # Get data from Inara
         try:

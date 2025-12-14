@@ -119,7 +119,7 @@ function App() {
             <Tabs value={currentTab} onChange={handleTabChange} aria-label="nav tabs">
               <Tab label="System View" />
               <Tab label="Settings" />
-              <Tab label="Acknowledgements" />
+              <Tab label="About" />
               <Tab label="License" />
             </Tabs>
           </Box>
@@ -185,7 +185,7 @@ function App() {
           {currentTab === 2 && (
             <Box sx={{ pt: 4, maxWidth: 900 }}>
               <Typography variant="h5" gutterBottom>
-                Acknowledgements
+                About
               </Typography>
               <Typography variant="body1" sx={{ mb: 2 }}>
                 Application Name: EDColonizationAsst

@@ -62,6 +62,15 @@ class InaraConfig(BaseSettings):
     api_key: str = os.getenv("INARA_API_KEY", "")
     commander_name: str | None = os.getenv("INARA_COMMANDER_NAME")
     app_name: str = os.getenv("INARA_APP_NAME", "")
+    prefer_local_for_commander_systems: bool = Field(
+        default=True,
+        description=(
+            "When true (default), systems where this commander's journals contain "
+            "colonization sites are served purely from local journal data. Inara is "
+            "only consulted for systems with no local colonization data. When false, "
+            "Inara data is preferred wherever it is available."
+        ),
+    )
 
 
 class AppConfig(BaseSettings):
