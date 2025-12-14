@@ -109,8 +109,8 @@ On the machine where you build the installer:
 - Python 3.12+ installed and on `PATH`.
 - [`uv`](https://docs.astral.sh/uv/getting-started/) installed.
 - Node.js + npm installed (for building the frontend only).
-- A working C/C++ toolchain suitable for Nuitka (e.g. MSVC or mingw-w64 via
-  the toolchain you’ve already configured).
+- A working **C/C++ toolchain** suitable for Nuitka (details in
+  [Windows compiler requirements](#windows-compiler-requirements-for-nuitka) below).
 
 ### 2. Backend dependencies (dev environment)
 
@@ -742,6 +742,8 @@ On the **developer** machine (where you build the installer):
 - Python 3.12+ installed and on `PATH`.
 - [`uv`](https://docs.astral.sh/uv/getting-started/) installed.
 - Node.js + npm installed (for building the frontend only).
+- A supported C/C++ toolchain for Nuitka (see
+  [Windows compiler requirements for Nuitka](#windows-compiler-requirements-for-nuitka)).
 - Python dependencies installed (from the project root or `backend/`):
 
   ```bash
@@ -760,6 +762,59 @@ On the **developer** machine (where you build the installer):
 
   The dev requirements include FastAPI, PySide6, and other libraries used by
   the backend and installer.
+
+### Windows compiler requirements for Nuitka
+
+Nuitka compiles Python code to C/C++ and then uses a platform C/C++ compiler.
+On Windows, this project is tested and supported with **MSVC**, not Cygwin GCC.
+
+**For Python 3.12 (current default backend version):**
+
+- Nuitka requires **MSVC 14.3 (v143 toolset) or later**.
+- This is provided by **Visual Studio 2022 Build Tools**:
+
+  1. Download the Build Tools installer from Microsoft:
+
+     - Direct link: `https://aka.ms/vs/17/release/vs_BuildTools.exe`
+
+  2. Run the installer and for **Visual Studio Build Tools 2022** choose:
+
+     - Workload: **Desktop development with C++**
+     - Verify in the *Individual components* tab that these are installed:
+       - **MSVC v143 - VS 2022 C++ x64/x86 build tools**
+       - A recent **Windows 10 SDK** or **Windows 11 SDK**
+
+- MSVC 14.2 (Visual Studio 2019, v142 toolset) is **not sufficient** for
+  Python 3.12; Nuitka will fail with:
+
+  > `Nuitka-Scons: For Python version 3.12 MSVC 14.3 or later is required, not 14.2 which is too old.`
+
+**If you choose to build with Python 3.11 instead of 3.12:**
+
+- Nuitka can still use **MSVC 14.2 (v142)**.
+- You must ensure the backend venv is explicitly created with a Python 3.11
+  interpreter, for example:
+
+  ```powershell
+  cd backend
+  uv venv .venv --python=python3.11
+  .venv\Scripts\activate
+  uv pip install -r requirements-dev.txt
+  ```
+
+- The rest of the build pipeline (`buildruntime.py`, `buildguiinstaller.py`,
+  `build-windows-installer.bat`) stays the same; only the Python version used
+  by Nuitka changes.
+
+**GCC / MinGW-w64 notes (advanced):**
+
+- Nuitka can also target **MinGW-w64** (GCC) on Windows, but this project is
+  currently configured and tested with MSVC only.
+- Cygwin GCC is **not** supported for this build; installing Cygwin does not
+  satisfy Nuitka’s MSVC requirement for Python 3.12.
+- If you decide to experiment with MinGW-w64, follow Nuitka’s official
+  documentation and update the build scripts accordingly; this is out of scope
+  for the default EDCA build pipeline.
 
 ### 1. Build the frontend (Vite/React)
 

@@ -125,6 +125,14 @@ def build_installer() -> None:
     if payload_src.exists():
         nuitka_args.append(f"--include-data-dir={payload_src}=payload")
 
+    # Data: runtime EXE as a dedicated data file inside the bundle.
+    # This ensures EDColonizationAsst.exe is always present at
+    # "runtime/EDColonizationAsst.exe" at installer runtime, even if Nuitka
+    # decides to strip or ignore executables inside an included data directory.
+    nuitka_args.append(
+        f"--include-data-file={runtime_exe}=runtime/EDColonizationAsst.exe"
+    )
+
     # Data: LICENSE file.
     if license_file.exists():
         nuitka_args.append(f"--include-data-file={license_file}=LICENSE")
@@ -240,7 +248,6 @@ def _ensure_payload_dir(project_root: Path) -> Path:
     # Python and all backend dependencies so that end users do not need a
     # system-wide Python installation.
     curated_files = [
-        "run-edca.bat",
         "EDColonizationAsst.ico",
         "EDColonizationAsst.png",
         "LICENSE",
@@ -368,7 +375,7 @@ def _ensure_payload_dir(project_root: Path) -> Path:
         raise RuntimeError(
             f"Bootstrapped payload directory '{payload_dir}' is empty.\n"
             "No curated files or directories were found to copy. "
-            "Add at least one of: backend/, frontend/, run-edca.bat, etc."
+            "Add at least one of: backend/, frontend/, EDColonizationAsst.exe, etc."
         )
  
     print(f"[buildguiinstaller] Bootstrapped payload directory at: {payload_dir}")

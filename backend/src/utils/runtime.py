@@ -13,6 +13,7 @@ imported from anywhere in the backend.
 
 import sys
 from enum import Enum, auto
+from pathlib import Path
 
 
 class RuntimeMode(Enum):
@@ -29,8 +30,29 @@ def is_frozen() -> bool:
     Nuitka (and other freezer tools) set ``sys.frozen`` on the embedded
     Python interpreter. We use that to distinguish between a packaged
     runtime EXE and a regular Python interpreter invocation.
+
+    In some environments the ``sys.frozen`` attribute may not be present
+    or may not behave as expected. As a pragmatic fallback we also treat
+    any process whose argv[0] is a non-Python ``.exe`` as frozen. This
+    covers the typical case where the runtime is launched via the
+    Nuitka-built EDColonizationAsst.exe rather than ``python.exe``.
     """
-    return bool(getattr(sys, "frozen", False))
+    # Primary detection: explicit flag set by freezer.
+    if bool(getattr(sys, "frozen", False)):
+        return True
+
+    # Fallback: argv[0] points at a non-Python .exe
+    try:
+        exe_path = Path(sys.argv[0])
+        if exe_path.suffix.lower() == ".exe" and not exe_path.stem.lower().startswith(
+            "python"
+        ):
+            return True
+    except Exception:
+        # If anything goes wrong here, fall back to non-frozen.
+        return False
+
+    return False
 
 
 def get_runtime_mode() -> RuntimeMode:

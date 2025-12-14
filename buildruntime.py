@@ -73,6 +73,20 @@ def build_runtime() -> None:
     jobs = str(cpu_count)
     print(f"[buildruntime] Using {jobs} parallel jobs for Nuitka compilation")
 
+    # Allow temporarily enabling a visible console for debugging the packaged
+    # runtime. When EDCA_DEBUG_CONSOLE=1 (or true/yes/on) is present in the
+    # environment at build time, we use "--windows-console-mode=attach" so
+    # launching EDColonizationAsst.exe from PowerShell/CMD will show console
+    # output. For normal release builds we keep the console disabled.
+    debug_console = os.environ.get("EDCA_DEBUG_CONSOLE", "").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    console_mode = "attach" if debug_console else "disable"
+    print(f"[buildruntime] Windows console mode: {console_mode}")
+
     # Base Nuitka arguments.
     # Notes:
     # - --onefile: single exe.
@@ -86,7 +100,7 @@ def build_runtime() -> None:
         "--onefile",
         "--enable-plugin=pyside6",
         f"--jobs={jobs}",
-        "--windows-console-mode=disable",
+        f"--windows-console-mode={console_mode}",
         f"--output-filename={RUNTIME_EXE_NAME}.exe",
         f"--windows-icon-from-ico={icon_path}",
     ]

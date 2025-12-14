@@ -39,9 +39,19 @@ from fastapi import FastAPI
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
-from .main import app as fastapi_app
-from .utils.logger import get_logger, setup_logging
-from .utils.runtime import RuntimeMode, get_runtime_mode
+# Import FastAPI app and runtime utilities. In normal (package) execution the
+# relative imports work (backend.src.runtime_entry). In the frozen Nuitka
+# onefile build the module is executed as a top-level script so relative
+# imports fail with "attempted relative import with no known parent package".
+# Fall back to absolute imports in that case.
+try:
+    from .main import app as fastapi_app
+    from .utils.logger import get_logger, setup_logging
+    from .utils.runtime import RuntimeMode, get_runtime_mode
+except ImportError:
+    from backend.src.main import app as fastapi_app
+    from backend.src.utils.logger import get_logger, setup_logging
+    from backend.src.utils.runtime import RuntimeMode, get_runtime_mode
 
 # --------------------------------------------------------------------------- logging
 
@@ -216,16 +226,51 @@ class BackendServerController:
     # ------------------------------- internals -----------------------------
 
     def _start_inprocess(self) -> None:
-        """Start uvicorn.Server with backend.src.main:app in a background thread."""
+        """
+        Start uvicorn.Server with backend.src.main:app in a background thread.
+
+        In the frozen onefile build, uvicorn's default logging configuration can
+        fail when it tries to attach a colourising formatter to a handler whose
+        stream does not expose 'isatty()' in the way it expects. This manifests
+        as:
+
+            ValueError("Unable to configure formatter 'default'")
+
+        when uvicorn.Config.configure_logging() calls logging.config.dictConfig.
+
+        To avoid this entirely, we subclass uvicorn.Config and override
+        configure_logging() as a no-op so that uvicorn does not touch the
+        logging configuration at all. We then rely solely on the application's
+        logging configuration from backend.src.utils.logger.setup_logging().
+        """
         if self._server is not None:
             logger.info("In-process uvicorn server already started.")
             return
 
-        config = uvicorn.Config(
+        class _QuietUvicornConfig(uvicorn.Config):
+            def configure_logging(self) -> None:  # type: ignore[override]
+                # Do not let uvicorn interfere with logging setup in the frozen runtime.
+                return
+
+        # Derive the bind host from the application's configuration so that
+        # we can listen on 0.0.0.0 when configured, allowing LAN access.
+        try:
+            try:
+                from .config import get_config  # type: ignore[import-not-found]
+            except ImportError:
+                from backend.src.config import get_config  # type: ignore[import-error]
+
+            _cfg = get_config()
+            host = getattr(getattr(_cfg, "server", _cfg), "host", "127.0.0.1") or "127.0.0.1"
+        except Exception:
+            host = "127.0.0.1"
+
+        config = _QuietUvicornConfig(
             app=fastapi_app,
-            host="127.0.0.1",
+            host=host,
             port=self._env.backend_port,
             log_level="info",
+            log_config=None,
         )
         server = uvicorn.Server(config=config)
         self._server = server
@@ -233,7 +278,8 @@ class BackendServerController:
         def _run() -> None:
             try:
                 logger.info(
-                    "Starting in-process uvicorn server on http://127.0.0.1:%d",
+                    "Starting in-process uvicorn server on http://%s:%d",
+                    host,
                     self._env.backend_port,
                 )
                 server.run()
@@ -428,9 +474,76 @@ class RuntimeApplication:
 # --------------------------------------------------------------------------- entrypoint
 
 
+def _debug_log(message: str) -> None:
+    """
+    Lightweight debug logger for the frozen runtime.
+
+    Writes to EDColonizationAsst-runtime.log next to the EXE so that we can
+    see how far startup progresses even if the Qt tray/icon never appears.
+    This deliberately does not depend on the backend logging config.
+    """
+    try:
+        try:
+            exe_dir = Path(sys.argv[0]).resolve().parent
+        except Exception:
+            exe_dir = Path.cwd()
+
+        log_path = exe_dir / "EDColonizationAsst-runtime.log"
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(message + "\n")
+    except Exception:
+        # Never let debug logging break the runtime.
+        pass
+
+
 def main() -> int:
-    runtime_app = RuntimeApplication()
-    return runtime_app.run()
+    """
+    Entry point for the packaged runtime executable.
+
+    In FROZEN mode this is invoked by the Nuitka-built EDColonizationAsst.exe.
+    To make failures in the frozen runtime debuggable on end-user machines,
+    we capture any unhandled exceptions and write them to a plain text log file
+    next to the executable.
+    """
+    _debug_log("[runtime_entry] main() starting")
+
+    try:
+        runtime_app = RuntimeApplication()
+        _debug_log(f"[runtime_entry] RuntimeApplication created; mode={runtime_app._env.mode}")  # type: ignore[attr-defined]
+        result = runtime_app.run()
+        _debug_log(f"[runtime_entry] RuntimeApplication.run() returned {result}")
+        return result
+    except Exception as exc:  # noqa: BLE001
+        # Best-effort crash logging that does not depend on the backend logging
+        # configuration or config.yaml being readable.
+        import traceback  # type: ignore[import-not-found]
+
+        try:
+            exe_dir = Path(sys.argv[0]).resolve().parent
+        except Exception:
+            exe_dir = Path.cwd()
+
+        log_path = exe_dir / "EDColonizationAsst-runtime-error.log"
+        try:
+            with log_path.open("a", encoding="utf-8") as f:
+                f.write("[runtime_entry] FATAL exception in packaged runtime\n")
+                f.write(f"Exception: {exc!r}\n")
+                f.write("Traceback:\n")
+                f.write(traceback.format_exc())
+                f.write("\n\n")
+        except Exception:
+            # Never let logging failures crash the process again.
+            pass
+
+        # Also emit something to stderr in case the process is started from a
+        # console in development.
+        try:
+            print(f"[runtime_entry] FATAL: {exc!r}", file=sys.stderr)
+        except Exception:
+            pass
+
+        _debug_log(f"[runtime_entry] FATAL exception: {exc!r}")
+        return 1
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 import sqlite3
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
@@ -9,10 +10,40 @@ from datetime import datetime, UTC
 from pathlib import Path
 from ..models.colonization import ConstructionSite, Commodity
 from ..utils.logger import get_logger
+from ..utils.runtime import is_frozen
 
 logger = get_logger(__name__)
 
-DB_FILE = Path(__file__).parent.parent / "colonization.db"
+
+def _get_db_file() -> Path:
+    """
+    Determine the location of the colonization SQLite database.
+
+    - In DEV mode (non-frozen): keep the DB next to backend/src as before:
+        backend/colonization.db
+
+    - In FROZEN mode (packaged EXE via Nuitka): store the DB under a
+      user-local, writable directory so it persists across runs and does
+      not live in Nuitka's temporary onefile extraction directory:
+
+        %LOCALAPPDATA%\\EDColonizationAsst\\colonization.db
+
+      If LOCALAPPDATA is not set for any reason, fall back to the user's
+      home directory.
+    """
+    if not is_frozen():
+        return Path(__file__).parent.parent / "colonization.db"
+
+    local_appdata = os.environ.get("LOCALAPPDATA")
+    if local_appdata:
+        base = Path(local_appdata) / "EDColonizationAsst"
+    else:
+        base = Path.home() / ".edcolonizationasst"
+
+    return base / "colonization.db"
+
+
+DB_FILE = _get_db_file()
 
 
 class IColonizationRepository(ABC):
@@ -71,6 +102,15 @@ class ColonizationRepository(IColonizationRepository):
         self._create_tables()
 
     def _get_db_connection(self):
+        # Ensure the parent directory for the DB exists before connecting,
+        # especially in FROZEN mode where we store the DB under
+        # %LOCALAPPDATA%\\EDColonizationAsst.
+        db_dir = DB_FILE.parent
+        try:
+            db_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as exc:
+            logger.error("Failed to create DB directory %s: %s", db_dir, exc)
+            # Let sqlite3.connect raise a clearer error below.
         return sqlite3.connect(DB_FILE)
 
     def _create_tables(self) -> None:

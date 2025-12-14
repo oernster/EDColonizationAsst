@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from . import __version__
 from .config import get_config
 from .utils.logger import setup_logging, get_logger
+from .utils.runtime import is_frozen
 from .services.journal_parser import JournalParser
 from .services.file_watcher import FileWatcher
 from .services.data_aggregator import DataAggregator
@@ -23,7 +24,29 @@ setup_logging()
 logger = get_logger(__name__)
 
 # Project root (installation root when packaged)
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+#
+# In development we keep using the source layout
+#   backend/src/main.py -> src -> backend -> project_root
+# so PROJECT_ROOT is based on this file location.
+#
+# In a frozen runtime (Nuitka onefile EXE) we want PROJECT_ROOT to be the
+# directory containing the runtime executable, because that is where the
+# installer places the "frontend/dist" assets and other payload files.
+try:
+    if is_frozen():
+        # Directory of the running EXE (install root when packaged).
+        PROJECT_ROOT = Path(__file__).resolve()
+        # In the frozen bundle, __file__ will typically live under the
+        # extracted backend package directory. Use sys.argv[0] instead so
+        # that we point at the real install directory containing the EXE.
+        import sys as _sys  # local import to avoid polluting module namespace
+
+        PROJECT_ROOT = Path(_sys.argv[0]).resolve().parent
+    else:
+        PROJECT_ROOT = Path(__file__).resolve().parents[2]
+except Exception:
+    # Fallback to the original behaviour if anything goes wrong.
+    PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # Application lifespan management
 

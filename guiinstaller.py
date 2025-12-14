@@ -957,10 +957,9 @@ class InstallerWindow(QMainWindow):
 
         Shortcut strategy for the installed app:
 
-        - Shortcuts target a tiny VBScript launcher (run-edca-hidden.vbs) that
-          starts run-edca.bat with a *hidden* console window.
-        - run-edca.bat in turn prefers EDColonizationAsst.exe when present, so
-          the actual application process is still the packaged runtime EXE.
+        - Shortcuts point directly at the packaged runtime EXE
+          (EDColonizationAsst.exe) in the install directory.
+        - No batch files or VBScript launchers are used at runtime.
         - The shortcut icon is always EDColonizationAsst.ico from the install
           directory, so the user never sees a Python icon for the app.
         """
@@ -968,31 +967,92 @@ class InstallerWindow(QMainWindow):
             return
 
         runtime_exe = self.install_dir / "EDColonizationAsst.exe"
-        bat_launcher = self.install_dir / "run-edca.bat"
+        self._log(f"Shortcut creation using install dir: {self.install_dir}")
+        self._log(f"Expected runtime EXE at: {runtime_exe}")
 
-        if not bat_launcher.exists() and not runtime_exe.exists():
+        # In theory the runtime EXE should always have been copied from the
+        # payload into the install directory by _copy_tree(). However, Nuitka's
+        # onefile packaging can treat executables differently inside data
+        # directories. We therefore embed EDColonizationAsst.exe explicitly as a
+        # data file under a dedicated "runtime/" directory in the bundle (see
+        # buildguiinstaller.build_installer) and recover from there if needed.
+        if not runtime_exe.exists():
+            # 1) Prefer the dedicated runtime/ directory next to the extracted
+            #    installer module. In onefile builds, __file__ points at the
+            #    extraction directory that also contains data files such as
+            #    "runtime/EDColonizationAsst.exe".
+            runtime_candidates: list[Path] = []
+            try:
+                runtime_candidates.append(
+                    Path(__file__).resolve().parent / "runtime" / "EDColonizationAsst.exe"
+                )
+            except Exception:
+                pass
+
+            # 2) Also consider a runtime/ directory next to the executable path
+            #    as a fallback, in case Nuitka lays out data relative to the stub
+            #    exe instead of the module file.
+            try:
+                runtime_candidates.append(
+                    Path(sys.argv[0]).resolve().parent / "runtime" / "EDColonizationAsst.exe"
+                )
+            except Exception:
+                pass
+
+            recovered = False
+            for candidate in runtime_candidates:
+                self._log(f"Runtime EXE missing; probing runtime data at: {candidate}")
+                if candidate.exists():
+                    try:
+                        shutil.copy2(candidate, runtime_exe)
+                        self._log(
+                            "Recovered runtime EXE into install directory from "
+                            f"runtime data: {candidate} -> {runtime_exe}"
+                        )
+                        recovered = True
+                        break
+                    except Exception as exc:
+                        self._log(
+                            "Failed to copy runtime EXE from runtime data into "
+                            f"install directory: {exc}"
+                        )
+
+            # 3) Final fallback: try the payload/ tree (older installers that
+            #    happened to keep the EXE inside payload before we introduced
+            #    the dedicated runtime/ embedding).
+            if not recovered:
+                payload_root = get_payload_root()
+                if payload_root is not None:
+                    candidate = payload_root / "EDColonizationAsst.exe"
+                    self._log(f"Runtime EXE still missing; probing payload at: {candidate}")
+                    if candidate.exists():
+                        try:
+                            shutil.copy2(candidate, runtime_exe)
+                            self._log(
+                                "Recovered runtime EXE into install directory "
+                                f"from payload: {candidate} -> {runtime_exe}"
+                            )
+                            recovered = True
+                        except Exception as exc:
+                            self._log(
+                                "Failed to copy runtime EXE from payload into "
+                                f"install directory: {exc}"
+                            )
+                    else:
+                        self._log(
+                            "Runtime EXE not found in payload either; cannot "
+                            "recover EDColonizationAsst.exe for shortcuts."
+                        )
+
+        if not runtime_exe.exists():
             self._log(
-                "Neither runtime EXE nor batch launcher found in install directory; "
-                "skipping shortcut creation."
+                "Runtime EXE not found in install directory after all recovery "
+                "attempts; skipping shortcut creation."
             )
             return
 
-        # Always ensure the hidden VBScript launcher exists so shortcuts can
-        # start the app without flashing a console window.
-        self._ensure_windows_hidden_launcher()
-        vbs_launcher = self.install_dir / "run-edca-hidden.vbs"
-
-        # Prefer the hidden VBScript launcher when available, falling back to
-        # the runtime EXE, and finally the batch file as a last resort.
-        if vbs_launcher.exists():
-            target = vbs_launcher
-            self._log(f"Using hidden VBScript launcher for shortcuts: {target}")
-        elif runtime_exe.exists():
-            target = runtime_exe
-            self._log(f"Using runtime EXE for shortcuts: {target}")
-        else:
-            target = bat_launcher
-            self._log(f"Using batch launcher for shortcuts: {target}")
+        target = runtime_exe
+        self._log(f"Using runtime EXE for shortcuts: {target}")
 
         icon = self.install_dir / "EDColonizationAsst.ico"
         if not icon.exists():
@@ -1014,38 +1074,13 @@ class InstallerWindow(QMainWindow):
             start_menu_shortcut.parent.mkdir(parents=True, exist_ok=True)
             self._create_single_shortcut(start_menu_shortcut, target, icon)
 
-    def _ensure_windows_hidden_launcher(self) -> None:
-        """
-        Ensure a VBScript launcher exists that starts run-edca.bat hidden.
-
-        This avoids any visible console windows when the desktop/start menu
-        shortcuts are invoked, while still delegating all environment setup to
-        run-edca.bat.
-        """
-        if not sys.platform.startswith("win"):
-            return
-
-        vbs_path = self.install_dir / "run-edca-hidden.vbs"
-        try:
-            vbs_content = (
-                'Set fso = CreateObject("Scripting.FileSystemObject")\r\n'
-                'Set shell = CreateObject("WScript.Shell")\r\n'
-                'folder = fso.GetParentFolderName(WScript.ScriptFullName)\r\n'
-                'bat = fso.BuildPath(folder, "run-edca.bat")\r\n'
-                'shell.Run """" & bat & """", 0, False\r\n'
-            )
-            vbs_path.write_text(vbs_content, encoding="utf-8")
-            self._log(f"Ensured hidden launcher script: {vbs_path}")
-        except Exception as exc:
-            self._log(f"Failed to create hidden launcher script {vbs_path}: {exc}")
 
     def _create_single_shortcut(self, shortcut_path: Path, target: Path, icon: Path) -> None:
         """
         Create a single .lnk shortcut using PowerShell + WScript.Shell COM.
 
-        The shortcut targets a VBScript launcher (or the batch file directly
-        as a fallback), so at runtime Windows uses wscript.exe rather than a
-        console host and no command window is shown.
+        The shortcut points directly at the packaged runtime EXE so that the
+        app starts without any intermediate batch or VBScript launcher.
         """
         try:
             shortcut_path.parent.mkdir(parents=True, exist_ok=True)
