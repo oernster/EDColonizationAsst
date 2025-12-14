@@ -16,9 +16,8 @@ packaging==25.0
 pathspec==0.12.1
 pefile==2024.8.26
 platformdirs==4.5.1
-pydantic==2.5.0
-pydantic-core==2.14.1
-pydantic-settings==2.1.0
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
 pyinstaller-hooks-contrib==2025.10
 pyside6==6.10.1
 pyside6-addons==6.10.1
