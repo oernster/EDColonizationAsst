@@ -227,7 +227,10 @@ def test_setup_logging_and_get_logger():
 
 
 def test_get_journal_directory_raises_when_saved_games_missing():
-    """get_journal_directory should raise when Saved Games path cannot be determined."""
+    """Windows-only: get_journal_directory should raise when Saved Games path cannot be determined."""
+    if os.name != "nt":
+        pytest.skip("Windows-specific behavior; Linux uses Proton/Wine auto-detection instead.")
+
     import src.utils.journal as journal_mod  # local import to patch safely
 
     orig_get_saved_games = journal_mod.get_saved_games_path
@@ -240,7 +243,10 @@ def test_get_journal_directory_raises_when_saved_games_missing():
 
 
 def test_get_journal_directory_raises_when_journal_folder_missing(tmp_path: Path):
-    """get_journal_directory should raise when the Frontier/Elite Dangerous folder is missing."""
+    """Windows-only: get_journal_directory should raise when the Frontier/Elite Dangerous folder is missing."""
+    if os.name != "nt":
+        pytest.skip("Windows-specific behavior; Linux uses Proton/Wine auto-detection instead.")
+
     import src.utils.journal as journal_mod  # local import to patch safely
 
     # Simulate a Saved Games folder without the expected subdirectory
