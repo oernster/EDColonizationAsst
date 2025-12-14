@@ -25,6 +25,25 @@ For normal Windows use, download the prebuilt installer (no Python or Node.js re
 > source code in this repository to reassure yourself before choosing to run the
 > installer.
 
+## Run on Linux
+
+If you are running EDCA from a local checkout on Linux, use the distro-specific helper script from the project root:
+
+- Debian / Ubuntu / Linux Mint: [`./run-edca-built-debian.sh`](run-edca-built-debian.sh:1) (recommended)
+- Fedora: [`./run-edca-built-fedora.sh`](run-edca-built-fedora.sh:1) (**UNTESTED** helper)
+- Arch Linux: [`./run-edca-built-arch.sh`](run-edca-built-arch.sh:1) (**UNTESTED** helper)
+- RHEL / Rocky / Alma: [`./run-edca-built-rhel.sh`](run-edca-built-rhel.sh:1) (**UNTESTED** helper)
+- Void: [`./run-edca-built-void.sh`](run-edca-built-void.sh:1) (**UNTESTED** helper)
+
+Each script:
+
+- Sets up a Python virtual environment and backend runtime dependencies.
+- Ensures the frontend is built (or lets you skip the build via environment variables).
+- Starts the backend on `http://127.0.0.1:8000`.
+- Opens your browser at `http://127.0.0.1:8000/app/`.
+
+For full Linux prerequisites and advanced usage (including environment variables and alternative workflows), see [`DEVELOPMENT_README.md`](DEVELOPMENT_README.md:666).
+
 The installed runtime starts a local web server and opens your browser to:
 
 ```text
