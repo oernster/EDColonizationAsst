@@ -176,21 +176,28 @@ REM ---------------------------------------------------------------------------
 REM 2. Backend: venv + requirements-dev (incl. Nuitka, PySide6, shiboken6)
 REM ---------------------------------------------------------------------------
 
-echo [BACKEND] Creating virtual environment with uv venv .venv ...
+echo [BACKEND] Creating backend virtual environment (backend\.venv) ...
 
 pushd backend >nul
-uv venv .venv
+python -m venv .venv
 if errorlevel 1 (
-    echo [ERROR] uv venv .venv failed.
+    echo [ERROR] python -m venv .venv failed.
     popd >nul
     exit /b 1
 )
 
-echo [BACKEND] Installing requirements-dev.txt via uv pip ...
+echo [BACKEND] Installing requirements-dev.txt into backend\.venv ...
 
-uv pip install -r requirements-dev.txt
+call ".venv\Scripts\python.exe" -m pip install --upgrade pip
 if errorlevel 1 (
-    echo [ERROR] uv pip install -r requirements-dev.txt failed.
+    echo [ERROR] Failed to upgrade pip in backend\.venv.
+    popd >nul
+    exit /b 1
+)
+
+call ".venv\Scripts\python.exe" -m pip install -r requirements-dev.txt
+if errorlevel 1 (
+    echo [ERROR] pip install -r requirements-dev.txt failed in backend\.venv.
     popd >nul
     exit /b 1
 )

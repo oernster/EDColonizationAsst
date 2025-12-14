@@ -33,7 +33,7 @@ const darkTheme = createTheme({
 });
 
 function App() {
-  const { currentSystem, systemData, loading, error } = useColonizationStore();
+  const { currentSystem, systemData, loading, error, settingsVersion } = useColonizationStore();
   const [currentTab, setCurrentTab] = useState(0);
   const [systemViewTab, setSystemViewTab] = useState(0);
   const [appVersion, setAppVersion] = useState<string | null>(null);
@@ -58,7 +58,7 @@ function App() {
     };
 
     loadMeta();
-  }, []);
+  }, [settingsVersion]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);

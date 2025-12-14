@@ -3,7 +3,7 @@
 import yaml
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
-from ..config import get_config, AppConfig
+from ..config import get_config, AppConfig, get_config_paths
 from ..models.api_models import AppSettings
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -27,9 +27,12 @@ async def update_app_settings(settings: AppSettings):
     - Non-sensitive config (e.g. journal path) is stored in backend/config.yaml
     - Sensitive commander/Inara config is stored in backend/commander.yaml
     """
-    # Update non-sensitive config
-    config_path = Path(__file__).parent.parent.parent / "config.yaml"
+    # Resolve config paths in a runtime-aware way so that in the packaged
+    # executable we always read/write from a per-user writable directory
+    # instead of the (potentially read-only) install location.
+    config_path, commander_path = get_config_paths()
 
+    # Update non-sensitive config
     if not config_path.exists():
         # Create a default config if it doesn't exist
         with open(config_path, "w", encoding="utf-8") as f:
@@ -47,8 +50,6 @@ async def update_app_settings(settings: AppSettings):
         yaml.dump(config_data, f, default_flow_style=False)
 
     # Update sensitive commander/Inara config
-    commander_path = Path(__file__).parent.parent.parent / "commander.yaml"
-
     if not commander_path.exists():
         # Create a default commander config if it doesn't exist
         with open(commander_path, "w", encoding="utf-8") as f:

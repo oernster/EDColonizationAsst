@@ -1,6 +1,7 @@
 """Configuration management for the application"""
 
 import os
+import sys
 from pathlib import Path
 from typing import List
 import yaml
@@ -73,6 +74,83 @@ class AppConfig(BaseSettings):
     inara: InaraConfig = Field(default_factory=InaraConfig)
 
 
+def _is_frozen() -> bool:
+    """
+    Return True if the current process is a frozen executable.
+
+    This mirrors the logic in utils.runtime.is_frozen() but is kept local to
+    avoid import-time dependencies from this low-level config module.
+    """
+    # Primary detection: explicit flag set by freezer.
+    if bool(getattr(sys, "frozen", False)):
+        return True
+
+    # Fallback: argv[0] points at a non-Python .exe
+    try:
+        exe_path = Path(sys.argv[0])
+        if exe_path.suffix.lower() == ".exe" and not exe_path.stem.lower().startswith(
+            "python"
+        ):
+            return True
+    except Exception:
+        return False
+
+    return False
+
+
+def _get_user_config_dir() -> Path:
+    """
+    Return the per-user configuration directory for the packaged runtime.
+
+    On Windows this resolves to %APPDATA%\\EDColonizationAsst.
+    On other platforms it follows the XDG base directory spec or falls back
+    to ~/.config/EDColonizationAsst.
+    """
+    if os.name == "nt":
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            base = Path(appdata)
+        else:
+            # Pragmatic fallback if APPDATA is missing for some reason.
+            base = Path.home() / "AppData" / "Roaming"
+    else:
+        xdg = os.environ.get("XDG_CONFIG_HOME")
+        if xdg:
+            base = Path(xdg)
+        else:
+            base = Path.home() / ".config"
+
+    return base / "EDColonizationAsst"
+
+
+def get_config_paths() -> tuple[Path, Path]:
+    """
+    Compute the locations of config.yaml and commander.yaml.
+
+    - In development (non-frozen) mode we keep using the source layout:
+        backend/config.yaml
+        backend/commander.yaml
+
+    - In the packaged (frozen) runtime we store configuration alongside
+      the installed executable so that the DB, logs and config all live
+      under the single install directory (e.g. AppData\Local\EDColonizationAssistant).
+    """
+    if _is_frozen():
+        # Directory containing the running EXE (install root when packaged).
+        try:
+            base_dir = Path(sys.argv[0]).resolve().parent
+        except Exception:
+            # Fallback to the original source-layout behaviour if anything goes wrong.
+            base_dir = Path(__file__).resolve().parents[2]
+    else:
+        # backend/src/config.py -> src -> backend
+        base_dir = Path(__file__).parent.parent
+
+    config_path = base_dir / "config.yaml"
+    commander_path = base_dir / "commander.yaml"
+    return config_path, commander_path
+
+
 # Global config instance
 _config: AppConfig | None = None
 
@@ -81,17 +159,17 @@ def get_config() -> AppConfig:
     """Get the global configuration instance"""
     global _config
     if _config is None:
-        # Main (non-sensitive) config
-        config_path = Path(__file__).parent.parent / "config.yaml"
-        # Sensitive commander-specific config (Inara, etc.)
-        commander_path = Path(__file__).parent.parent / "commander.yaml"
+        # Resolve configuration file locations in a runtime-aware way.
+        # In the packaged EXE we read from a per-user writable directory
+        # instead of the (potentially read-only) install location.
+        config_path, commander_path = get_config_paths()
 
-        config_dict = {}
+        config_dict: dict = {}
         if config_path.exists():
             with open(config_path, "r", encoding="utf-8") as f:
                 config_dict = yaml.safe_load(f) or {}
 
-        commander_dict = {}
+        commander_dict: dict = {}
         if commander_path.exists():
             with open(commander_path, "r", encoding="utf-8") as f:
                 commander_dict = yaml.safe_load(f) or {}

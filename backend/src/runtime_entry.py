@@ -39,19 +39,48 @@ from fastapi import FastAPI
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
+
+def _debug_log(message: str) -> None:
+    """
+    Lightweight debug logger for the frozen runtime.
+
+    Writes to EDColonizationAsst-runtime.log next to the EXE so that we can
+    see how far startup progresses even if the Qt tray/icon never appears.
+    This deliberately does not depend on the backend logging config.
+    """
+    try:
+        try:
+            exe_dir = Path(sys.argv[0]).resolve().parent
+        except Exception:
+            exe_dir = Path.cwd()
+
+        log_path = exe_dir / "EDColonizationAsst-runtime.log"
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(message + "\n")
+    except Exception:
+        # Never let debug logging break the runtime.
+        pass
+
 # Import FastAPI app and runtime utilities. In normal (package) execution the
 # relative imports work (backend.src.runtime_entry). In the frozen Nuitka
 # onefile build the module is executed as a top-level script so relative
-# imports fail with "attempted relative import with no known parent package".
-# Fall back to absolute imports in that case.
+# imports can fail with "attempted relative import with no known parent
+# package". We attempt both relative and absolute imports and log any fatal
+# failure to the lightweight runtime log.
 try:
-    from .main import app as fastapi_app
-    from .utils.logger import get_logger, setup_logging
-    from .utils.runtime import RuntimeMode, get_runtime_mode
-except ImportError:
-    from backend.src.main import app as fastapi_app
-    from backend.src.utils.logger import get_logger, setup_logging
-    from backend.src.utils.runtime import RuntimeMode, get_runtime_mode
+    try:
+        from .main import app as fastapi_app
+        from .utils.logger import get_logger, setup_logging
+        from .utils.runtime import RuntimeMode, get_runtime_mode
+    except Exception:
+        from backend.src.main import app as fastapi_app
+        from backend.src.utils.logger import get_logger, setup_logging
+        from backend.src.utils.runtime import RuntimeMode, get_runtime_mode
+except Exception as exc:
+    _debug_log(f"[runtime_entry] FATAL importing FastAPI app or runtime utilities: {exc!r}")
+    # Re-raise so Nuitka/console still see the failure, but we at least have
+    # EDColonizationAsst-runtime.log with the cause.
+    raise
 
 # --------------------------------------------------------------------------- logging
 
