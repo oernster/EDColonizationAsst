@@ -1,0 +1,87 @@
+app-id: uk.codecrafter.EDColonizationAssistant
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.node18
+command: edca
+separate-locales: false
+
+finish-args:
+  # Share the host network namespace so http://127.0.0.1:8000 is reachable
+  - --share=network
+  # Allow talking to the desktop portals (for xdg-open)
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --talk-name=org.freedesktop.portal.OpenURI
+  # Basic desktop integration
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --share=ipc
+  # Access to the user's home so ED journals can be read
+  - --filesystem=home
+
+modules:
+  - name: edca
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/node18/bin
+      env:
+        NPM_CONFIG_CACHE: /run/build/edca/npm-cache
+    build-commands:
+      # Ensure Node dependencies and build the production frontend bundle
+      - npm --prefix frontend ci
+      - npm --prefix frontend run build
+
+      # Create a virtual environment and install backend runtime dependencies
+      - python3 -m venv venv
+      - venv/bin/pip install --upgrade pip
+      - venv/bin/pip install -r backend/requirements.txt
+
+      # Install application payload under /app/share/edca
+      - install -d /app/share/edca
+      - cp -a backend frontend venv VERSION LICENSE /app/share/edca/
+
+      # Create the launch script (edca) which:
+      #  - starts the FastAPI backend on http://127.0.0.1:8000
+      #  - opens the default browser to the web UI at /app/
+      - |
+        cat << 'EOF' > edca
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        APP_ROOT="/app/share/edca"
+        cd "${APP_ROOT}"
+
+        PYTHON="${APP_ROOT}/venv/bin/python"
+        if [ ! -x "${PYTHON}" ]; then
+          # Fallback to container Python if venv is missing for some reason
+          PYTHON="python3"
+        fi
+
+        HOST="0.0.0.0"
+        PORT="8000"
+        BASE_URL="http://127.0.0.1:${PORT}"
+        UI_URL="${BASE_URL}/app/"
+
+        echo "Starting Elite: Dangerous Colonization Assistant backend on ${BASE_URL} ..."
+        "${PYTHON}" -m uvicorn backend.src.main:app --host "${HOST}" --port "${PORT}" &
+        BACKEND_PID=$!
+
+        # Give the backend a moment to start before opening the browser
+        sleep 3
+
+        # Best-effort attempt to open the user's default browser
+        if command -v xdg-open >/dev/null 2>&1; then
+          xdg-open "${UI_URL}" || true
+        fi
+
+        echo "Backend is running. Press Ctrl+C in this window to stop it."
+
+        # Wait for backend to exit (or for the user to terminate us)
+        wait "${BACKEND_PID}" || true
+        EOF
+
+      - install -Dm755 edca /app/bin/edca
+    sources:
+      - type: dir
+        path: .

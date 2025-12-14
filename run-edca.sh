@@ -3,16 +3,19 @@ set -e
 
 echo "Elite: Dangerous Colonization Assistant"
 echo "---------------------------------------"
+echo "Developer helper script (Linux/macOS): runs backend + Vite dev server from source."
+echo
+echo "For packaged installs, prefer the Windows installer on Windows or the Flatpak build script on Linux."
 echo
 
 # Change to project root (directory of this script)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 cd "$SCRIPT_DIR"
 
-# Find Python (prefer backend venv if it exists)
+# Find Python (prefer backend virtualenv if it exists)
 PYTHON="python3"
-if [ -x "backend/venv/bin/python" ]; then
-  PYTHON="backend/venv/bin/python"
+if [ -x "backend/.venv/bin/python" ]; then
+  PYTHON="backend/.venv/bin/python"
 else
   if ! command -v python3 >/dev/null 2>&1; then
     if command -v python >/dev/null 2>&1; then
