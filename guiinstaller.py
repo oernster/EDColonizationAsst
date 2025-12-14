@@ -889,34 +889,63 @@ class InstallerWindow(QMainWindow):
  
     def _stop_running_tray(self) -> None:
         """
-        Attempt to stop a running tray controller process before uninstalling.
+        Attempt to stop any running EDCA tray/runtime process before uninstalling.
  
-        The tray process records its PID in 'tray.pid' under the install
-        directory. On Windows we use 'taskkill' to stop it; on other
-        platforms this is a no-op.
+        Legacy behaviour:
+        - If a PID file 'tray.pid' exists under the install directory (created
+          by the older tray_app.py controller), we read the PID and call
+          'taskkill /PID <pid> /T /F' on Windows.
+ 
+        New behaviour:
+        - Regardless of whether a PID file exists, we also issue a best-effort
+          'taskkill /IM "EDColonizationAsst.exe" /T /F' so that the packaged
+          runtime executable (which hosts the new tray in-process) is stopped
+          before we start deleting files. This avoids leaving a ghost tray icon
+          running after uninstall via Add/Remove Programs.
         """
+        # First, try the legacy PID-based tray controller if present.
         pid_file = self.install_dir / "tray.pid"
-        if not pid_file.exists():
-            return
+        if pid_file.exists():
+            try:
+                raw = pid_file.read_text(encoding="utf-8").strip()
+                if raw:
+                    pid = int(raw)
+                else:
+                    pid = None
+            except Exception:
+                pid = None
  
-        try:
-            raw = pid_file.read_text(encoding="utf-8").strip()
-            if not raw:
-                return
-            pid = int(raw)
-        except Exception:
-            return
+            if pid is not None and sys.platform.startswith("win"):
+                try:
+                    # Run taskkill in a hidden console window so uninstall does not
+                    # flash a black cmd window.
+                    CREATE_NO_WINDOW = 0x08000000
+                    startup_info = subprocess.STARTUPINFO()
+                    startup_info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
  
+                    subprocess.run(
+                        ["taskkill", "/PID", str(pid), "/T", "/F"],
+                        check=False,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        creationflags=CREATE_NO_WINDOW,
+                        startupinfo=startup_info,
+                    )
+                except Exception:
+                    # Failing to kill the legacy tray should not abort uninstall.
+                    pass
+ 
+        # Additionally, always try to kill any running packaged runtime EXE so
+        # that the new in-process tray hosted by EDColonizationAsst.exe is
+        # terminated cleanly before we start removing files.
         if sys.platform.startswith("win"):
             try:
-                # Run taskkill in a hidden console window so uninstall does not
-                # flash a black cmd window.
                 CREATE_NO_WINDOW = 0x08000000
                 startup_info = subprocess.STARTUPINFO()
                 startup_info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
  
                 subprocess.run(
-                    ["taskkill", "/PID", str(pid), "/T", "/F"],
+                    ["taskkill", "/IM", "EDColonizationAsst.exe", "/T", "/F"],
                     check=False,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
@@ -924,9 +953,9 @@ class InstallerWindow(QMainWindow):
                     startupinfo=startup_info,
                 )
             except Exception:
-                # Failing to kill the tray should not abort uninstall; the
-                # file deletion pass will still run, and worst case the user
-                # can exit the tray manually.
+                # As above, failure to kill should not block uninstall; worst
+                # case, Windows will still allow the user to exit the tray
+                # manually.
                 pass
 
     # ------------------------------------------------------------------ Windows shortcuts
