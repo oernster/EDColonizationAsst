@@ -1087,6 +1087,11 @@ class InstallerWindow(QMainWindow):
     def _register_windows_app(self) -> None:
         """
         Register the application in Windows "Add or Remove Programs" (HKCU).
+
+        IMPORTANT:
+        - We always register an installer EXE that lives INSIDE the install
+          directory so that uninstall/modify never depends on where the
+          original installer was run from (dev tree, Downloads, etc.).
         """
         if not sys.platform.startswith("win"):
             return
@@ -1097,18 +1102,41 @@ class InstallerWindow(QMainWindow):
             self._log("winreg not available; skipping Windows Add/Remove registration.")
             return
 
-        # Use the currently running installer executable for the UninstallString
-        # so that the Add/Remove Programs entry can re-launch this installer.
+        # Resolve the currently running installer executable. This may be in a
+        # development checkout, a Downloads folder, etc.
         try:
             exe_src = Path(sys.argv[0]).resolve()
         except Exception as exc:
             self._log(f"Failed to resolve installer executable path: {exc}")
             return
 
-        # Prefer the installed icon if present; otherwise fall back to the exe.
+        # Copy the installer into the install directory and register THAT copy
+        # in Add/Remove Programs so that uninstall never looks back at the
+        # original source location.
+        installer_copy = self.install_dir / exe_src.name
+        try:
+            if not installer_copy.exists() or os.path.getsize(installer_copy) == 0:
+                self.install_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(exe_src, installer_copy)
+                self._log(
+                    f"Copied installer executable to {installer_copy} "
+                    "for Add/Remove Programs integration."
+                )
+            exe_for_registry = installer_copy
+        except Exception as exc:
+            # If copying fails for any reason, fall back to the original path
+            # so uninstall still works, but log clearly for diagnostics.
+            self._log(
+                "Failed to copy installer into install directory for uninstall; "
+                f"falling back to source path {exe_src}: {exc}"
+            )
+            exe_for_registry = exe_src
+
+        # Prefer the installed icon if present; otherwise fall back to the
+        # installer copy we just registered.
         icon_path = self.install_dir / "EDColonizationAsst.ico"
         if not icon_path.exists():
-            icon_path = exe_src
+            icon_path = exe_for_registry
 
         try:
             key = winreg.CreateKeyEx(
@@ -1122,8 +1150,9 @@ class InstallerWindow(QMainWindow):
                 winreg.SetValueEx(key, "DisplayIcon", 0, winreg.REG_SZ, str(icon_path))
                 winreg.SetValueEx(key, "Publisher", 0, winreg.REG_SZ, "Oliver Ernster")
                 winreg.SetValueEx(key, "InstallLocation", 0, winreg.REG_SZ, str(self.install_dir))
-                # Launch this installer executable when uninstalling or modifying.
-                uninstall_cmd = f'"{exe_src}"'
+                # Launch the installer copy inside the install directory when
+                # uninstalling or modifying.
+                uninstall_cmd = f'"{exe_for_registry}"'
                 winreg.SetValueEx(key, "UninstallString", 0, winreg.REG_SZ, uninstall_cmd)
                 # Enable "Modify" in Apps & Features by providing a ModifyPath
                 # that re-launches this installer as well.

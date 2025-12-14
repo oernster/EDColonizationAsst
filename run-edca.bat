@@ -12,12 +12,19 @@ echo Initialising, please wait...
 rem Change to install root (directory of this script)
 cd /d "%~dp0"
 
-rem --- Check Python ---------------------------------------------------
+rem --- Prefer packaged runtime EXE (no dev environment required) ------
+if exist "%~dp0EDColonizationAsst.exe" (
+    echo Found packaged runtime EXE, launching... >>"%LOG%"
+    "%~dp0EDColonizationAsst.exe"
+    goto End
+)
+
+rem --- Dev fallback: Check Python -------------------------------------
 where python >>"%LOG%" 2>&1
 if errorlevel 1 goto NoPython
 
-rem --- Launch GUI launcher --------------------------------------------
-echo Starting GUI launcher... >>"%LOG%"
+rem --- Dev fallback: Launch GUI launcher ------------------------------
+echo Starting GUI launcher via python backend\src\launcher.py... >>"%LOG%"
 python backend\src\launcher.py >>"%LOG%" 2>&1
 goto End
 

@@ -221,6 +221,11 @@ class TrayUIController:
         self._configure_tray_icon()
         self._create_menu()
 
+        # Treat clicking the tray icon itself as a large "Open Web UI" button.
+        # Left-click or double-click on the tray icon will open the web UI,
+        # in addition to the explicit "Open Web UI" menu item.
+        self._tray.activated.connect(self._on_tray_activated)  # type: ignore[arg-type]
+
     # -------------------- setup ------------------------------------------------
 
     def _configure_tray_icon(self) -> None:
@@ -240,6 +245,19 @@ class TrayUIController:
         exit_action.triggered.connect(self._on_exit)  # type: ignore[arg-type]
 
         self._tray.setContextMenu(menu)
+
+    def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
+        """
+        Handle clicks on the tray icon itself.
+
+        This effectively turns the tray icon into a large "Open Web UI" button:
+        a left-click or double-click will open the browser to the frontend URL.
+        """
+        if reason in (
+            QSystemTrayIcon.ActivationReason.Trigger,
+            QSystemTrayIcon.ActivationReason.DoubleClick,
+        ):
+            self._on_open_web_ui()
 
     # -------------------- actions ---------------------------------------------
 
