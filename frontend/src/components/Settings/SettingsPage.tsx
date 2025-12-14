@@ -12,6 +12,14 @@ export const SettingsPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const backendPort = 8000;
+  const currentHost = window.location.hostname || 'localhost';
+  const localUrl = `http://127.0.0.1:${backendPort}/app/`;
+  const lanUrlHint =
+    currentHost !== 'localhost' && currentHost !== '127.0.0.1'
+      ? `http://${currentHost}:${backendPort}/app/`
+      : `http://<your-PC-LAN-IP>:${backendPort}/app/`;
+
   useEffect(() => {
     const fetchSettings = async () => {
       try {
@@ -88,7 +96,9 @@ export const SettingsPage = () => {
           Inara API Settings
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Enter your Inara.cz API key to fetch comprehensive colonization data.
+          Enter your Inara.cz API key and commander name. Note: Inara integration is
+          currently not actively used by the application; these values are reserved
+          for future features.
         </Typography>
         <TextField
           fullWidth
@@ -111,7 +121,7 @@ export const SettingsPage = () => {
           sx={{ mb: 3 }}
         />
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
           <Button
             variant="contained"
             color="primary"
@@ -121,6 +131,42 @@ export const SettingsPage = () => {
             {saving ? <CircularProgress size={24} /> : 'Save Settings'}
           </Button>
         </Box>
+
+        <Typography variant="h6" gutterBottom>
+          Accessing the UI from another device
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          To open EDCA from a tablet or phone on the same network, point the browser at
+          this machine's IP address on port {backendPort}. For example:
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{
+            fontFamily: 'monospace',
+            bgcolor: 'background.default',
+            px: 1.5,
+            py: 0.75,
+            borderRadius: 1,
+            mb: 2,
+          }}
+        >
+          {lanUrlHint}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          On this PC you can always use:
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{
+            fontFamily: 'monospace',
+            bgcolor: 'background.default',
+            px: 1.5,
+            py: 0.75,
+            borderRadius: 1,
+          }}
+        >
+          {localUrl}
+        </Typography>
       </Box>
     </Paper>
   );

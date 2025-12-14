@@ -1,250 +1,88 @@
 # Elite Dangerous Colonization Assistant
 
-Elite Dangerous colonization support site and shard integration for GameGlass.
+Elite Dangerous Colonization Assistant (EDCA) helps you track in‑game colonization efforts and related construction sites through a local web UI.
 
-## Windows installer (recommended on Windows)
+---
 
-If you downloaded a packaged Windows release that includes a GUI installer executable,
-you do **not** need Python or Node.js on your machine.
+## Get the app on Windows
 
-1. Download the Windows installer executable for EDCA (typically named
-   `EDColonizationAsstInstaller.exe`) from the project's release page.
-2. Double-click it and follow the on-screen instructions (Install / Repair / Uninstall).
-3. After installation, launch **Elite: Dangerous Colonization Assistant** from the
-   Start Menu or Desktop shortcut. This starts a bundled runtime that opens your
-   browser at:
+For normal Windows use, download the prebuilt installer (no Python or Node.js required):
+
+1. Go to the project’s **GitHub Releases** page.
+2. Download the latest Windows installer executable, typically named:
 
    ```text
-   http://127.0.0.1:8000/app/
+   EDColonizationAsstInstaller.exe
    ```
 
-The rest of this README assumes you are running from a source checkout. If you are
-using the installer, you can skip to the **Commander / Inara configuration** section.
+3. Double‑click it and follow the on‑screen instructions (Install / Repair / Uninstall).
+4. After installation, launch **Elite: Dangerous Colonization Assistant** from the
+   Start Menu or Desktop shortcut.
 
----
+> **Note:** Because this is not a code‑signed commercial product, Windows SmartScreen
+> (and some antivirus tools) may warn that the installer or runtime is from an
+> unrecognised publisher. If you are unsure, you can always review the complete
+> source code in this repository to reassure yourself before choosing to run the
+> installer.
 
-## Quick start from source (project root)
-
-This section is aimed at non-developers who have cloned the repository and want
-to run the tool locally from the project directory.
-
-Both the backend (API server) and frontend (web UI) are started for you by simple
-launch scripts in the project root.
-
-### Windows
-
-1. Make sure you have:
-   - **Python 3.10+** installed
-   - **Node.js 18+** (which includes `npm`) installed
-
-2. From File Explorer, double-click:
-
-   - `run-edca.bat`
-
-   or from PowerShell / Command Prompt:
-
-   ```bash
-   .\run-edca.bat
-   ```
-
-The script will:
-
-- Install Python dependencies for the backend (first run may take a little longer).
-- Install Node.js dependencies for the frontend if needed.
-- Start the backend API on `http://localhost:8000`.
-- Start the frontend on `http://localhost:5173`.
-
-Once it is running, open a browser on the same PC and go to:
-
-- `http://localhost:5173`
-
-When you are finished, close the browser tab and press `Ctrl+C` in the frontend window. You can then close the backend window.
-
-### Linux / macOS
-
-1. Make sure you have:
-   - **Python 3.10+** installed (`python3 --version`)
-   - **Node.js 18+** installed (`node --version`)
-
-2. In a terminal, from the project root, make the script executable (only needed once):
-
-   ```bash
-   chmod +x ./run-edca.sh
-   ```
-
-3. Then start the app:
-
-   ```bash
-   ./run-edca.sh
-   ```
-
-The script will:
-
-- Install Python dependencies for the backend (first run may take a little longer).
-- Install Node.js dependencies for the frontend if needed.
-- Start the backend API on `http://localhost:8000`.
-- Start the frontend on `http://localhost:5173`.
-
-Open a browser on the same machine and go to:
-
-- `http://localhost:5173`
-
-Press `Ctrl+C` in the terminal when you are finished; the script will stop both the frontend and backend.
-
-> Developer note: if you prefer to run `uvicorn` and `npm` commands manually, see the **Backend development** and **Frontend development** sections in `DEVELOPMENT_README.md`.
-
----
-
-## Commander / Inara configuration
-
-The backend may need your Inara credentials in order to enrich colonization data for your commander in future.
-However, it wil definitely need your commander name.
-
-Configuration is stored in a YAML file in the `backend` directory:
-
-- Example template: `backend/example.commander.yaml`
-- Runtime config file: `backend/commander.yaml` (this is what the app actually reads)
-
-To configure:
-
-1. Copy the example file:
-
-   ```bash
-   cp backend/example.commander.yaml backend/commander.yaml
-   ```
-
-2. Edit `backend/commander.yaml` and set:
-
-   - `inara.api_key` – your personal Inara API key.
-   - `inara.commander_name` – the exact commander name associated with that key.
-   - (Optional) `inara.app_name` – your registered Inara application name, if you have one.
-
-3. Start (or restart) the backend as shown above. The configuration loader will read `backend/commander.yaml` and use those values.
-
-You can also adjust these values through the web UI’s settings page, which will write back into `backend/commander.yaml`.
-
----
-
-## Accessing the UI from another device (tablet / phone)
-
-You can access the frontend from another device on your network (for example, a tablet) using your PC’s LAN IP address and port **5173**.
-
-### 1. Ensure Vite is listening on all interfaces
-
-This is already configured in [`frontend/vite.config.ts`](frontend/vite.config.ts:13):
-
-- `host: '0.0.0.0'`
-- `port: 5173`
-
-Start the frontend as usual from the project root:
-
-```bash
-npm --prefix frontend run dev
-```
-
-Vite will print something like:
+The installed runtime starts a local web server and opens your browser to:
 
 ```text
-VITE v5.x.x  ready in XXX ms
-
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: http://192.168.1.238:5173/
-  ➜  Network: http://100.120.202.64:5173/
-  ➜  Network: http://172.29.128.1:5173/
-  ➜  Network: http://169.254.237.11:5173/
+http://127.0.0.1:8000/app/
 ```
 
-The **Local** URL is for your PC. The **Network** URLs correspond to each active network interface. Typically the one you want for home LAN use is the `192.168.x.x` (or `10.x.x.x`) address.
+---
 
-### 2. Find your LAN IP address (Windows)
+## Access from a tablet or phone on the same network
 
-On Windows, you can find the LAN IP in several ways:
+You can open the EDCA UI from another device (for example, a tablet) as long as:
 
-**Option A – Use the Vite output**
+- The PC running EDCA and the tablet/phone are on the **same local network** (Wi‑Fi/LAN).
+- Your firewall allows local access to port `8000` on the PC.
 
-- When you run `npm --prefix frontend run dev`, look for the `Network:` lines.
-- Use the address that looks like a home LAN IP, e.g.:
+### 1. Find your PC’s LAN IP address (Windows)
 
-  ```text
-  http://192.168.1.238:5173/
-  ```
+On the Windows PC where EDCA is installed:
 
-**Option B – Use `ipconfig`**
-
-1. Open PowerShell or Command Prompt.
+1. Press `Win + R`, type `cmd` and press Enter to open Command Prompt, or open PowerShell.
 2. Run:
 
-   ```bash
+   ```text
    ipconfig
    ```
 
-3. Look for the adapter that corresponds to your active network (e.g. `Wi‑Fi` or `Ethernet`), not virtual adapters (VPN, Docker, Hyper‑V).
-4. Under that adapter, find the line:
+3. Find your active network adapter (for example `Wi‑Fi` or `Ethernet`).
+4. Under that adapter, look for the line:
 
    ```text
    IPv4 Address . . . . . . . . . . : 192.168.1.238
    ```
 
-5. Use that IP with port 5173 in your tablet’s browser:
+   The `192.168.x.x` (or `10.x.x.x`) value is your **LAN IP**.
+
+### 2. Use that IP on your tablet/phone (local network only)
+
+On your tablet/phone (connected to the same Wi‑Fi/LAN):
+
+1. Open a browser (Chrome, Edge, Safari, etc.).
+2. Enter the following URL, replacing `<PC-LAN-IP>` with the IPv4 address you found:
 
    ```text
-   http://192.168.1.238:5173
+   http://<PC-LAN-IP>:8000/app/
    ```
 
-### 3. Find your LAN IP address (Linux)
-
-On Linux, you can use one of:
-
-**Option A – `ip addr`**
-
-```bash
-ip addr
-```
-
-- Look for your primary interface (often `eth0`, `enpXsY`, or `wlpXsY`).
-- Find the `inet` line, e.g.:
-
-  ```text
-  inet 192.168.1.238/24 brd 192.168.1.255 scope global dynamic
-  ```
-
-- Use the `192.168.1.238` part with port 5173:
-
-  ```text
-  http://192.168.1.238:5173
-  ```
-
-**Option B – `hostname -I`**
-
-```bash
-hostname -I
-```
-
-This prints one or more IP addresses. Pick the one in your home LAN range (typically `192.168.x.x` or `10.x.x.x`), not:
-
-- `127.0.0.1` (loopback),
-- `169.254.x.x` (link‑local),
-- or addresses used by containers/VPNs unless that’s specifically what you want.
-
-### 4. Connect from your tablet / phone
-
-1. Make sure:
-   - The backend is running (default `http://localhost:8000` on the PC).
-   - The frontend dev server is running on your PC on port 5173.
-   - Your tablet/phone is on the **same Wi‑Fi / LAN** as the PC.
-   - Your PC’s firewall allows inbound connections on port 5173 (and 8000 if you access the backend directly).
-
-2. On your tablet/phone, open Chrome (or another browser) and enter:
+   Example:
 
    ```text
-   http://<PC-LAN-IP>:5173
+   http://192.168.1.238:8000/app/
    ```
 
-   For example:
+This works **only on your local network**; EDCA is not intended to be exposed directly to the internet.
 
-   ```text
-   http://192.168.1.238:5173
-   ```
+---
 
-You can ignore extra “Network” URLs that Vite prints (e.g. `100.x.x.x`, `172.x.x.x`, `169.254.x.x`) unless you specifically know you are connecting via VPN/Docker/etc. For typical home setups, use the `192.168.x.x:5173` (or `10.x.x.x:5173`) address.
+## Development / source checkout
 
+If you have cloned the repository and want to build or run EDCA from source (backend/frontend dev, tests, installer builds), see:
+
+- [`DEVELOPMENT_README.md`](DEVELOPMENT_README.md:1)

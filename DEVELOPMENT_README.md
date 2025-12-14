@@ -23,10 +23,16 @@ cd C:\Users\Oliver\Development\EDColonizationAsst
 .\build-windows-installer.bat
 ```
 
-Requirements:
+Requirements (Windows developer machine):
 
+- Windows 10/11 x64.
 - Windows PowerShell 5+ or PowerShell 7+ (recommended).
-- `npm` available on `PATH` (the script checks for it and will fail fast if missing).
+- **Python 3.12+** installed and available on `PATH`.
+- **Visual Studio 2022 Build Tools** with the *Desktop development with C++*
+  workload (MSVC v143 toolset) and a recent Windows 10/11 SDK installed
+  (see [Windows compiler requirements for Nuitka](#windows-compiler-requirements-for-nuitka)).
+- **Node.js 18+** with `npm` available on `PATH` (the script checks for it and
+  will fail fast if missing).
 - `uv` is **not** required up front; if `uv` is not found on `PATH`, the script
   will attempt to auto-install it using the official PowerShell installer
   (`irm https://astral.sh/uv/install.ps1 | iex`). If that auto-install fails,
