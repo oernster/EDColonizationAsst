@@ -232,14 +232,15 @@ def test_get_journal_directory_raises_when_saved_games_missing():
         pytest.skip("Windows-specific behavior; Linux uses Proton/Wine auto-detection instead.")
 
     import src.utils.journal as journal_mod  # local import to patch safely
+    import src.utils.windows as windows_mod  # patch underlying Windows helper actually used
 
-    orig_get_saved_games = journal_mod.get_saved_games_path
+    orig_get_saved_games = windows_mod.get_saved_games_path
     try:
-        journal_mod.get_saved_games_path = lambda: None  # type: ignore[assignment]
+        windows_mod.get_saved_games_path = lambda: None  # type: ignore[assignment]
         with pytest.raises(FileNotFoundError):
             journal_mod.get_journal_directory()
     finally:
-        journal_mod.get_saved_games_path = orig_get_saved_games  # type: ignore[assignment]
+        windows_mod.get_saved_games_path = orig_get_saved_games  # type: ignore[assignment]
 
 
 def test_get_journal_directory_raises_when_journal_folder_missing(tmp_path: Path):
@@ -248,17 +249,18 @@ def test_get_journal_directory_raises_when_journal_folder_missing(tmp_path: Path
         pytest.skip("Windows-specific behavior; Linux uses Proton/Wine auto-detection instead.")
 
     import src.utils.journal as journal_mod  # local import to patch safely
+    import src.utils.windows as windows_mod  # patch underlying Windows helper actually used
 
     # Simulate a Saved Games folder without the expected subdirectory
     saved_games = tmp_path / "Saved Games"
     saved_games.mkdir()
 
-    orig_get_saved_games = journal_mod.get_saved_games_path
+    orig_get_saved_games = windows_mod.get_saved_games_path
     try:
-        journal_mod.get_saved_games_path = lambda: saved_games  # type: ignore[assignment]
+        windows_mod.get_saved_games_path = lambda: saved_games  # type: ignore[assignment]
         with pytest.raises(FileNotFoundError):
             journal_mod.get_journal_directory()
     finally:
-        journal_mod.get_saved_games_path = orig_get_saved_games  # type: ignore[assignment]
+        windows_mod.get_saved_games_path = orig_get_saved_games  # type: ignore[assignment]
 
 
