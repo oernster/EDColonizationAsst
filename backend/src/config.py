@@ -193,8 +193,31 @@ def get_config() -> AppConfig:
             inara=inara_cfg,
         )
 
-        # Expand user path in journal directory
+        # Expand env vars in journal directory (works for $VAR / ${VAR} style on POSIX)
         _config.journal.directory = os.path.expandvars(_config.journal.directory)
+
+        # Linux auto-detection: the default config value is Windows-centric.
+        # If we're not on Windows and the configured directory doesn't exist (or still
+        # looks like the Windows default), attempt to detect Steam Proton/Wine paths.
+        if os.name != "nt":
+            configured_str = _config.journal.directory
+            looks_like_windows_default = (
+                "%USERNAME%" in configured_str
+                or configured_str.startswith("C:\\")
+                or configured_str.startswith("C:/")
+            )
+
+            configured_path = Path(configured_str)
+            if looks_like_windows_default or not configured_path.exists():
+                try:
+                    from .utils.journal import find_journal_directory  # noqa: WPS433 (late import)
+
+                    detected = find_journal_directory()
+                    if detected is not None:
+                        _config.journal.directory = str(detected)
+                except Exception:
+                    # Never block startup on best-effort detection logic.
+                    pass
 
     return _config
 
