@@ -2,8 +2,8 @@ aiofiles==23.2.1
 fastapi==0.104.1
 httpx==0.25.2
 nuitka==2.8.9
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
 pyside6
 python-dotenv
 python-multipart==0.0.6

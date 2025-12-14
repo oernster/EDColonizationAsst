@@ -663,6 +663,97 @@ frontend/
 
 This section is aimed at **developers**. For a simplified, non‑technical quick start, see [`README.md`](README.md).
 
+### Linux (Debian/Ubuntu/Mint): simple build + run (no Flatpak)
+
+If you want to avoid the Flatpak build pipeline entirely, use the root-level script
+[`run-edca-built-debian.sh`](run-edca-built-debian.sh:1). It will:
+
+- Create/use a backend virtual environment (venv).
+- Install backend runtime dependencies from [`backend/requirements.txt`](backend/requirements.txt:1) using `uv pip`.
+- Build the production frontend into `frontend/dist` (only if Node is available and a build is needed).
+- Start the backend on `http://127.0.0.1:8000`.
+- Open your browser at `http://127.0.0.1:8000/app/`.
+
+#### Prerequisites (Linux)
+
+1) **Install uv (once per machine)**
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv --version
+```
+
+2) **Install Python 3.12 locally via uv (recommended)**
+
+Some newer distros (including Ubuntu “questing”) may not provide `python3.12` via the default package repos.
+Using `uv` avoids system package constraints and prevents Rust build issues with
+older pinned dependencies (for example `pydantic==2.5.0`).
+
+```bash
+uv python install 3.12
+```
+
+3) **(Optional) Install Node.js/npm**
+
+Node is only required if you want the script to build `frontend/dist` on this machine.
+If you already have `frontend/dist` (from CI or another machine), you can skip Node
+and run with `EDCA_SKIP_FRONTEND_BUILD=1`.
+
+#### Run (one command)
+
+Recommended first run (Debian default: use system Python 3.13 if available):
+
+```bash
+./run-edca-built-debian.sh
+```
+
+If you want to force a specific Python (recommended fallback if you hit `pydantic-core` build issues on 3.13), use uv-managed Python 3.12:
+
+```bash
+EDCA_PYTHON=python3.12 EDCA_VENV_DIR=.venv312 ./run-edca-built-debian.sh
+```
+
+If you do not have Node installed and also do not have `frontend/dist` yet, the script
+will error with a clear message. In that case either:
+
+- Install Node and build once:
+  ```bash
+  npm --prefix frontend ci
+  npm --prefix frontend run build
+  ```
+  then rerun `./run-edca-built-debian.sh`, or
+
+- Copy a prebuilt `frontend/dist` into `./frontend/dist` and run:
+  ```bash
+  EDCA_PYTHON=python3.12 EDCA_VENV_DIR=.venv312 EDCA_SKIP_FRONTEND_BUILD=1 ./run-edca-built-debian.sh
+  ```
+
+#### Useful environment variables
+
+- Change host/port:
+  ```bash
+  EDCA_HOST=127.0.0.1 EDCA_PORT=8000 ./run-edca-built-debian.sh
+  ```
+- Recreate the venv if it was created with the wrong Python version:
+  ```bash
+  EDCA_PYTHON=python3.12 EDCA_VENV_DIR=.venv312 EDCA_RECREATE_VENV=1 ./run-edca-built-debian.sh
+  ```
+
+This workflow intentionally prioritizes simplicity and avoiding heavyweight packaging steps.
+It is suitable for local development, smoke testing, and demos on Linux.
+
+### Linux (other distros): helper scripts (UNTESTED)
+
+The following scripts are provided as convenience entry points for other distributions, but are **UNTESTED**:
+
+- Fedora: [`run-edca-built-fedora.sh`](run-edca-built-fedora.sh:1) (UNTESTED)
+- Arch: [`run-edca-built-arch.sh`](run-edca-built-arch.sh:1) (UNTESTED)
+- RHEL/Rocky/Alma: [`run-edca-built-rhel.sh`](run-edca-built-rhel.sh:1) (UNTESTED)
+- Void: [`run-edca-built-void.sh`](run-edca-built-void.sh:1) (UNTESTED)
+
+They follow the same overall approach as [`run-edca-built-debian.sh`](run-edca-built-debian.sh:1) (uv + Python 3.12 via uv, optional Node for building `frontend/dist`) but include distro-specific prerequisite hints.
+
 ### Root‑level launch scripts
 
 From the **project root**, you can use the same scripts that non‑developers use:

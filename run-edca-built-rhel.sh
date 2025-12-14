@@ -1,30 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build + run helper (Linux) for Elite: Dangerous Colonization Assistant.
+# UNTESTED: RHEL / Rocky / Alma build + run helper for Elite: Dangerous Colonization Assistant.
 #
-# Goal:
-#   Avoid Flatpak entirely. Build the frontend to frontend/dist (served by FastAPI at /app),
-#   set up a Python venv for the backend, run the backend, then open the browser.
+# This is a convenience wrapper around the same workflow as
+# [`run-edca-built-debian.sh`](run-edca-built-debian.sh:1), but with RHEL-family hints.
+#
+# RHEL-family prerequisite hints (not performed automatically):
+#   - Ensure basic tools exist:
+#       sudo dnf install -y curl ca-certificates
+#     (Older systems may use yum:)
+#       sudo yum install -y curl ca-certificates
+#
+#   - Optional Node.js/npm (only needed if you want to build frontend/dist locally):
+#       sudo dnf install -y nodejs npm
+#     (You may need to enable additional repos depending on the distro/version.)
+#
+# Recommended Python approach:
+#   Use uv-managed Python 3.12 to avoid source builds of some pinned deps on Python 3.13+.
 #
 # Usage:
-#   chmod +x ./run-edca-built-debian.sh
-#   ./run-edca-built-debian.sh
+#   chmod +x ./run-edca-built-rhel.sh
+#   EDCA_PYTHON=python3.12 EDCA_VENV_DIR=.venv312 ./run-edca-built-rhel.sh
 #
-# Options via env:
-#   EDCA_HOST=127.0.0.1                   (bind host for uvicorn)
-#   EDCA_PORT=8000                        (bind port for uvicorn)
-#   EDCA_PYTHON=python3.12                (python executable used to create the backend venv)
-#   EDCA_VENV_DIR=.venv312                (where to create/use the backend venv; default: backend/.venv)
-#   EDCA_RECREATE_VENV=1                  (delete and recreate the venv if Python version mismatch)
-#   EDCA_SKIP_FRONTEND_BUILD=1            (skip npm ci/build; assumes frontend/dist exists)
-#   EDCA_FORCE_FRONTEND_BUILD=1           (rebuild frontend even if frontend/dist exists)
-#   EDCA_SKIP_BACKEND_DEPS=1              (skip uv pip install -r backend/requirements.txt)
-#
-# Notes:
-#  - This is NOT a Flatpak build. It runs from source on your machine.
-#  - You need Python 3.10+.
-#  - Node.js/npm are only required when actually building the frontend.
+# Options via env (same as [`run-edca-built-debian.sh`](run-edca-built-debian.sh:1)):
+#   EDCA_HOST, EDCA_PORT, EDCA_PYTHON, EDCA_VENV_DIR, EDCA_RECREATE_VENV,
+#   EDCA_SKIP_FRONTEND_BUILD, EDCA_FORCE_FRONTEND_BUILD, EDCA_SKIP_BACKEND_DEPS
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 cd "${SCRIPT_DIR}"
@@ -37,26 +38,13 @@ log() { printf '%s\n' "$*"; }
 die() { printf 'Error: %s\n' "$*" >&2; exit 1; }
 
 # ----------------------------- prerequisites
-#
-# Default Python selection:
-# - If EDCA_PYTHON is set, use it.
-# - Otherwise prefer system python3.13 (common on newer Debian), else fall back to python3.
 
-if [ -n "${EDCA_PYTHON:-}" ]; then
-  PYTHON="${EDCA_PYTHON}"
-else
-  if command -v python3.13 >/dev/null 2>&1; then
-    PYTHON="python3.13"
-  else
-    PYTHON="python3"
-  fi
-fi
-
+PYTHON="${EDCA_PYTHON:-python3}"
 if ! command -v "${PYTHON}" >/dev/null 2>&1; then
   if [ -z "${EDCA_PYTHON:-}" ] && command -v python >/dev/null 2>&1; then
     PYTHON="python"
   else
-    die "Python is required but was not found on PATH. Install Python 3.10+ (Debian default: 3.13). You can also set EDCA_PYTHON=python3.13"
+    die "Python is required but was not found on PATH. Install Python 3.10+ (recommended: 3.12 via uv)."
   fi
 fi
 
@@ -67,11 +55,10 @@ if ! command -v uv >/dev/null 2>&1; then
   die "uv is required but was not found on PATH. Install uv (https://docs.astral.sh/uv/) and ensure it's on PATH (often: export PATH=\"\$HOME/.local/bin:\$PATH\")."
 fi
 
-# pydantic==2.5.0 pulls pydantic-core which may not have wheels for Python 3.13,
-# causing a Rust build requirement (maturin/cargo). If you hit build issues, use uv-managed Python 3.12.
 PY_MAJOR_MINOR="$("${PYTHON}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || true)"
 if [ "${PY_MAJOR_MINOR}" = "3.13" ]; then
-  log "NOTE: Python 3.13 detected. If you hit pydantic-core build errors, use Python 3.12 via uv and run with: EDCA_PYTHON=python3.12 EDCA_VENV_DIR=.venv312 ./run-edca-built-debian.sh"
+  log "WARNING: Python 3.13 detected. backend/requirements.txt pins pydantic==2.5.0, which may require Rust to build pydantic-core on 3.13."
+  log "Recommended: install Python 3.12 via uv and run with: EDCA_PYTHON=python3.12 EDCA_VENV_DIR=.venv312 ./run-edca-built-rhel.sh"
 fi
 
 # Node/npm are only required if we are going to build the frontend.
@@ -79,7 +66,6 @@ NEED_FRONTEND_BUILD=1
 if [ "${EDCA_SKIP_FRONTEND_BUILD:-0}" = "1" ]; then
   NEED_FRONTEND_BUILD=0
 elif [ -d "frontend/dist" ]; then
-  # If a production build already exists, default to reusing it unless the user explicitly wants rebuilds.
   if [ "${EDCA_FORCE_FRONTEND_BUILD:-0}" != "1" ]; then
     NEED_FRONTEND_BUILD=0
   fi
@@ -87,7 +73,7 @@ fi
 
 if [ "${NEED_FRONTEND_BUILD}" = "1" ]; then
   if ! command -v npm >/dev/null 2>&1; then
-    die "Node.js/npm are required to build the frontend, but were not found on PATH. Either install Node.js (20+ recommended) or set EDCA_SKIP_FRONTEND_BUILD=1 with an existing frontend/dist."
+    die "Node.js/npm are required to build the frontend, but were not found on PATH. Install nodejs/npm or set EDCA_SKIP_FRONTEND_BUILD=1 with an existing frontend/dist."
   fi
 fi
 
@@ -97,10 +83,7 @@ VENV_DIR="${EDCA_VENV_DIR:-backend/.venv}"
 VENV_PY="${VENV_DIR}/bin/python"
 RECREATE_VENV="${EDCA_RECREATE_VENV:-0}"
 
-# If EDCA_PYTHON is explicitly set, enforce that the venv uses that Python major.minor.
-# If EDCA_PYTHON is NOT set, prefer "just run" behavior: reuse any existing venv without error,
-# even if the caller's shell has a different python on PATH (e.g. an activated uv venv).
-if [ -n "${EDCA_PYTHON:-}" ] && [ -x "${VENV_PY}" ]; then
+if [ -x "${VENV_PY}" ]; then
   VENV_MAJOR_MINOR="$("${VENV_PY}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || true)"
   if [ -n "${PY_MAJOR_MINOR:-}" ] && [ -n "${VENV_MAJOR_MINOR}" ] && [ "${VENV_MAJOR_MINOR}" != "${PY_MAJOR_MINOR}" ]; then
     if [ "${RECREATE_VENV}" = "1" ]; then
@@ -183,7 +166,6 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Wait until backend + UI are ready (best-effort)
 log "Waiting for backend to become ready ..."
 "${VENV_PY}" - <<PY
 import time
