@@ -242,6 +242,7 @@ def _ensure_payload_dir(project_root: Path) -> Path:
     curated_files = [
         "run-edca.bat",
         "EDColonizationAsst.ico",
+        "EDColonizationAsst.png",
         "LICENSE",
         "EDColonizationAsst.exe",
     ]

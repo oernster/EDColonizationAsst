@@ -955,30 +955,31 @@ class InstallerWindow(QMainWindow):
         Create Desktop and/or Start Menu shortcuts on Windows,
         based on the current checkbox states.
 
-        Preference order for shortcut targets:
+        Shortcut strategy for the installed app:
 
-        1. EDColonizationAsst.exe (Nuitka-built runtime that embeds Python
-           and all backend dependencies; end users do NOT need Python
-           installed when this is present).
-        2. run-edca-hidden.vbs (hidden launcher that calls run-edca.bat).
-        3. run-edca.bat (console-based batch launcher).
+        - If EDColonizationAsst.exe exists, shortcuts point **directly** at the
+          runtime EXE so the process name and taskbar icon are EDColonizationAsst.
+        - If for some reason the runtime EXE is missing, shortcuts fall back to
+          run-edca.bat, which in turn prefers EDColonizationAsst.exe when it
+          becomes available.
+
+        In both cases, the shortcut icon is EDColonizationAsst.ico so the user
+        never sees a Python icon for the installed application.
         """
         if not sys.platform.startswith("win"):
             return
 
-        # Prefer the self-contained runtime EXE if present.
         runtime_exe = self.install_dir / "EDColonizationAsst.exe"
+        bat_launcher = self.install_dir / "run-edca.bat"
+
         if runtime_exe.exists():
             target = runtime_exe
             self._log(f"Using runtime EXE for shortcuts: {target}")
         else:
-            # Fall back to the hidden VBS launcher if available; create it if missing.
-            target = self.install_dir / "run-edca-hidden.vbs"
-            if not target.exists():
-                self._ensure_windows_hidden_launcher()
-            if not target.exists():
-                # Fallback to the batch file if VBS launcher creation failed.
-                target = self.install_dir / "run-edca.bat"
+            target = bat_launcher
+            self._log(
+                f"Runtime EXE missing; using batch launcher for shortcuts: {target}"
+            )
 
         icon = self.install_dir / "EDColonizationAsst.ico"
 
@@ -1253,12 +1254,13 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(f"{APP_NAME} Installer")
 
-    # Show a simple splash screen while the installer window is initialising,
-    # so the user has immediate visual feedback on launch.
+    # Ensure the installer EXE has the correct icon in the Windows taskbar and
+    # reuse the same icon for the splash screen if available.
     splash: QSplashScreen | None = None
     icon_path = PROJECT_ROOT / "EDColonizationAsst.ico"
     if icon_path.exists():
         try:
+            app.setWindowIcon(QIcon(str(icon_path)))
             pixmap = QPixmap(str(icon_path))
             splash = QSplashScreen(pixmap)
             splash.showMessage(

@@ -89,7 +89,8 @@ class QtLaunchWindow(QMainWindow, LaunchView):
         self._frontend_url: Optional[str] = None
 
         self.setWindowTitle(f"{APP_NAME} Launcher")
-        self.setFixedSize(420, 260)
+        # Taller window to comfortably fit a larger app icon and primary button.
+        self.setFixedSize(420, 360)
         self._init_ui()
 
     def _init_ui(self) -> None:
@@ -100,11 +101,21 @@ class QtLaunchWindow(QMainWindow, LaunchView):
 
         # Icon
         icon_label = QLabel(self)
-        icon_path = self._project_root / "EDColonizationAsst.ico"
-        if icon_path.exists():
-            pixmap = QPixmap(str(icon_path))
-            icon_label.setPixmap(pixmap.scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-            self.setWindowIcon(QIcon(str(icon_path)))
+
+        # STRICTLY use the PNG for the in-window artwork so it renders crisply.
+        # We intentionally do NOT fall back to the ICO here; if the PNG cannot
+        # be loaded, the label will remain empty so the problem is obvious.
+        png_path = self._project_root / "EDColonizationAsst.png"
+
+        pixmap = QPixmap()
+        if png_path.exists():
+            pixmap = QPixmap(str(png_path))
+
+        if not pixmap.isNull():
+            scaled = pixmap.scaled(160, 160, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            icon_label.setPixmap(scaled)
+
+        icon_label.setMinimumSize(160, 160)
         icon_label.setAlignment(Qt.AlignHCenter)
 
         # Title
@@ -124,17 +135,24 @@ class QtLaunchWindow(QMainWindow, LaunchView):
         self._progress.setFormat("%p%")
         self._progress.setTextVisible(True)
 
-        # "Open UI" button (enabled when ready)
+        # "Open UI" button (enabled when ready) – make it visually prominent.
         self._open_button = QPushButton("Open Web UI", self)
         self._open_button.setEnabled(False)
+        self._open_button.setMinimumHeight(40)
+        self._open_button.setMinimumWidth(200)
+        self._open_button.setStyleSheet(
+            "font-size: 13px; font-weight: 600; padding: 8px 24px;"
+        )
         self._open_button.clicked.connect(self._on_open_clicked)
 
         layout.addWidget(icon_label)
+        # Extra space so the large icon does not visually collide with the title.
+        layout.addSpacing(12)
         layout.addWidget(title_label)
         layout.addSpacing(8)
         layout.addWidget(self._status_label)
         layout.addWidget(self._progress)
-        layout.addSpacing(8)
+        layout.addSpacing(12)
         layout.addWidget(self._open_button, alignment=Qt.AlignHCenter)
 
         central.setLayout(layout)
@@ -394,6 +412,16 @@ def main() -> int:
     project_root = _detect_project_root()
 
     app = QApplication(sys.argv)
+
+    # Ensure the taskbar / application icon is set for the launcher process.
+    # Prefer the PNG (wrapped in a QIcon) for a crisp icon; fall back to the ICO.
+    png_path = project_root / "EDColonizationAsst.png"
+    ico_path = project_root / "EDColonizationAsst.ico"
+    if png_path.exists():
+        app.setWindowIcon(QIcon(str(png_path)))
+    elif ico_path.exists():
+        app.setWindowIcon(QIcon(str(ico_path)))
+
     window = QtLaunchWindow(project_root)
     window.show()
 

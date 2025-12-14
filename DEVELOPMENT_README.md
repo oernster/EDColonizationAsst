@@ -11,6 +11,97 @@ Windows installer (`EDColonizationAsstInstaller.exe`) that:
 
 These steps are intended for **developers** preparing a release.
 
+### Quick Windows build via batch script (recommended)
+
+On a Windows **developer** machine, the simplest way to produce a fresh runtime
+and GUI installer is to run the root-level batch script
+[`build-windows-installer.bat()`](build-windows-installer.bat:1) from **PowerShell**:
+
+```powershell
+# From the project root
+cd C:\Users\Oliver\Development\EDColonizationAsst
+.\build-windows-installer.bat
+```
+
+Requirements:
+
+- Windows PowerShell 5+ or PowerShell 7+ (recommended).
+- `npm` available on `PATH` (the script checks for it and will fail fast if missing).
+- `uv` is **not** required up front; if `uv` is not found on `PATH`, the script
+  will attempt to auto-install it using the official PowerShell installer
+  (`irm https://astral.sh/uv/install.ps1 | iex`). If that auto-install fails,
+  the script prints a clear error and exits.
+
+What the script does:
+
+1. **Kill running EDCA-related processes**
+
+   Best-effort `taskkill` calls ensure no leftover processes are holding files
+   open inside the repo:
+
+   - `EDColonizationAsst.exe`
+   - `EDColonizationAsstInstaller.exe`
+   - `node.exe`
+   - `python.exe`
+
+2. **Global cleanup**
+
+   - Removes `backend\.venv` and backend `__pycache__` directories.
+   - Deletes Nuitka build artefacts:
+     - `build`, `build_payload`, `guiinstaller.*`, `runtime_entry.*`, etc.
+   - Removes old EXEs:
+     - `EDColonizationAsst.exe`
+     - `EDColonizationAsstInstaller.exe`
+   - Deletes logs such as:
+     - `guiinstaller.log`
+     - `run-edca.log`
+     - `frontend-dev.log`
+     - `tray.pid`
+   - Cleans frontend artefacts under `frontend/`:
+     - `node_modules`, `dist`, `.vite`, `.turbo`, `.cache`.
+
+3. **Backend environment via `uv`**
+
+   In `backend/`:
+
+   - `uv venv .venv`
+   - `uv pip install -r requirements-dev.txt`
+
+   This prepares a dedicated backend venv containing Nuitka, PySide6,
+   FastAPI, and all other build/runtime dependencies needed for packaging.
+
+4. **Frontend build**
+
+   In `frontend/`:
+
+   - `npm install`
+   - `npm i --package-lock-only`
+   - `npm audit fix --force`
+   - `npm run build` → produces `frontend/dist`.
+
+5. **Build runtime EXE**
+
+   Uses the backend venv Python to run
+   [`buildruntime.py`](buildruntime.py:49), which invokes Nuitka to create:
+
+   - `EDColonizationAsst.exe` – the self-contained runtime executable.
+
+6. **Build GUI installer EXE**
+
+   Uses the same venv Python to run
+   [`buildguiinstaller.py`](buildguiinstaller.py:40), which:
+
+   - Rebuilds the curated `build_payload/` tree (backend, frontend, runtime EXE, etc.).
+   - Invokes Nuitka on [`guiinstaller.py`](guiinstaller.py:1) to produce:
+
+     - `EDColonizationAsstInstaller.exe` – the PySide6 GUI installer.
+
+After the script completes successfully, both EXEs are written to the project
+root and are ready for smoke testing and release.
+
+The remaining sections describe the same process in more granular, manual
+steps. You can use them if you need to debug or customise specific stages.
+
 ### 1. Prerequisites (developer machine)
 
 On the machine where you build the installer:

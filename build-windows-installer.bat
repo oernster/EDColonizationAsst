@@ -28,14 +28,64 @@ echo Project root: "%CD%"
 echo.
 
 REM ---------------------------------------------------------------------------
-REM 0. Sanity checks for tools
+REM 0. Kill running EDCA-related processes to avoid file locks
+REM ---------------------------------------------------------------------------
+
+REM These taskkill calls are best-effort and ignore failures. They are here to
+REM prevent "access is denied" errors when cleaning frontend/node_modules and
+REM log files if EDCA or its dev servers are still running.
+REM
+REM NOTE: This will kill EDCA runtimes and any Node/python processes that match
+REM these image names, so avoid running unrelated node/python work while
+REM invoking this script.
+
+for %%P in (
+    EDColonizationAsst.exe
+    EDColonizationAsstInstaller.exe
+) do (
+    taskkill /IM "%%P" /F /T >nul 2>&1
+)
+
+REM Optionally stop node and python globally to clear any lingering dev servers
+REM or tray/launcher processes that might hold files in this repo.
+for %%P in (
+    node.exe
+    python.exe
+) do (
+    taskkill /IM "%%P" /F /T >nul 2>&1
+)
+
+REM ---------------------------------------------------------------------------
+REM 1. Sanity checks for tools
 REM ---------------------------------------------------------------------------
 
 where uv >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] uv not found on PATH.
-    echo         Install uv from https://docs.astral.sh/uv/getting-started/
-    exit /b 1
+    echo [WARN] uv not found on PATH.
+    echo        Attempting automatic install via PowerShell...
+    echo.
+
+    where powershell >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] PowerShell not found; cannot auto-install uv.
+        echo         Install uv from https://docs.astral.sh/uv/getting-started/
+        exit /b 1
+    )
+
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+        "try { irm https://astral.sh/uv/install.ps1 | iex } catch { exit 1 }"
+    if errorlevel 1 (
+        echo [ERROR] Automatic uv installation failed.
+        echo         Install uv manually from https://docs.astral.sh/uv/getting-started/
+        exit /b 1
+    )
+
+    where uv >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] uv still not found on PATH after attempted install.
+        echo         You may need to restart your shell after installation.
+        exit /b 1
+    )
 )
 
 where npm >nul 2>&1

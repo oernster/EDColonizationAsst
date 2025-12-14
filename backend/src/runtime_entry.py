@@ -358,6 +358,13 @@ class RuntimeApplication:
         app.setApplicationName("Elite: Dangerous Colonization Assistant")
         app.setQuitOnLastWindowClosed(False)
 
+        # Ensure the runtime EXE has the correct icon in the Windows taskbar.
+        # In frozen mode this process is the Nuitka-built EDColonizationAsst.exe,
+        # not python.exe, so Qt will use this icon for the taskbar button.
+        icon_path = self._env.icon_path
+        if icon_path.exists():
+            app.setWindowIcon(QIcon(str(icon_path)))
+
         # Start backend in-process.
         self._backend.start()
         self._backend.wait_until_ready(timeout=60.0)
