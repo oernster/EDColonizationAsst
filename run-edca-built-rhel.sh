@@ -38,13 +38,26 @@ log() { printf '%s\n' "$*"; }
 die() { printf 'Error: %s\n' "$*" >&2; exit 1; }
 
 # ----------------------------- prerequisites
+#
+# Default Python selection:
+# - If EDCA_PYTHON is set, use it.
+# - Otherwise prefer system python3.13 (common on newer Debian), else fall back to python3.
 
-PYTHON="${EDCA_PYTHON:-python3}"
+if [ -n "${EDCA_PYTHON:-}" ]; then
+  PYTHON="${EDCA_PYTHON}"
+else
+  if command -v python3.13 >/dev/null 2>&1; then
+    PYTHON="python3.13"
+  else
+    PYTHON="python3"
+  fi
+fi
+
 if ! command -v "${PYTHON}" >/dev/null 2>&1; then
   if [ -z "${EDCA_PYTHON:-}" ] && command -v python >/dev/null 2>&1; then
     PYTHON="python"
   else
-    die "Python is required but was not found on PATH. Install Python 3.10+ (recommended: 3.12 via uv)."
+    die "Python is required but was not found on PATH. Install Python 3.10+ (Debian default: 3.13). You can also set EDCA_PYTHON=python3.13"
   fi
 fi
 
@@ -55,10 +68,11 @@ if ! command -v uv >/dev/null 2>&1; then
   die "uv is required but was not found on PATH. Install uv (https://docs.astral.sh/uv/) and ensure it's on PATH (often: export PATH=\"\$HOME/.local/bin:\$PATH\")."
 fi
 
+# pydantic==2.5.0 pulls pydantic-core which may not have wheels for Python 3.13,
+# causing a Rust build requirement (maturin/cargo). If you hit build issues, use uv-managed Python 3.12.
 PY_MAJOR_MINOR="$("${PYTHON}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || true)"
 if [ "${PY_MAJOR_MINOR}" = "3.13" ]; then
-  log "WARNING: Python 3.13 detected. backend/requirements.txt pins pydantic==2.5.0, which may require Rust to build pydantic-core on 3.13."
-  log "Recommended: install Python 3.12 via uv and run with: EDCA_PYTHON=python3.12 EDCA_VENV_DIR=.venv312 ./run-edca-built-rhel.sh"
+  log "NOTE: Python 3.13 detected. If you hit pydantic-core build errors, use Python 3.12 via uv and run with: EDCA_PYTHON=python3.12 EDCA_VENV_DIR=.venv312 ./run-edca-built-rhel.sh"
 fi
 
 # Node/npm are only required if we are going to build the frontend.
@@ -83,7 +97,10 @@ VENV_DIR="${EDCA_VENV_DIR:-backend/.venv}"
 VENV_PY="${VENV_DIR}/bin/python"
 RECREATE_VENV="${EDCA_RECREATE_VENV:-0}"
 
-if [ -x "${VENV_PY}" ]; then
+# If EDCA_PYTHON is explicitly set, enforce that the venv uses that Python major.minor.
+# If EDCA_PYTHON is NOT set, prefer "just run" behavior: reuse any existing venv without error,
+# even if the caller's shell has a different python on PATH (e.g. an activated uv venv).
+if [ -n "${EDCA_PYTHON:-}" ] && [ -x "${VENV_PY}" ]; then
   VENV_MAJOR_MINOR="$("${VENV_PY}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || true)"
   if [ -n "${PY_MAJOR_MINOR:-}" ] && [ -n "${VENV_MAJOR_MINOR}" ] && [ "${VENV_MAJOR_MINOR}" != "${PY_MAJOR_MINOR}" ]; then
     if [ "${RECREATE_VENV}" = "1" ]; then
