@@ -52,6 +52,98 @@ except Exception:
 # Application lifespan management
 
 
+async def _prime_colonization_database_if_empty(
+    repository: ColonizationRepository,
+    parser: JournalParser,
+    system_tracker: SystemTracker,
+) -> None:
+    """
+    On first run (or after the database has been deleted), backfill the
+    colonization database from existing journal files.
+
+    This mirrors the behaviour of the /api/debug/reload-journals endpoint but
+    is applied automatically when the database contains no sites. It ensures
+    that a fresh installation with existing Elite journals immediately shows
+    construction sites and delivered commodities without requiring a manual
+    reload step.
+    """
+    try:
+        stats = await repository.get_stats()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "Initial journal preload skipped: failed to read repository stats: %s",
+            exc,
+        )
+        return
+
+    total_sites = stats.get("total_sites", 0)
+    if total_sites > 0:
+        logger.info(
+            "Initial journal preload skipped: repository already contains %s site(s)",
+            total_sites,
+        )
+        return
+
+    try:
+        config = get_config()
+        journal_dir = Path(config.journal.directory)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "Initial journal preload skipped: failed to resolve journal directory: %s",
+            exc,
+        )
+        return
+
+    if not journal_dir.exists():
+        logger.info(
+            "Initial journal preload skipped: journal directory %s does not exist",
+            journal_dir,
+        )
+        return
+
+    # Reuse the same ingestion pipeline as the live FileWatcher and the
+    # /api/debug/reload-journals endpoint so behaviour is consistent.
+    from .services.file_watcher import JournalFileHandler  # local import to avoid cycles
+    import asyncio
+
+    handler = JournalFileHandler(
+        parser=parser,
+        system_tracker=system_tracker,
+        repository=repository,
+        update_callback=None,
+        loop=asyncio.get_running_loop(),
+    )
+
+    journal_files = sorted(
+        journal_dir.glob("Journal.*.log"),
+        key=lambda p: p.stat().st_mtime,
+    )
+    if not journal_files:
+        logger.info(
+            "Initial journal preload skipped: no Journal.*.log files found in %s",
+            journal_dir,
+        )
+        return
+
+    processed_files = 0
+    for journal_file in journal_files:
+        try:
+            await handler._process_file(journal_file)
+            processed_files += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.error(
+                "Error preloading journal file %s during initial import: %s",
+                journal_file,
+                exc,
+            )
+
+    logger.info(
+        "Initial journal preload completed: processed %s journal file(s) from %s",
+        processed_files,
+        journal_dir,
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -60,6 +152,7 @@ async def lifespan(app: FastAPI):
     Responsible for:
     - constructing core services and repositories
     - wiring FastAPI route and WebSocket dependencies
+    - performing a one-time initial journal import when the DB is empty
     - starting and stopping the journal file watcher
     """
     logger.info("Starting Elite: Dangerous Colonization Assistant")
@@ -83,10 +176,17 @@ async def lifespan(app: FastAPI):
     set_dependencies(repository, aggregator, system_tracker)
     set_aggregator(aggregator)
 
+    # Perform a one-time initial import of existing journals when the
+    # colonization database is empty. This ensures that on a fresh
+    # installation (or after the DB has been deleted) we immediately
+    # populate sites and commodities without requiring the user to call
+    # /api/debug/reload-journals manually.
+    await _prime_colonization_database_if_empty(repository, parser, system_tracker)
+
     # Set update callback for file watcher
     file_watcher.set_update_callback(notify_system_update)
 
-    # Start watching journal directory
+    # Start watching journal directory for incremental updates
     journal_dir = Path(config.journal.directory)
     try:
         await file_watcher.start_watching(journal_dir)

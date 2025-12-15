@@ -51,6 +51,34 @@ def test_parse_contribution_event(parser):
     assert event.credits_received == 123400
 
 
+def test_parse_contribution_event_contributions_array(parser):
+    """Test parsing ColonisationContribution with Contributions array schema."""
+    line = json.dumps(
+        {
+            "timestamp": "2025-12-15T20:37:20Z",
+            "event": "ColonisationContribution",
+            "MarketID": 3960951554,
+            "Contributions": [
+                {
+                    "Name": "$Titanium_name;",
+                    "Name_Localised": "Titanium",
+                    "Amount": 23,
+                }
+            ],
+        }
+    )
+
+    event = parser.parse_line(line)
+
+    assert event is not None
+    assert isinstance(event, ColonizationContributionEvent)
+    assert event.market_id == 3960951554
+    assert event.commodity == "$Titanium_name;"
+    assert event.commodity_localised == "Titanium"
+    assert event.quantity == 23
+    assert event.total_quantity == 23
+
+
 def test_parse_location_event(parser):
     """Test parsing Location event"""
     line = json.dumps(

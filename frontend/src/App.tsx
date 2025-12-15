@@ -6,6 +6,7 @@ import { FleetCarriersPanel } from './components/FleetCarriers/FleetCarriersPane
 import { useColonizationStore } from './stores/colonizationStore';
 import { SettingsPage } from './components/Settings/SettingsPage';
 import { api } from './services/api';
+import { useColonizationWebSocket } from './hooks/useColonizationWebSocket';
 
 const darkTheme = createTheme({
   palette: {
@@ -34,13 +35,26 @@ const darkTheme = createTheme({
 });
 
 function App() {
-  const { currentSystem, systemData, loading, error, settingsVersion } = useColonizationStore();
+  const {
+    currentSystem,
+    systemData,
+    loading,
+    error,
+    settingsVersion,
+    setSystemData,
+    setError,
+  } = useColonizationStore();
   const [currentTab, setCurrentTab] = useState(0);
   const [systemViewTab, setSystemViewTab] = useState(0);
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [pythonVersion, setPythonVersion] = useState<string | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [commanderName, setCommanderName] = useState<string | null>(null);
+
+  // Establish a WebSocket connection for live colonization updates. The REST
+  // calls in SystemSelector provide the initial snapshot; this hook keeps the
+  // currently selected system in sync when journal events arrive.
+  useColonizationWebSocket(currentSystem, setSystemData, setError);
 
   useEffect(() => {
     const loadMeta = async () => {

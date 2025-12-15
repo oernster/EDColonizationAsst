@@ -171,25 +171,32 @@ class JournalFileHandler(FileSystemEventHandler):
               fields; in that case we reuse metadata from any existing site
               with the same market_id (typically created from a Docked event),
               or fall back to the SystemTracker's current system/station.
+            - New snapshots must never *lose* progress that was previously
+              observed in either:
+                • earlier depot snapshots, or
+                • ColonizationContribution events.
+              To ensure this we merge commodity progress with any existing
+              site and take the maximum observed provided_amount/required_amount
+              per commodity.
         """
-        # Convert commodities from raw data to Commodity objects
-        commodities: list[Commodity] = []
+        # Try to reuse existing site metadata and commodity state if we have it.
+        existing_site = await self.repository.get_site_by_market_id(event.market_id)
+
+        # Convert commodities from raw data to Commodity objects from the current
+        # snapshot payload.
+        snapshot_commodities: dict[str, Commodity] = {}
         for comm_data in event.commodities:
+            name = comm_data.get("Name", "")
             commodity = Commodity(
-                name=comm_data.get("Name", ""),
-                name_localised=comm_data.get(
-                    "Name_Localised", comm_data.get("Name", "")
-                ),
+                name=name,
+                name_localised=comm_data.get("Name_Localised", name),
                 required_amount=comm_data.get("Total", 0),
                 provided_amount=comm_data.get("Delivered", 0),
                 payment=comm_data.get("Payment", 0),
             )
-            commodities.append(commodity)
+            snapshot_commodities[name] = commodity
 
-        # Try to reuse existing site metadata (station/system names) if we have it
-        existing_site = await self.repository.get_site_by_market_id(event.market_id)
-
-        # Also fall back to the currently tracked system/station when event fields are missing
+        # Also fall back to the currently tracked system/station when event fields are missing.
         try:
             current_system = self.system_tracker.get_current_system()
         except Exception:
@@ -222,6 +229,42 @@ class JournalFileHandler(FileSystemEventHandler):
             existing_site.system_address if existing_site else event.system_address
         ) or 0
 
+        # Merge commodity progress with any existing site so that we never regress
+        # provided_amount/required_amount due to a partial or stale snapshot.
+        merged_commodities: list[Commodity] = []
+        if existing_site is not None and existing_site.commodities:
+            existing_by_name = {c.name: c for c in existing_site.commodities}
+
+            # First, merge commodities that appear in the new snapshot.
+            for name, snap_comm in snapshot_commodities.items():
+                prev = existing_by_name.get(name)
+                if prev is not None:
+                    merged_commodities.append(
+                        Commodity(
+                            name=name,
+                            name_localised=snap_comm.name_localised or prev.name_localised,
+                            required_amount=max(
+                                prev.required_amount, snap_comm.required_amount
+                            ),
+                            provided_amount=max(
+                                prev.provided_amount, snap_comm.provided_amount
+                            ),
+                            payment=snap_comm.payment or prev.payment,
+                        )
+                    )
+                else:
+                    merged_commodities.append(snap_comm)
+
+            # Then, keep any commodities that were previously known but no longer
+            # appear in the snapshot payload. This is defensive: journals should
+            # normally continue to report all commodities, but we never want to
+            # silently drop progress from the database.
+            for name, prev in existing_by_name.items():
+                if name not in snapshot_commodities:
+                    merged_commodities.append(prev)
+        else:
+            merged_commodities = list(snapshot_commodities.values())
+
         # Build the updated site model
         site = ConstructionSite(
             market_id=event.market_id,
@@ -232,7 +275,7 @@ class JournalFileHandler(FileSystemEventHandler):
             construction_progress=event.construction_progress,
             construction_complete=event.construction_complete,
             construction_failed=event.construction_failed,
-            commodities=commodities,
+            commodities=merged_commodities,
         )
 
         # Persist (INSERT OR REPLACE on the same market_id)

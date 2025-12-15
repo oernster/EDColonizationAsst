@@ -693,7 +693,9 @@ Key modules:
       - Presents a Qt system tray UI (`TrayUIController`) that can open the
         web UI and exit the app.
       - Writes lightweight debug and crash logs to plain text files alongside
-        the executable.
+        the executable, using a tiny bootstrap logger that can always create
+        `EDColonizationAsst-runtime.log` even if importing `runtime.common`
+        fails in the frozen build.
     - In DEV mode:
       - Delegates to the existing launcher window so that developer workflows
         are unchanged (`RuntimeApplication._run_dev()` imports `Launcher` and

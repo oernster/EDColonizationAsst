@@ -374,7 +374,7 @@ async def test_file_watcher_start_raises_for_missing_directory(
 async def test_journal_file_handler_process_file_updates_tracker_and_repository(
     repository: ColonizationRepository,
 ):
-    """_process_file should drive tracker updates, site creation, and callbacks."""
+    """_process_file should drive tracker updates, site creation, and callbacks for legacy schema."""
     from src.models.journal_events import (
         LocationEvent,
         FSDJumpEvent,
@@ -390,7 +390,7 @@ async def test_journal_file_handler_process_file_updates_tracker_and_repository(
     #  - Jump to Beta
     #  - Dock at a construction station in Beta
     #  - Construction depot snapshot in Beta
-    #  - Contribution at that depot
+    #  - Contribution at that depot (legacy flat ColonizationContribution schema)
     ts = datetime.now(UTC)
 
     location = LocationEvent(
@@ -512,6 +512,190 @@ async def test_journal_file_handler_process_file_updates_tracker_and_repository(
 
     # Callback should have been invoked for the updated system
     assert "Beta System" in updated_systems
+
+
+@pytest.mark.asyncio
+async def test_journal_file_handler_process_file_handles_colonisation_contributions_array(
+    repository: ColonizationRepository,
+):
+    """_process_file should handle ColonisationContribution with Contributions array schema."""
+    from src.models.journal_events import (
+        LocationEvent,
+        FSDJumpEvent,
+        ColonizationConstructionDepotEvent,
+        ColonizationContributionEvent,
+    )
+    from src.services.system_tracker import SystemTracker as RealSystemTracker
+
+    system_tracker = RealSystemTracker()
+
+    ts = datetime.now(UTC)
+
+    # Location + jump to the target system
+    location = LocationEvent(
+        timestamp=ts,
+        event="Location",
+        star_system="Lupus Dark Region BQ-Y d66",
+        system_address=2278253693331,
+        star_pos=[0.0, 0.0, 0.0],
+        station_name=None,
+        station_type=None,
+        market_id=None,
+        docked=False,
+        raw_data={},
+    )
+
+    jump = FSDJumpEvent(
+        timestamp=ts,
+        event="FSDJump",
+        star_system="Lupus Dark Region BQ-Y d66",
+        system_address=2278253693331,
+        star_pos=[1.0, 2.0, 3.0],
+        jump_dist=10.0,
+        fuel_used=2.0,
+        fuel_level=5.0,
+        raw_data={},
+    )
+
+    # Dock at a colonisation construction site
+    dock = DockedEvent(
+        timestamp=ts,
+        event="Docked",
+        station_name="Orbital Construction Site: Blast Furnace Vista",
+        station_type="Colonisation Depot",
+        star_system="Lupus Dark Region BQ-Y d66",
+        system_address=2278253693331,
+        market_id=3960951554,
+        station_faction={"Name": "Test Faction"},
+        station_government="Democracy",
+        station_economy="Industrial",
+        station_economies=[],
+        raw_data={},
+    )
+
+    # Initial depot snapshot using ResourcesRequired with zero provided amount
+    initial_depot = ColonizationConstructionDepotEvent(
+        timestamp=ts,
+        event="ColonisationConstructionDepot",
+        market_id=3960951554,
+        station_name="Orbital Construction Site: Blast Furnace Vista",
+        station_type="Colonisation Depot",
+        system_name="Lupus Dark Region BQ-Y d66",
+        system_address=2278253693331,
+        construction_progress=0.0,
+        construction_complete=False,
+        construction_failed=False,
+        commodities=[
+            {
+                "Name": "$titanium_name;",
+                "Name_Localised": "Titanium",
+                "Total": 1594,
+                "Delivered": 0,
+                "Payment": 5360,
+            }
+        ],
+        raw_data={},
+    )
+
+    # ColonisationContribution in the new schema (we still use the model, but simulate the payload)
+    contribution = ColonizationContributionEvent(
+        timestamp=ts,
+        event="ColonisationContribution",
+        market_id=3960951554,
+        commodity="$Titanium_name;",
+        commodity_localised="Titanium",
+        quantity=23,
+        total_quantity=23,
+        credits_received=0,
+        raw_data={
+            "MarketID": 3960951554,
+            "Contributions": [
+                {
+                    "Name": "$Titanium_name;",
+                    "Name_Localised": "Titanium",
+                    "Amount": 23,
+                }
+            ],
+        },
+    )
+
+    # Follow-up depot snapshot with ProvidedAmount = 23
+    updated_depot = ColonizationConstructionDepotEvent(
+        timestamp=ts,
+        event="ColonisationConstructionDepot",
+        market_id=3960951554,
+        station_name="Orbital Construction Site: Blast Furnace Vista",
+        station_type="Colonisation Depot",
+        system_name="Lupus Dark Region BQ-Y d66",
+        system_address=2278253693331,
+        construction_progress=0.34,
+        construction_complete=False,
+        construction_failed=False,
+        commodities=[
+            {
+                "Name": "$titanium_name;",
+                "Name_Localised": "Titanium",
+                "Total": 1594,
+                "Delivered": 23,
+                "Payment": 5360,
+            }
+        ],
+        raw_data={},
+    )
+
+    events = [location, jump, dock, initial_depot, contribution, updated_depot]
+
+    class _Parser:
+        def __init__(self, events):
+            self._events = events
+            self.calls: list[Path] = []
+
+        def parse_file(self, file_path: Path):
+            self.calls.append(file_path)
+            return list(self._events)
+
+    updated_systems: list[str] = []
+
+    async def _callback(system_name: str) -> None:
+        updated_systems.append(system_name)
+
+    parser = _Parser(events)
+    handler = JournalFileHandler(
+        parser=parser,
+        system_tracker=system_tracker,
+        repository=repository,
+        update_callback=_callback,
+        loop=asyncio.get_running_loop(),
+    )
+
+    fake_path = Path("Journal.2025-12-15T203720.01.log")
+    await handler._process_file(fake_path)
+
+    # Tracker should now reflect the final docked state in the construction system
+    assert system_tracker.get_current_system() == "Lupus Dark Region BQ-Y d66"
+    assert (
+        system_tracker.get_current_station()
+        == "Orbital Construction Site: Blast Furnace Vista"
+    )
+    assert system_tracker.is_docked() is True
+
+    # Repository should contain the site with Titanium progress from both depot and contribution
+    site = await repository.get_site_by_market_id(3960951554)
+    assert site is not None
+    assert site.system_name == "Lupus Dark Region BQ-Y d66"
+    assert (
+        site.station_name == "Orbital Construction Site: Blast Furnace Vista"
+    )
+
+    titanium = next(
+        c for c in site.commodities if c.name_localised == "Titanium"
+    )
+    # Provided amount should reflect at least the 23 units delivered
+    assert titanium.provided_amount >= 23
+    assert titanium.required_amount == 1594
+
+    # Callback should have been invoked for the updated system
+    assert "Lupus Dark Region BQ-Y d66" in updated_systems
 
 
 def test_journal_file_handler_on_modified_schedules_for_journal_files(monkeypatch):

@@ -43,6 +43,41 @@ def _get_db_file() -> Path:
     return base / "colonization.db"
 
 
+def _normalise_commodity_key(name: str) -> str:
+    """Normalise a journal commodity identifier into a stable key.
+
+    Elite Dangerous sometimes uses slightly different strings for the same
+    underlying commodity across events, for example:
+
+      - "aluminium"
+      - "$Aluminium_Name;"
+
+    To ensure ColonizationContribution events can always be matched to the
+    commodities discovered via ColonizationConstructionDepot snapshots, we
+    convert both sides to a canonical, lower-case token:
+
+      - strip surrounding whitespace
+      - lower-case
+      - strip a leading "$" and trailing ";" if present
+      - strip a trailing "_name" suffix if present
+
+    The original, user-facing name remains in Commodity.name_localised.
+    """
+    key = name.strip().lower()
+    if not key:
+        return key
+
+    # Strip journal-style wrappers like "$Aluminium_Name;"
+    if key.startswith("$") and key.endswith(";"):
+        key = key[1:-1]
+
+    # Strip a trailing "_name" suffix if present.
+    if key.endswith("_name"):
+        key = key[: -len("_name")]
+
+    return key
+
+
 DB_FILE = _get_db_file()
 
 
@@ -257,27 +292,59 @@ class ColonizationRepository(IColonizationRepository):
             handle their own locking. Acquiring the lock here and then calling
             those methods would result in a deadlock with the non-reentrant
             asyncio.Lock.
+
+        Matching strategy:
+            Elite Dangerous can emit slightly different identifiers for the
+            same commodity across events (e.g. "aluminium" vs
+            "$Aluminium_Name;"). To ensure ColonizationContribution events
+            update the correct Commodity row even when the raw strings differ,
+            we compare normalised keys derived via _normalise_commodity_key(...)
+            on both the stored commodity name and the incoming commodity_name.
         """
         site = await self.get_site_by_market_id(market_id)
         if not site:
             logger.warning(
-                f"Cannot update commodity: site with market ID {market_id} not found"
+                "Cannot update commodity: site with market ID %s not found", market_id
+            )
+            return
+
+        target_key = _normalise_commodity_key(commodity_name)
+        if not target_key:
+            logger.warning(
+                "Cannot update commodity: empty commodity name for market ID %s",
+                market_id,
             )
             return
 
         updated = False
         for commodity in site.commodities:
-            if commodity.name == commodity_name:
-                commodity.provided_amount = provided_amount
+            if _normalise_commodity_key(commodity.name) == target_key:
+                # Use the latest observed cumulative total. Journal semantics
+                # guarantee that TotalQuantity is non-decreasing, so a simple
+                # assignment is sufficient; however, guard against any
+                # unexpected regressions by taking the maximum.
+                commodity.provided_amount = max(
+                    commodity.provided_amount, provided_amount
+                )
                 updated = True
                 break
 
         if updated:
             await self.add_construction_site(site)
-            logger.debug(f"Updated {commodity_name} at {site.station_name}")
+            logger.debug(
+                "Updated commodity %s at %s (market_id=%s) to provided_amount=%s",
+                commodity_name,
+                site.station_name,
+                market_id,
+                provided_amount,
+            )
         else:
             logger.warning(
-                f"Commodity {commodity_name} not found at site {site.station_name}"
+                "Commodity %s (normalised key=%s) not found at site %s (market_id=%s)",
+                commodity_name,
+                target_key,
+                site.station_name,
+                market_id,
             )
 
     async def clear_all(self) -> None:
