@@ -1,6 +1,6 @@
 # Elite: Dangerous Colonization Assistant – Architecture
 
-This document describes the current architecture of the Elite: Dangerous Colonization Assistant as implemented in this repository (version 1.2.0).
+This document describes the current architecture of the Elite: Dangerous Colonization Assistant as implemented in this repository.
 
 The system is split into:
 
@@ -57,6 +57,14 @@ The system is split into:
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+The diagram above shows the logical data flow between the browser UI, the FastAPI backend, and Elite: Dangerous journal files.
+
+In development, the React frontend typically runs on `http://localhost:5173` via Vite and talks to the FastAPI backend on `http://localhost:8000`.
+
+In installer or "built runtime" mode, the React app is built into static assets under `frontend/dist` and served by the backend at `/app` using FastAPI `StaticFiles`. In that mode users normally access the UI via `http://127.0.0.1:8000/app/`.
+
+In both modes, the backend exposes colonization REST and WebSocket APIs under `/api/*` and `/ws/colonization`, and additional Fleet carrier APIs under `/api/carriers/*` that reconstruct carrier state on demand from the latest journal file without using new database tables.
+
 ---
 
 ## 2. Backend architecture
@@ -93,11 +101,13 @@ backend/
 │   │   ├── routes.py                  # Core REST API under /api
 │   │   ├── websocket.py               # /ws/colonization endpoint, broadcast
 │   │   ├── settings.py                # /api/settings endpoints
+│   │   ├── carriers.py                # /api/carriers endpoints (Fleet carriers)
 │   │   └── journal.py                 # /api/journal/status, etc.
 │   ├── models/
 │   │   ├── __init__.py
 │   │   ├── api_models.py              # Response models for REST
-│   │   ├── colonization.py            # Core domain models (sites, commodities)
+│   │   ├── colonization.py            # Core colonization domain models (sites, commodities)
+│   │   ├── carriers.py                # Fleet carrier domain models
 │   │   └── journal_events.py          # Typed journal event models
 │   ├── repositories/
 │   │   ├── __init__.py
@@ -203,6 +213,8 @@ API‑facing response models are defined in [`backend/src/models/api_models.py`]
 
 Typed journal event models (e.g. `ColonizationConstructionDepotEvent`, `ColonizationContributionEvent`, `LocationEvent`, `FSDJumpEvent`, `DockedEvent`, `CommanderEvent`) live in [`backend/src/models/journal_events.py`](backend/src/models/journal_events.py:1).
 
+Fleet carrier models live in [`backend/src/models/carriers.py`](backend/src/models/carriers.py:1) and represent a derived view of carrier identity, cargo and buy/sell orders built directly from journal events such as `CarrierStats`, `CarrierLocation` and `CarrierTradeOrder`. These models are computed in memory when carrier endpoints are called and are not stored in the SQLite database.
+
 ### 2.6 Repository and persistence
 
 [`ColonizationRepository`](backend/src/repositories/colonization_repository.py:64) is the central abstraction over persistent colonization data:
@@ -271,6 +283,8 @@ The ingestion pipeline is implemented primarily in:
 
 The debug endpoint `/api/debug/reload-journals` in [`backend/src/api/routes.py`](backend/src/api/routes.py:199) uses the same parser/handler logic to rebuild state from scratch.
 
+In contrast, Fleet carrier endpoints in [`backend/src/api/carriers.py`](backend/src/api/carriers.py:1) do not use the `FileWatcher` or repository at all. Instead they resolve the journal directory, locate the latest `Journal.*.log` file via helper functions in [`backend/src/utils/journal.py`](backend/src/utils/journal.py:1), parse that file on demand with `JournalParser.parse_file`, and then walk the resulting events in memory to infer carrier identity, cargo and trade orders.
+
 ### 2.8 Aggregation and Inara integration
 
 [`DataAggregator`](backend/src/services/data_aggregator.py:36) is responsible for:
@@ -320,6 +334,12 @@ Key endpoints:
 - **Debug**
 
   - `POST /api/debug/reload-journals` – clears repository state and reprocesses all journal files using the same pipeline as the live watcher.
+
+- **Fleet carriers** (journal‑derived, no additional DB tables)
+
+  - `GET /api/carriers/current` – returns whether the commander is currently docked at a fleet carrier and, if so, a `CarrierIdentity` reconstructed from the latest relevant `Docked`, `CarrierStats` and `CarrierLocation` events.
+  - `GET /api/carriers/current/state` – returns a full `CarrierState` snapshot (identity, inferred cargo, buy/sell orders and cargo/capacity metrics) for the carrier the commander is currently docked at.
+  - `GET /api/carriers/mine` – returns a list of carriers owned by the commander (and, in future, squadron carriers) based primarily on `CarrierStats` and `CarrierLocation` events.
 
 Additional routers:
 
@@ -374,14 +394,18 @@ frontend/
     │   │   └── SystemSelector.tsx
     │   ├── SiteList/
     │   │   └── SiteList.tsx
+    │   ├── FleetCarriers/
+    │   │   └── FleetCarriersPanel.tsx
     │   └── Settings/
     │       └── SettingsPage.tsx
     ├── services/
     │   └── api.ts                # Axios client and typed API helpers
     ├── stores/
-    │   └── colonizationStore.ts  # Zustand store for colonization data
+    │   ├── colonizationStore.ts  # Zustand store for colonization data
+    │   └── carrierStore.ts       # Zustand store for Fleet carrier data
     ├── types/
     │   ├── colonization.ts       # Shared frontend types for colonization data
+    │   ├── fleetCarriers.ts      # Types for Fleet carrier data
     │   └── settings.ts           # Types for settings/inara config
     ├── gameglass/
     │   ├── app.js
@@ -404,10 +428,16 @@ frontend/
   - Subscribes to one or more systems.
   - Receives update messages whenever the backend’s file watcher processes new journal events and notifies the WebSocket layer.
 
-- State is centralized in the `colonizationStore` in [`frontend/src/stores/colonizationStore.ts`](frontend/src/stores/colonizationStore.ts:1):
+- Colonization state is centralized in the `colonizationStore` in [`frontend/src/stores/colonizationStore.ts`](frontend/src/stores/colonizationStore.ts:1):
 
   - Stores the current system selection, latest `SystemColonizationData` for that system, commodity aggregates, loading/error states, etc.
   - Exposes actions to update system selection, handle incoming WebSocket messages, and refresh REST data.
+
+- Fleet carrier state is managed separately in the `carrierStore` in [`frontend/src/stores/carrierStore.ts`](frontend/src/stores/carrierStore.ts:27):
+
+  - Loads the current docked carrier identity and state via `/api/carriers/current` and `/api/carriers/current/state`.
+  - Loads the commander's own carriers via `/api/carriers/mine`.
+  - Exposes loading and error flags used by the Fleet carriers UI.
 
 ### 3.4 Key components (frontend)
 
@@ -422,6 +452,12 @@ frontend/
   - Displays construction sites for the currently selected system.
   - Groups by in‑progress vs completed.
   - Shows commodity requirements and per‑site completion.
+
+- **FleetCarriersPanel** – [`frontend/src/components/FleetCarriers/FleetCarriersPanel.tsx`](frontend/src/components/FleetCarriers/FleetCarriersPanel.tsx:1)
+
+  - Renders the Fleet carriers tab under the System View.
+  - Shows the currently docked carrier (if any), including identity, services, cargo snapshot and market orders derived from journal data.
+  - Lists the commander's known carriers based on `CarrierStats`/`CarrierLocation` journal events.
 
 - **SettingsPage** – [`frontend/src/components/Settings/SettingsPage.tsx`](frontend/src/components/Settings/SettingsPage.tsx:1)
 
@@ -487,20 +523,18 @@ These assets and docs cover:
 
 ### 6.1 Local development / usage
 
-For non‑developers, the primary entrypoint is:
+For non‑developers, the primary entrypoints are:
 
-- Windows: [`run-edca.bat`](run-edca.bat:1)
-- Linux/macOS: [`run-edca.sh`](run-edca.sh:1)
+- Windows: the installed application started from the Start Menu (backed by a packaged backend executable) or the helper script [`run-edca.bat`](run-edca.bat:1) from a source checkout.
+- Linux: distro‑specific helper scripts such as [`run-edca-built-debian.sh`](run-edca-built-debian.sh:1), [`run-edca-built-fedora.sh`](run-edca-built-fedora.sh:1), [`run-edca-built-arch.sh`](run-edca-built-arch.sh:1), [`run-edca-built-rhel.sh`](run-edca-built-rhel.sh:1) and [`run-edca-built-void.sh`](run-edca-built-void.sh:1) from the project root.
 
-These scripts:
+These packaged or "built runtime" entrypoints:
 
-- Ensure Python and Node.js dependencies are installed.
-- Start:
+- Ensure the backend runtime environment is available.
+- Serve the built frontend from `frontend/dist` at the `/app` mount point configured in [`backend/src/main.py`](backend/src/main.py:144).
+- Start the backend on `http://127.0.0.1:8000` and open the browser at `http://127.0.0.1:8000/app/`.
 
-  - Backend on `http://localhost:8000`
-  - Frontend on `http://localhost:5173`
-
-Developers can also run:
+For development from a source checkout, you can also run backend and frontend separately:
 
 - Backend from the project root:
 
@@ -519,6 +553,8 @@ or follow the more detailed workflows in [`DEVELOPMENT_README.md`](DEVELOPMENT_R
 ### 6.2 Towards bundling / packaging
 
 High‑level packaging options (also sketched in [`DEVELOPMENT_README.md`](DEVELOPMENT_README.md:1)) include:
+
+Current Windows installer builds and Linux helper scripts already implement a variant of this shape, where the bundled backend serves the built React frontend from `/app` via FastAPI `StaticFiles`.
 
 - Building the frontend into static assets (`npm run build` → `frontend/dist`).
 - Serving those assets via FastAPI `StaticFiles`, potentially at `/` or `/app`.
@@ -542,7 +578,7 @@ Backend tests live under [`backend/tests/unit`](backend/tests/unit:1) and includ
 - File watching and event handling (`test_file_watcher.py`)
 - Data aggregation (`test_data_aggregator.py`)
 - System tracking and utility functions (`test_system_tracker_and_utils.py`)
-- API routes (`test_api_routes.py`, `test_api_journal_and_settings.py`)
+- API routes (`test_api_routes.py`, `test_api_journal_and_settings.py`, `test_api_carriers.py`)
 - WebSocket behaviour (`test_websocket.py`)
 - Repository persistence (`test_repository.py`)
 - Main app wiring (`test_main_app.py`)

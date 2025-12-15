@@ -220,7 +220,7 @@ shipped as a production installer.
 ## Project layout
 
 - Root project docs:
-  - [`ARCHITECTURE.md`](ARCHITECTURE.md:1) – high-level system and component design
+  - [`ARCHITECTURE.md`](ARCHITECTURE.md:1) – high-level system and component design; canonical architecture reference located alongside this file in the repository (and on GitHub).
   - [`PROJECT_SETUP.md`](PROJECT_SETUP.md:1) – additional notes and setup details
 - Backend (FastAPI, Python): see **Backend development** below
 - Frontend (React + TypeScript): see **Frontend development** below
