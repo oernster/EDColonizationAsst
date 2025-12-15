@@ -98,4 +98,6 @@ async def test_update_commodity_missing_commodity_does_not_modify_site(
     # Original commodity values should be unchanged
     site = await repository.get_site_by_market_id(sample_construction_site.market_id)
     steel = next(c for c in site.commodities if c.name == "Steel")
-    assert steel.provided_amount == sample_construction_site.commodities[0].provided_amount
+    assert (
+        steel.provided_amount == sample_construction_site.commodities[0].provided_amount
+    )

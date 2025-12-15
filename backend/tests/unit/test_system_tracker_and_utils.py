@@ -4,6 +4,7 @@ from datetime import datetime, UTC
 from pathlib import Path
 import logging
 import os
+import types
 
 import pytest
 
@@ -229,7 +230,9 @@ def test_setup_logging_and_get_logger():
 def test_get_journal_directory_raises_when_saved_games_missing():
     """Windows-only: get_journal_directory should raise when Saved Games path cannot be determined."""
     if os.name != "nt":
-        pytest.skip("Windows-specific behavior; Linux uses Proton/Wine auto-detection instead.")
+        pytest.skip(
+            "Windows-specific behavior; Linux uses Proton/Wine auto-detection instead."
+        )
 
     import src.utils.journal as journal_mod  # local import to patch safely
     import src.utils.windows as windows_mod  # patch underlying Windows helper actually used
@@ -246,7 +249,9 @@ def test_get_journal_directory_raises_when_saved_games_missing():
 def test_get_journal_directory_raises_when_journal_folder_missing(tmp_path: Path):
     """Windows-only: get_journal_directory should raise when the Frontier/Elite Dangerous folder is missing."""
     if os.name != "nt":
-        pytest.skip("Windows-specific behavior; Linux uses Proton/Wine auto-detection instead.")
+        pytest.skip(
+            "Windows-specific behavior; Linux uses Proton/Wine auto-detection instead."
+        )
 
     import src.utils.journal as journal_mod  # local import to patch safely
     import src.utils.windows as windows_mod  # patch underlying Windows helper actually used
@@ -264,3 +269,55 @@ def test_get_journal_directory_raises_when_journal_folder_missing(tmp_path: Path
         windows_mod.get_saved_games_path = orig_get_saved_games  # type: ignore[assignment]
 
 
+def test_find_journal_directory_uses_linux_steam_compat(monkeypatch, tmp_path: Path):
+    """Linux path: find_journal_directory should detect Proton compatdata journals when present."""
+    import src.utils.journal as journal_mod  # local import to patch safely
+
+    compat_dir = tmp_path / "compatdata"
+    journal_dir = (
+        compat_dir
+        / "pfx"
+        / "drive_c"
+        / "users"
+        / "steamuser"
+        / "Saved Games"
+        / "Frontier Developments"
+        / "Elite Dangerous"
+    )
+    journal_dir.mkdir(parents=True)
+
+    fake_os = types.SimpleNamespace(
+        name="posix",
+        environ={
+            "STEAM_COMPAT_DATA_PATH": str(compat_dir),
+            "USER": "steamuser",
+        },
+    )
+
+    # Replace the os module used inside src.utils.journal with a minimal POSIX-like stub.
+    monkeypatch.setattr(journal_mod, "os", fake_os, raising=False)
+
+    detected = journal_mod.find_journal_directory()
+    assert detected == journal_dir
+
+
+def test_get_journal_directory_linux_error_message_lists_candidates(monkeypatch):
+    """Linux path: get_journal_directory should raise with a helpful error message when no dirs exist."""
+    import src.utils.journal as journal_mod  # local import to patch safely
+
+    fake_os = types.SimpleNamespace(
+        name="posix",
+        environ={"USER": "steamuser"},
+    )
+
+    monkeypatch.setattr(journal_mod, "os", fake_os, raising=False)
+
+    with pytest.raises(FileNotFoundError) as excinfo:
+        journal_mod.get_journal_directory()
+
+    message = str(excinfo.value)
+    assert (
+        "Could not auto-detect the Elite Dangerous journal directory on Linux."
+        in message
+    )
+    assert "Tried the following locations:" in message

@@ -66,7 +66,9 @@ APP_ID = "EDColonizationAssistant"
 PROJECT_ROOT = Path(__file__).resolve().parent
 # Default relative payload directory when running from source.
 DEFAULT_PAYLOAD_DIR = PROJECT_ROOT / "build_payload"
-WINDOWS_UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\EDColonizationAsst"
+WINDOWS_UNINSTALL_KEY = (
+    r"Software\Microsoft\Windows\CurrentVersion\Uninstall\EDColonizationAsst"
+)
 
 
 def get_backend_version() -> str:
@@ -255,8 +257,7 @@ def read_license_text() -> str:
                 )
 
     return (
-        header
-        + "LICENSE file not found in bundled resources or project root.\n\n"
+        header + "LICENSE file not found in bundled resources or project root.\n\n"
         "Please see: https://www.gnu.org/licenses/lgpl-3.0.html"
     )
 
@@ -275,16 +276,16 @@ class ThemeManager:
     def dark_palette() -> QPalette:
         """Return a dark palette tuned to the purple/orange theme."""
         palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(21, 16, 32))          # main background
-        palette.setColor(QPalette.WindowText, QColor(245, 245, 247))   # text
-        palette.setColor(QPalette.Base, QColor(28, 20, 42))            # text edit bg
+        palette.setColor(QPalette.Window, QColor(21, 16, 32))  # main background
+        palette.setColor(QPalette.WindowText, QColor(245, 245, 247))  # text
+        palette.setColor(QPalette.Base, QColor(28, 20, 42))  # text edit bg
         palette.setColor(QPalette.AlternateBase, QColor(35, 26, 52))
         palette.setColor(QPalette.ToolTipBase, QColor(45, 37, 80))
         palette.setColor(QPalette.ToolTipText, QColor(245, 245, 247))
         palette.setColor(QPalette.Text, QColor(245, 245, 247))
         palette.setColor(QPalette.Button, QColor(45, 37, 80))
         palette.setColor(QPalette.ButtonText, QColor(245, 245, 247))
-        palette.setColor(QPalette.Highlight, QColor(255, 159, 28))     # orange accent
+        palette.setColor(QPalette.Highlight, QColor(255, 159, 28))  # orange accent
         palette.setColor(QPalette.HighlightedText, Qt.black)
         return palette
 
@@ -467,21 +468,15 @@ class InstallerWindow(QMainWindow):
         layout.addLayout(buttons_row)
 
         # Install dir info
-        self.install_dir_label = QLabel(
-            f"Install directory:\n{self.install_dir}", self
-        )
+        self.install_dir_label = QLabel(f"Install directory:\n{self.install_dir}", self)
         self.install_dir_label.setWordWrap(True)
         self.install_dir_label.setStyleSheet("font-size: 11px;")
 
         layout.addWidget(self.install_dir_label)
 
         # Windows-only options: desktop shortcut / start menu integration
-        self.desktop_shortcut_checkbox = QCheckBox(
-            "Create Desktop shortcut", self
-        )
-        self.start_menu_checkbox = QCheckBox(
-            "Add Start Menu entry", self
-        )
+        self.desktop_shortcut_checkbox = QCheckBox("Create Desktop shortcut", self)
+        self.start_menu_checkbox = QCheckBox("Add Start Menu entry", self)
 
         if sys.platform.startswith("win"):
             # Enabled and checked by default on Windows
@@ -514,7 +509,9 @@ class InstallerWindow(QMainWindow):
         self.log_view = QTextEdit(self)
         self.log_view.setReadOnly(True)
         self.log_view.setMinimumHeight(120)
-        self.log_view.setStyleSheet("font-family: Consolas, monospace; font-size: 11px;")
+        self.log_view.setStyleSheet(
+            "font-family: Consolas, monospace; font-size: 11px;"
+        )
         self.log_view.hide()
 
         central.setLayout(layout)
@@ -543,9 +540,7 @@ class InstallerWindow(QMainWindow):
         """Refresh version labels and action button enabled states."""
         self._update_version_labels()
 
-        has_installed = (
-            self.installed_version is not None and self.install_dir.exists()
-        )
+        has_installed = self.installed_version is not None and self.install_dir.exists()
 
         # Install is always available.
         self.install_button.setEnabled(True)
@@ -619,9 +614,7 @@ class InstallerWindow(QMainWindow):
         if chosen:
             # We still append APP_ID so the chosen directory is a base.
             self.install_dir = Path(chosen) / APP_ID
-            self.install_dir_label.setText(
-                f"Install directory:\n{self.install_dir}"
-            )
+            self.install_dir_label.setText(f"Install directory:\n{self.install_dir}")
             self._log(f"Install directory set to: {self.install_dir}")
 
     def _confirm(self, title: str, text: str) -> bool:
@@ -710,7 +703,9 @@ class InstallerWindow(QMainWindow):
             )
         except Exception as exc:
             self._finish_progress("Install failed")
-            self._show_error("Install failed", f"Unexpected error during install:\n{exc}")
+            self._show_error(
+                "Install failed", f"Unexpected error during install:\n{exc}"
+            )
         finally:
             # Re-enable location changes once the operation is finished.
             self.choose_dir_action.setEnabled(True)
@@ -760,7 +755,9 @@ class InstallerWindow(QMainWindow):
                         ),
                     )
 
-            self._log(f"Repairing installation at {self.install_dir} from {payload_root}")
+            self._log(
+                f"Repairing installation at {self.install_dir} from {payload_root}"
+            )
 
             total_files = self._count_files(payload_root)
             self._prepare_progress(total_files, "Repairing")
@@ -854,7 +851,7 @@ class InstallerWindow(QMainWindow):
     def _copy_tree(self, src: Path, dst: Path) -> None:
         """
         Copy src tree into dst, overwriting existing files, updating progress only.
- 
+
         Additionally:
         - Skip known development / VCS / cache directories if encountered
           (e.g. when running directly from a project root rather than a
@@ -875,18 +872,18 @@ class InstallerWindow(QMainWindow):
             "__pycache__",
             "tests",
         }
- 
+
         for root, dirs, files in os.walk(src):
             # Prune unwanted directories from traversal.
             dirs[:] = [d for d in dirs if d not in ignore_dir_names]
- 
+
             rel_root = Path(root).relative_to(src)
             target_root = dst / rel_root
             target_root.mkdir(parents=True, exist_ok=True)
- 
+
             for name in files:
                 s = Path(root) / name
- 
+
                 # If this is a renamed Python source from the payload
                 # (e.g. "main.py_"), restore the original ".py" extension
                 # in the installed tree.
@@ -894,7 +891,7 @@ class InstallerWindow(QMainWindow):
                     dest_name = name[:-1]  # strip the trailing underscore
                 else:
                     dest_name = name
- 
+
                 d = target_root / dest_name
                 try:
                     shutil.copy2(s, d)
@@ -905,18 +902,18 @@ class InstallerWindow(QMainWindow):
     def _delete_tree(self, root: Path) -> None:
         """
         Recursively delete the installation directory with progress updates.
- 
+
         This keeps the UI responsive during uninstall and avoids the blocking
         behaviour of a single shutil.rmtree() call, especially on large
         installations.
         """
         if not root.exists():
             return
- 
+
         # Walk bottom-up so that we can remove files before their parent dirs.
         for dirpath, dirnames, filenames in os.walk(root, topdown=False):
             base = Path(dirpath)
- 
+
             # Delete files first
             for name in filenames:
                 p = base / name
@@ -926,7 +923,7 @@ class InstallerWindow(QMainWindow):
                     self._update_progress()
                 except Exception as exc:
                     self._log(f"Failed to delete file {p}: {exc}")
- 
+
             # Then delete subdirectories
             for name in dirnames:
                 d = base / name
@@ -935,14 +932,14 @@ class InstallerWindow(QMainWindow):
                         d.rmdir()
                 except Exception as exc:
                     self._log(f"Failed to delete directory {d}: {exc}")
- 
+
         # Finally remove the root directory itself
         try:
             if root.exists():
                 root.rmdir()
         except Exception as exc:
             self._log(f"Failed to delete install root {root}: {exc}")
- 
+
     def _perform_uninstall(self, confirm: bool = True) -> None:
         """
         Core uninstall logic shared by the Uninstall button and the
@@ -1010,12 +1007,12 @@ class InstallerWindow(QMainWindow):
     def _stop_running_tray(self) -> None:
         """
         Attempt to stop any running EDCA tray/runtime process before uninstalling.
- 
+
         Legacy behaviour:
         - If a PID file 'tray.pid' exists under the install directory (created
           by the older tray_app.py controller), we read the PID and call
           'taskkill /PID <pid> /T /F' on Windows.
- 
+
         New behaviour:
         - Regardless of whether a PID file exists, we also issue a best-effort
           'taskkill /IM "EDColonizationAsst.exe" /T /F' so that the packaged
@@ -1034,7 +1031,7 @@ class InstallerWindow(QMainWindow):
                     pid = None
             except Exception:
                 pid = None
- 
+
             if pid is not None and sys.platform.startswith("win"):
                 try:
                     # Run taskkill in a hidden console window so uninstall does not
@@ -1042,7 +1039,7 @@ class InstallerWindow(QMainWindow):
                     CREATE_NO_WINDOW = 0x08000000
                     startup_info = subprocess.STARTUPINFO()
                     startup_info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
- 
+
                     subprocess.run(
                         ["taskkill", "/PID", str(pid), "/T", "/F"],
                         check=False,
@@ -1054,7 +1051,7 @@ class InstallerWindow(QMainWindow):
                 except Exception:
                     # Failing to kill the legacy tray should not abort uninstall.
                     pass
- 
+
         # Additionally, always try to kill any running packaged runtime EXE so
         # that the new in-process tray hosted by EDColonizationAsst.exe is
         # terminated cleanly before we start removing files.
@@ -1063,7 +1060,7 @@ class InstallerWindow(QMainWindow):
                 CREATE_NO_WINDOW = 0x08000000
                 startup_info = subprocess.STARTUPINFO()
                 startup_info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
- 
+
                 subprocess.run(
                     ["taskkill", "/IM", "EDColonizationAsst.exe", "/T", "/F"],
                     check=False,
@@ -1093,7 +1090,9 @@ class InstallerWindow(QMainWindow):
 
         # Start Menu
         appdata = os.environ.get("APPDATA", "")
-        start_menu_root = Path(appdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
+        start_menu_root = (
+            Path(appdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
+        )
         start_menu_dir = start_menu_root / "EDColonizationAsst"
         start_menu_shortcut = start_menu_dir / shortcut_name
 
@@ -1133,7 +1132,9 @@ class InstallerWindow(QMainWindow):
             runtime_candidates: list[Path] = []
             try:
                 runtime_candidates.append(
-                    Path(__file__).resolve().parent / "runtime" / "EDColonizationAsst.exe"
+                    Path(__file__).resolve().parent
+                    / "runtime"
+                    / "EDColonizationAsst.exe"
                 )
             except Exception:
                 pass
@@ -1143,7 +1144,9 @@ class InstallerWindow(QMainWindow):
             #    exe instead of the module file.
             try:
                 runtime_candidates.append(
-                    Path(sys.argv[0]).resolve().parent / "runtime" / "EDColonizationAsst.exe"
+                    Path(sys.argv[0]).resolve().parent
+                    / "runtime"
+                    / "EDColonizationAsst.exe"
                 )
             except Exception:
                 pass
@@ -1173,7 +1176,9 @@ class InstallerWindow(QMainWindow):
                 payload_root = get_payload_root()
                 if payload_root is not None:
                     candidate = payload_root / "EDColonizationAsst.exe"
-                    self._log(f"Runtime EXE still missing; probing payload at: {candidate}")
+                    self._log(
+                        f"Runtime EXE still missing; probing payload at: {candidate}"
+                    )
                     if candidate.exists():
                         try:
                             shutil.copy2(candidate, runtime_exe)
@@ -1223,8 +1228,9 @@ class InstallerWindow(QMainWindow):
             start_menu_shortcut.parent.mkdir(parents=True, exist_ok=True)
             self._create_single_shortcut(start_menu_shortcut, target, icon)
 
-
-    def _create_single_shortcut(self, shortcut_path: Path, target: Path, icon: Path) -> None:
+    def _create_single_shortcut(
+        self, shortcut_path: Path, target: Path, icon: Path
+    ) -> None:
         """
         Create a single .lnk shortcut using PowerShell + WScript.Shell COM.
 
@@ -1351,11 +1357,15 @@ class InstallerWindow(QMainWindow):
                 winreg.SetValueEx(key, "DisplayName", 0, winreg.REG_SZ, APP_NAME)
                 winreg.SetValueEx(key, "DisplayIcon", 0, winreg.REG_SZ, str(icon_path))
                 winreg.SetValueEx(key, "Publisher", 0, winreg.REG_SZ, "Oliver Ernster")
-                winreg.SetValueEx(key, "InstallLocation", 0, winreg.REG_SZ, str(self.install_dir))
+                winreg.SetValueEx(
+                    key, "InstallLocation", 0, winreg.REG_SZ, str(self.install_dir)
+                )
                 # Launch the installer copy inside the install directory when
                 # uninstalling or modifying.
                 uninstall_cmd = f'"{exe_for_registry}"'
-                winreg.SetValueEx(key, "UninstallString", 0, winreg.REG_SZ, uninstall_cmd)
+                winreg.SetValueEx(
+                    key, "UninstallString", 0, winreg.REG_SZ, uninstall_cmd
+                )
                 # Enable "Modify" in Apps & Features by providing a ModifyPath
                 # that re-launches this installer as well.
                 winreg.SetValueEx(key, "ModifyPath", 0, winreg.REG_SZ, uninstall_cmd)
@@ -1363,7 +1373,9 @@ class InstallerWindow(QMainWindow):
                 winreg.SetValueEx(key, "NoModify", 0, winreg.REG_DWORD, 0)
                 winreg.SetValueEx(key, "NoRepair", 0, winreg.REG_DWORD, 0)
                 if self.version:
-                    winreg.SetValueEx(key, "DisplayVersion", 0, winreg.REG_SZ, self.version)
+                    winreg.SetValueEx(
+                        key, "DisplayVersion", 0, winreg.REG_SZ, self.version
+                    )
             self._log("Registered application in Windows Add/Remove Programs (HKCU).")
         except Exception as exc:
             self._log(f"Failed to register app in Add/Remove Programs: {exc}")

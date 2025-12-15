@@ -77,7 +77,9 @@ def test_runtime_is_frozen_for_non_python_exe_path():
 # ---------------------------------------------------------------------------
 
 
-def test_get_config_paths_dev_uses_backend_layout(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_config_paths_dev_uses_backend_layout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """In non-frozen mode, get_config_paths should resolve backend/config.yaml layout."""
     monkeypatch.setattr(config_mod, "_is_frozen", lambda: False)
 
@@ -186,13 +188,17 @@ def test_get_config_linux_autodetect_overrides_windows_default(
     resolved via utils.windows instead, so this test is skipped there.
     """
     if os.name == "nt":
-        pytest.skip("Linux-specific journal auto-detect behaviour is not applicable on Windows.")
+        pytest.skip(
+            "Linux-specific journal auto-detect behaviour is not applicable on Windows."
+        )
 
     config_file = tmp_path / "config.yaml"
     commander_file = tmp_path / "commander.yaml"
 
     # Use the baked-in Windows default so looks_like_windows_default evaluates True.
-    win_default = r"C:\Users\%USERNAME%\Saved Games\Frontier Developments\Elite Dangerous"
+    win_default = (
+        r"C:\Users\%USERNAME%\Saved Games\Frontier Developments\Elite Dangerous"
+    )
     config_file.write_text(
         f'journal:\n  directory: "{win_default}"\n',
         encoding="utf-8",

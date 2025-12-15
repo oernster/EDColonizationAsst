@@ -245,7 +245,7 @@ async def notify_system_update(system_name: str) -> None:
 
     try:
         system_data = await _aggregator.aggregate_by_system(system_name)
- 
+
         message = WebSocketMessage(
             type=WebSocketMessageType.UPDATE,
             system_name=system_name,
@@ -260,7 +260,7 @@ async def notify_system_update(system_name: str) -> None:
             },
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
- 
+
         await manager.broadcast_to_system(system_name, message.model_dump())
         logger.debug(f"Notified subscribers of update to {system_name}")
 

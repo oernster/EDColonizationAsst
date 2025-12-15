@@ -7,9 +7,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 # Elite journals live under ".../Saved Games/Frontier Developments/Elite Dangerous"
-_JOURNAL_SUBPATH = (
-    Path("Saved Games") / "Frontier Developments" / "Elite Dangerous"
-)
+_JOURNAL_SUBPATH = Path("Saved Games") / "Frontier Developments" / "Elite Dangerous"
 
 # Steam App ID for Elite Dangerous (used by Proton compatdata path)
 _STEAM_APP_ID_ELITE_DANGEROUS = "359320"
@@ -31,21 +29,9 @@ def _iter_linux_journal_candidates() -> Iterable[Path]:
     if compat:
         compat_path = Path(compat)
         yield (
-            compat_path
-            / "pfx"
-            / "drive_c"
-            / "users"
-            / "steamuser"
-            / _JOURNAL_SUBPATH
+            compat_path / "pfx" / "drive_c" / "users" / "steamuser" / _JOURNAL_SUBPATH
         )
-        yield (
-            compat_path
-            / "pfx"
-            / "drive_c"
-            / "users"
-            / user
-            / _JOURNAL_SUBPATH
-        )
+        yield (compat_path / "pfx" / "drive_c" / "users" / user / _JOURNAL_SUBPATH)
 
     # Proton: common Steam install roots.
     steam_roots = [
@@ -135,7 +121,9 @@ def get_journal_directory() -> Path:
         return journal_dir
 
     if os.name == "nt":
-        raise FileNotFoundError("Could not find the Saved Games directory / journal directory on Windows.")
+        raise FileNotFoundError(
+            "Could not find the Saved Games directory / journal directory on Windows."
+        )
 
     tried = "\n".join(str(p) for p in _iter_linux_journal_candidates())
     raise FileNotFoundError(

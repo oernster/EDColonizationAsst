@@ -91,12 +91,16 @@ def build_installer() -> None:
     if license_file.exists():
         print(f"[buildguiinstaller] LICENSE will be bundled from: {license_file}")
     else:
-        print("[buildguiinstaller] LICENSE file not found; About dialog will fall back to URL only.")
+        print(
+            "[buildguiinstaller] LICENSE file not found; About dialog will fall back to URL only."
+        )
 
     if version_file.exists():
         print(f"[buildguiinstaller] VERSION will be bundled from: {version_file}")
     else:
-        print("[buildguiinstaller] VERSION file not found; installer will fall back to 0.0.0.")
+        print(
+            "[buildguiinstaller] VERSION file not found; installer will fall back to 0.0.0."
+        )
 
     # Determine jobs for Nuitka parallel compilation.
     cpu_count = os.cpu_count() or 1
@@ -174,7 +178,9 @@ def _ensure_frontend_dist_built(project_root: Path) -> None:
     """
     frontend_dir = project_root / "frontend"
     if not frontend_dir.exists():
-        print("[buildguiinstaller] frontend/ directory not found; skipping frontend build.")
+        print(
+            "[buildguiinstaller] frontend/ directory not found; skipping frontend build."
+        )
         return
 
     dist_dir = frontend_dir / "dist"
@@ -187,7 +193,9 @@ def _ensure_frontend_dist_built(project_root: Path) -> None:
             f"[buildguiinstaller] Unable to inspect frontend/dist: {exc}"
         ) from exc
 
-    print("[buildguiinstaller] frontend/dist not found or empty; running `npm run build`...")
+    print(
+        "[buildguiinstaller] frontend/dist not found or empty; running `npm run build`..."
+    )
     try:
         result = subprocess.run(
             ["npm", "--prefix", str(frontend_dir), "run", "build"],
@@ -347,8 +355,10 @@ def _ensure_payload_dir(project_root: Path) -> Path:
             "exists and is not excluded by ignore rules."
         )
     else:
-        print(f"[buildguiinstaller] Verified tray controller present at: {tray_payload}")
- 
+        print(
+            f"[buildguiinstaller] Verified tray controller present at: {tray_payload}"
+        )
+
     # Work around Nuitka/packaging behaviour that can strip *.py files from
     # data directories. To ensure the backend sources are shipped as plain
     # files in the payload, we rename them to \"*.py_\" here and let the
@@ -369,21 +379,21 @@ def _ensure_payload_dir(project_root: Path) -> Path:
                     "[buildguiinstaller] Failed to rename backend source file "
                     f"for payload shipping: {py_file} -> {renamed}: {exc}"
                 ) from exc
- 
+
     try:
         has_entries = any(payload_dir.iterdir())
     except OSError as exc:
         raise RuntimeError(
             f"Unable to inspect bootstrapped payload directory '{payload_dir}': {exc}"
         ) from exc
- 
+
     if not has_entries:
         raise RuntimeError(
             f"Bootstrapped payload directory '{payload_dir}' is empty.\n"
             "No curated files or directories were found to copy. "
             "Add at least one of: backend/, frontend/, EDColonizationAsst.exe, etc."
         )
- 
+
     print(f"[buildguiinstaller] Bootstrapped payload directory at: {payload_dir}")
     return payload_dir
 

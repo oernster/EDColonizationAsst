@@ -128,8 +128,9 @@ async def test_connection_manager_subscribe_and_unsubscribe():
 
     await manager.unsubscribe(ws, "Test System")
     assert manager.active_connections[ws] == set()
-    assert "Test System" not in manager.system_subscriptions or ws not in manager.system_subscriptions.get(
-        "Test System", set()
+    assert (
+        "Test System" not in manager.system_subscriptions
+        or ws not in manager.system_subscriptions.get("Test System", set())
     )
 
 

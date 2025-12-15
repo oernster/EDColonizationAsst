@@ -32,7 +32,9 @@ class _DummyParser:
 
 
 @pytest.mark.asyncio
-async def test_process_construction_depot_creates_site(repository: ColonizationRepository):
+async def test_process_construction_depot_creates_site(
+    repository: ColonizationRepository,
+):
     """_process_construction_depot should create a ConstructionSite with commodities."""
     system_tracker = SystemTracker()
     handler = JournalFileHandler(
@@ -138,7 +140,9 @@ async def test_process_construction_depot_reuses_existing_metadata(
 
 
 @pytest.mark.asyncio
-async def test_process_contribution_updates_commodity(repository: ColonizationRepository):
+async def test_process_contribution_updates_commodity(
+    repository: ColonizationRepository,
+):
     """_process_contribution should update commodity provided_amount via repository.update_commodity."""
     # Seed repository with a site that has a single commodity
     site = ConstructionSite(
@@ -309,7 +313,9 @@ class _DummyObserver:
 
 
 @pytest.mark.asyncio
-async def test_file_watcher_start_and_stop(tmp_path: Path, repository: ColonizationRepository):
+async def test_file_watcher_start_and_stop(
+    tmp_path: Path, repository: ColonizationRepository
+):
     """FileWatcher.start_watching and stop_watching should manage the observer lifecycle."""
     journal_dir = tmp_path / "journals"
     journal_dir.mkdir()
@@ -345,7 +351,9 @@ async def test_file_watcher_start_and_stop(tmp_path: Path, repository: Colonizat
 
 
 @pytest.mark.asyncio
-async def test_file_watcher_start_raises_for_missing_directory(repository: ColonizationRepository):
+async def test_file_watcher_start_raises_for_missing_directory(
+    repository: ColonizationRepository,
+):
     """FileWatcher.start_watching should raise FileNotFoundError when directory is missing."""
     missing_dir = Path("does_not_exist_12345")
 
@@ -551,12 +559,16 @@ def test_journal_file_handler_on_modified_schedules_for_journal_files(monkeypatc
     asyncio.run_coroutine_threadsafe = fake_run_coroutine_threadsafe
     try:
         # Directory events should be ignored
-        dir_event = SimpleNamespace(is_directory=True, src_path=str(Path("Journal.2025-01-01T000000.01.log")))
+        dir_event = SimpleNamespace(
+            is_directory=True, src_path=str(Path("Journal.2025-01-01T000000.01.log"))
+        )
         handler.on_modified(dir_event)
         assert scheduled == []
 
         # Non-journal files should be ignored
-        non_journal_event = SimpleNamespace(is_directory=False, src_path=str(Path("notes.txt")))
+        non_journal_event = SimpleNamespace(
+            is_directory=False, src_path=str(Path("notes.txt"))
+        )
         handler.on_modified(non_journal_event)
         assert scheduled == []
 
@@ -611,12 +623,16 @@ def test_journal_file_handler_on_created_schedules_for_journal_files(monkeypatch
     asyncio.run_coroutine_threadsafe = fake_run_coroutine_threadsafe
     try:
         # Directory events should be ignored
-        dir_event = SimpleNamespace(is_directory=True, src_path=str(Path("Journal.2025-01-01T000000.01.log")))
+        dir_event = SimpleNamespace(
+            is_directory=True, src_path=str(Path("Journal.2025-01-01T000000.01.log"))
+        )
         handler.on_created(dir_event)
         assert scheduled == []
 
         # Non-journal files should be ignored
-        non_journal_event = SimpleNamespace(is_directory=False, src_path=str(Path("notes.txt")))
+        non_journal_event = SimpleNamespace(
+            is_directory=False, src_path=str(Path("notes.txt"))
+        )
         handler.on_created(non_journal_event)
         assert scheduled == []
 

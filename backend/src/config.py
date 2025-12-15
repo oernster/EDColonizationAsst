@@ -210,7 +210,9 @@ def get_config() -> AppConfig:
             configured_path = Path(configured_str)
             if looks_like_windows_default or not configured_path.exists():
                 try:
-                    from .utils.journal import find_journal_directory  # noqa: WPS433 (late import)
+                    from .utils.journal import (
+                        find_journal_directory,
+                    )  # noqa: WPS433 (late import)
 
                     detected = find_journal_directory()
                     if detected is not None:

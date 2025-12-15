@@ -198,7 +198,9 @@ async def test_aggregate_by_system_inara_failure_falls_back_to_local(
     aggregator = DataAggregator(repository)
     aggregator._inara_service = _DummyInaraService(should_fail=True)
 
-    system_data = await aggregator.aggregate_by_system(sample_construction_site.system_name)
+    system_data = await aggregator.aggregate_by_system(
+        sample_construction_site.system_name
+    )
     assert system_data.total_sites == 1
     site = system_data.construction_sites[0]
     assert site.market_id == sample_construction_site.market_id
@@ -206,7 +208,9 @@ async def test_aggregate_by_system_inara_failure_falls_back_to_local(
 
 
 @pytest.mark.asyncio
-async def test_aggregate_by_system_inara_only_completed_site_added(repository: ColonizationRepository):
+async def test_aggregate_by_system_inara_only_completed_site_added(
+    repository: ColonizationRepository,
+):
     """Completed sites that exist only in Inara should be added to the repository."""
     inara_payload = {
         "Remote System": [
@@ -240,7 +244,9 @@ async def test_aggregate_by_system_inara_only_completed_site_added(repository: C
 
 
 @pytest.mark.asyncio
-async def test_aggregate_by_system_inara_upgrades_existing_local_site(repository: ColonizationRepository):
+async def test_aggregate_by_system_inara_upgrades_existing_local_site(
+    repository: ColonizationRepository,
+):
     """Inara should upgrade an existing local incomplete site to completed and fill commodities."""
     # Local site in the same system that we will query
     local_site = ConstructionSite(

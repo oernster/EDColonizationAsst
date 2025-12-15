@@ -591,20 +591,135 @@ Quality tooling:
 - Linting via `pylint` (see [`backend/requirements-dev.txt`](backend/requirements-dev.txt:1))
 
 ### 7.2 Frontend
-
+ 
 Frontend tests and setup live under:
-
+ 
 - [`frontend/src/App.test.tsx`](frontend/src/App.test.tsx:1)
 - [`frontend/src/test/setup.ts`](frontend/src/test/setup.ts:1)
-
+ 
 The stack uses:
-
+ 
 - Vitest for running tests.
 - React Testing Library for DOM interaction.
 - TypeScript’s compiler for type checking.
-
+ 
 Linting and type checks can be run via the NPM scripts in [`frontend/package.json`](frontend/package.json:1).
-
+ 
+### 7.3 Runtime, launcher and tray architecture
+ 
+The **runtime and launch stack** is responsible for starting the backend, wiring
+the frontend, and enforcing a single‑instance guarantee so that only one EDCA
+process (or tray/launcher pair) runs per OS user at a time.
+ 
+Key modules:
+ 
+- [`backend/src/runtime/app_singleton.py`](backend/src/runtime/app_singleton.py:31)
+  - Implements [`ApplicationInstanceLock`](backend/src/runtime/app_singleton.py:31), a
+    cross‑platform, per‑user lock based on OS‑level file locking.
+  - Windows:
+    - Lock file under `%LOCALAPPDATA%\EDColonizationAsst\<app_id>.lock`
+      using `msvcrt.locking`.
+  - POSIX:
+    - Lock file under one of:
+      - `$XDG_RUNTIME_DIR/edca`
+      - `$XDG_CACHE_HOME/EDColonizationAsst`
+      - `~/.cache/EDColonizationAsst`
+    - Uses `fcntl.flock` for non‑blocking exclusive locks.
+  - Provides:
+    - `acquire() -> bool`: returns `True` if this process obtained the lock,
+      `False` if another instance already holds it, and raises
+      `ApplicationInstanceLockError` on underlying I/O or directory errors.
+    - `release()`: best‑effort unlock and file close.
+    - Context‑manager support (`with ApplicationInstanceLock(): ...`).
+ 
+- [`backend/src/runtime/common.py`](backend/src/runtime/common.py:1)
+  - Centralises runtime‑wide concerns:
+    - Lightweight debug logging via `_debug_log`, writing to
+      `EDColonizationAsst-runtime.log` next to the running executable.
+    - Import of the FastAPI [`app`](backend/src/main.py:1) as `fastapi_app`.
+    - Logging configuration (`setup_logging`, `logger`).
+    - Runtime mode detection (`RuntimeMode`, `get_runtime_mode`) shared
+      between the packaged runtime and other helpers.
+ 
+- [`backend/src/runtime/launcher_components.py`](backend/src/runtime/launcher_components.py:1)
+  - Contains the main launcher UI and orchestration logic:
+    - [`QtLaunchWindow`](backend/src/runtime/launcher_components.py:97)
+      – PySide6 window with icon, title, status label, progress bar and
+      “Open Web UI” button.
+    - [`Launcher`](backend/src/runtime/launcher_components.py:207)
+      – orchestrates:
+        - Python availability checks.
+        - Backend virtualenv creation (`backend/venv` by default).
+        - Backend dependency installation via `pip`.
+        - Starting the tray controller (`backend/src/tray_app.py`) via the venv.
+        - Polling backend and `/app/` health until ready.
+    - This module is Qt‑heavy; the thin entrypoint
+      [`launcher.py`](backend/src/launcher.py:1) simply wires
+      `ApplicationInstanceLock`, `QApplication` and `QtLaunchWindow` together
+      and delegates all work to `Launcher`.
+ 
+- [`backend/src/runtime/tray_components.py`](backend/src/runtime/tray_components.py:1)
+  - Implements the system tray controller:
+    - [`ProcessGroup`](backend/src/runtime/tray_components.py:29)
+      – light wrapper over `subprocess.Popen` with graceful terminate/kill
+      semantics.
+    - [`TrayController`](backend/src/runtime/tray_components.py:62)
+      – starts/stops:
+        - Backend: `uvicorn backend.src.main:app` using either `backend/venv`
+          or system Python.
+        - Frontend: `npm run dev -- --host 127.0.0.1 --port 5173` via
+          `cmd.exe /c` on Windows.
+      - Configures the tray icon and Exit action.
+      - Writes logs both to `<install-root>/run-edca.log` and (on Windows)
+        `%LOCALAPPDATA%\EDColonizationAsst\run-edca.log`.
+ 
+- Thin entrypoints:
+  - [`backend/src/launcher.py`](backend/src/launcher.py:1)
+    - Enforces the single‑instance guarantee via `ApplicationInstanceLock`.
+    - Detects the project root.
+    - Sets the launcher window icon from `EDColonizationAsst.png`/`.ico`.
+    - Creates `QApplication`, `QtLaunchWindow` and `Launcher`, then starts the
+      Qt event loop.
+  - [`backend/src/tray_app.py`](backend/src/tray_app.py:1)
+    - Enforces the same single‑instance guarantee.
+    - Creates the top‑level `QApplication`.
+    - Instantiates `TrayController` from `runtime.tray_components` and executes
+      the Qt event loop.
+  - [`backend/src/runtime_entry.py`](backend/src/runtime_entry.py:1)
+    - Packaged EXE entrypoint used by the Windows installer/runtime build.
+    - In FROZEN mode:
+      - Starts the FastAPI backend in‑process via an in‑memory uvicorn `Server`
+        (see `BackendServerController`).
+      - Presents a Qt system tray UI (`TrayUIController`) that can open the
+        web UI and exit the app.
+      - Writes lightweight debug and crash logs to plain text files alongside
+        the executable.
+    - In DEV mode:
+      - Delegates to the existing launcher window so that developer workflows
+        are unchanged (`RuntimeApplication._run_dev()` imports `Launcher` and
+        `QtLaunchWindow` from `launcher_components`).
+ 
+Single‑instance behaviour across all entrypoints:
+ 
+- First instance to acquire the `ApplicationInstanceLock` for the current user
+  proceeds normally.
+- Subsequent invocations behave as follows:
+  - Packaged runtime (`runtime_entry`):
+    - Opens `http://127.0.0.1:8000/app/` in the default browser and exits `0`.
+  - GUI launcher (`launcher`):
+    - Opens the same URL and exits `0`.
+  - Tray controller (`tray_app`):
+    - Exits `0` without starting another backend/frontend pair; the existing
+      tray instance remains responsible for managing services.
+ 
+This design ensures that:
+ 
+- Only one backend/tray pair and launcher window run per OS user at a time.
+- Users who accidentally start EDCA multiple times are redirected to the
+  existing browser UI instead of spawning duplicate servers.
+- The runtime/launcher/tray modules remain modular and testable, with most
+  application logic living in the dedicated `runtime` package.
+ 
 ---
 
 ## 8. Future enhancements

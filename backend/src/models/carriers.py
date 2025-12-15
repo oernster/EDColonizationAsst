@@ -113,7 +113,9 @@ class CarrierOrderType(str, Enum):
 class CarrierOrder(BaseModel):
     """Buy or sell order configured on a carrier."""
 
-    order_type: CarrierOrderType = Field(description="Whether this is a buy or sell order.")
+    order_type: CarrierOrderType = Field(
+        description="Whether this is a buy or sell order."
+    )
     commodity_name: str = Field(description="Internal commodity name.")
     commodity_name_localised: str = Field(
         description="Localized commodity name for display."
