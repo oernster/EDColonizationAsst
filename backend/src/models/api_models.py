@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 from .colonization import ConstructionSite, SystemColonizationData, CommodityAggregate
+from .carriers import CarrierIdentity, CarrierState
 
 
 class SystemResponse(BaseModel):
@@ -122,4 +123,44 @@ class AppSettings(BaseModel):
             "for other systems. When false, Inara data is preferred wherever it is "
             "available."
         ),
+    )
+
+
+class CurrentCarrierResponse(BaseModel):
+    """Response model for the player's current carrier docking context."""
+
+    docked_at_carrier: bool = Field(
+        description="True if the commander is currently docked at a fleet carrier."
+    )
+    carrier: Optional[CarrierIdentity] = Field(
+        default=None,
+        description=(
+            "Identity of the carrier the commander is currently docked at, if any. "
+            "When docked_at_carrier is False, this will be null."
+        ),
+    )
+
+
+class CarrierStateResponse(BaseModel):
+    """Response model for a reconstructed carrier state snapshot."""
+
+    carrier: Optional[CarrierState] = Field(
+        default=None,
+        description=(
+            "Current reconstructed state of the carrier (cargo + orders). "
+            "May be null if the carrier cannot be resolved from recent journals."
+        ),
+    )
+
+
+class MyCarriersResponse(BaseModel):
+    """Response model listing the commander's own and squadron carriers."""
+
+    own_carriers: List[CarrierIdentity] = Field(
+        default_factory=list,
+        description="Fleet carriers owned by the current commander.",
+    )
+    squadron_carriers: List[CarrierIdentity] = Field(
+        default_factory=list,
+        description="Fleet carriers belonging to the commander's squadron.",
     )

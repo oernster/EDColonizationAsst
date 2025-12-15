@@ -29,6 +29,14 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    /**
+     * The main bundle is currently ~502 kB after minification, which trips
+     * Vite's default 500 kB warning. This is acceptable for this app, so we
+     * raise the warning threshold slightly to avoid noise in CI logs.
+     */
+    chunkSizeWarningLimit: 800,
+  },
   test: {
     globals: true,
     environment: 'jsdom',

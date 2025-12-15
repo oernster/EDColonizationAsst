@@ -13,6 +13,9 @@ from ..models.journal_events import (
     FSDJumpEvent,
     DockedEvent,
     CommanderEvent,
+    CarrierLocationEvent,
+    CarrierStatsEvent,
+    CarrierTradeOrderEvent,
 )
 from ..utils.logger import get_logger
 
@@ -51,6 +54,10 @@ class JournalParser(IJournalParser):
         "FSDJump",
         "Docked",
         "Commander",
+        # Fleet carrier events (location + basic stats + trade orders)
+        "CarrierLocation",
+        "CarrierStats",
+        "CarrierTradeOrder",
     }
 
     def parse_file(self, file_path: Path) -> List[JournalEvent]:
@@ -126,6 +133,12 @@ class JournalParser(IJournalParser):
                 return self._parse_docked(data, timestamp)
             elif event_type == "Commander":
                 return self._parse_commander(data, timestamp)
+            elif event_type == "CarrierLocation":
+                return self._parse_carrier_location(data, timestamp)
+            elif event_type == "CarrierStats":
+                return self._parse_carrier_stats(data, timestamp)
+            elif event_type == "CarrierTradeOrder":
+                return self._parse_carrier_trade_order(data, timestamp)
 
             return None
 
@@ -283,5 +296,98 @@ class JournalParser(IJournalParser):
             event=data["event"],
             name=data["Name"],
             fid=data["FID"],
+            raw_data=data,
+        )
+
+    def _parse_carrier_location(
+        self, data: Dict[str, Any], timestamp: datetime
+    ) -> CarrierLocationEvent:
+        """Parse CarrierLocation event.
+
+        Example (from your journal):
+
+            {
+              "timestamp":"2025-12-15T10:50:30Z",
+              "event":"CarrierLocation",
+              "CarrierType":"FleetCarrier",
+              "CarrierID":3700569600,
+              "StarSystem":"Lupus Dark Region BQ-Y d66",
+              "SystemAddress":2278253693331,
+              "BodyID":0
+            }
+        """
+        return CarrierLocationEvent(
+            timestamp=timestamp,
+            event=data["event"],
+            carrier_id=data["CarrierID"],
+            star_system=data["StarSystem"],
+            system_address=data["SystemAddress"],
+            raw_data=data,
+        )
+
+    def _parse_carrier_stats(
+        self, data: Dict[str, Any], timestamp: datetime
+    ) -> CarrierStatsEvent:
+        """Parse CarrierStats event.
+
+        Example (from your journal):
+
+            {
+              "timestamp":"2025-12-15T10:55:20Z",
+              "event":"CarrierStats",
+              "CarrierID":3700569600,
+              "CarrierType":"FleetCarrier",
+              "Callsign":"X7J-BQG",
+              "Name":"MIDNIGHT ELOQUENCE",
+              "DockingAccess":"squadron",
+              ...
+            }
+        """
+        return CarrierStatsEvent(
+            timestamp=timestamp,
+            event=data["event"],
+            carrier_id=data["CarrierID"],
+            name=data.get("Name", "Unknown Carrier"),
+            callsign=data.get("Callsign"),
+            raw_data=data,
+        )
+
+    def _parse_carrier_trade_order(
+        self, data: Dict[str, Any], timestamp: datetime
+    ) -> CarrierTradeOrderEvent:
+        """Parse CarrierTradeOrder event.
+
+        Example (from your journal):
+
+            {
+              "timestamp":"2025-12-15T11:17:37Z",
+              "event":"CarrierTradeOrder",
+              "CarrierID":3700569600,
+              "CarrierType":"FleetCarrier",
+              "BlackMarket":false,
+              "Commodity":"titanium",
+              "SaleOrder":23,
+              "Price":4446
+            }
+
+        Notes:
+            - Some clients also emit PurchaseOrder, Stock and Outstanding fields
+              for buy orders and remaining quantities. We handle those when
+              present but default sensibly when absent.
+        """
+        return CarrierTradeOrderEvent(
+            timestamp=timestamp,
+            event=data["event"],
+            carrier_id=data["CarrierID"],
+            commodity=data.get("Commodity", ""),
+            commodity_localised=data.get("Commodity_Localised"),
+            purchase_order=data.get("PurchaseOrder", 0),
+            sale_order=data.get("SaleOrder", 0),
+            stock=data.get("Stock", 0),
+            outstanding=data.get(
+                "Outstanding",
+                data.get("SaleOrder", data.get("PurchaseOrder", 0)),
+            ),
+            price=data.get("Price", 0),
             raw_data=data,
         )

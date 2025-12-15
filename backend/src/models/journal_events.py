@@ -92,3 +92,59 @@ class CommanderEvent(JournalEvent):
 
     name: str = Field(description="Commander name")
     fid: str = Field(description="Frontier ID")
+
+
+class CarrierLocationEvent(JournalEvent):
+    """CarrierLocation event - location of a fleet carrier."""
+
+    carrier_id: int = Field(description="Unique carrier ID")
+    star_system: str = Field(description="Star system name")
+    system_address: int = Field(description="System address")
+
+
+class CarrierStatsEvent(JournalEvent):
+    """
+    CarrierStats event - basic information about a fleet carrier owned by the commander.
+
+    This event is primarily used to identify the commander's own carrier(s) and
+    surface a human-friendly name and callsign for the Fleet carriers UI.
+    """
+
+    carrier_id: int = Field(description="Unique carrier ID")
+    name: str = Field(description="Carrier name")
+    callsign: Optional[str] = Field(
+        default=None, description="Carrier callsign (e.g. ABC-123)"
+    )
+
+
+class CarrierTradeOrderEvent(JournalEvent):
+    """
+    CarrierTradeOrder event - buy or sell orders configured on a fleet carrier.
+
+    NOTE: The Elite Dangerous journal schema for carriers includes several fields
+    (PurchaseOrder, SaleOrder, Stock, Outstanding, Price, etc.). This model keeps
+    the most relevant ones while still preserving the full raw_data.
+    """
+
+    carrier_id: int = Field(description="Unique carrier ID")
+    commodity: str = Field(description="Commodity or material name")
+    commodity_localised: Optional[str] = Field(
+        default=None, description="Localized commodity or material name"
+    )
+    purchase_order: int = Field(
+        default=0,
+        description="Total units the carrier intends to buy (PurchaseOrder, if present)",
+    )
+    sale_order: int = Field(
+        default=0,
+        description="Total units the carrier intends to sell (SaleOrder, if present)",
+    )
+    stock: int = Field(
+        default=0,
+        description="Current stock held on the carrier related to this order",
+    )
+    outstanding: int = Field(
+        default=0,
+        description="Remaining units to be fulfilled for this order (Outstanding)",
+    )
+    price: int = Field(default=0, description="Price per unit in credits")

@@ -17,6 +17,7 @@ from .repositories.colonization_repository import ColonizationRepository
 from .api.routes import router as colonization_router, set_dependencies
 from .api.settings import router as settings_router
 from .api.journal import router as journal_router
+from .api.carriers import router as carriers_router
 from .api.websocket import websocket_endpoint, set_aggregator, notify_system_update
 
 # Setup logging
@@ -161,6 +162,7 @@ else:
 app.include_router(colonization_router)
 app.include_router(settings_router)
 app.include_router(journal_router)
+app.include_router(carriers_router)
 
 # WebSocket endpoint
 app.add_api_websocket_route("/ws/colonization", websocket_endpoint)

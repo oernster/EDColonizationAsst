@@ -13,6 +13,9 @@ from src.models.journal_events import (
     FSDJumpEvent,
     DockedEvent,
     CommanderEvent,
+    CarrierLocationEvent,
+    CarrierStatsEvent,
+    CarrierTradeOrderEvent,
 )
 
 
@@ -279,3 +282,139 @@ def test_parse_file_skips_lines_that_raise(parser, tmp_path: Path):
 
     # The bad line should have been skipped and no events returned
     assert events == []
+
+
+# ---------------------------------------------------------------------------
+# New tests: carrier-related journal events
+# ---------------------------------------------------------------------------
+
+
+def test_parse_carrier_location_event(parser):
+    """Test parsing CarrierLocation event."""
+    line = json.dumps(
+        {
+            "timestamp": "2025-12-15T10:50:30Z",
+            "event": "CarrierLocation",
+            "CarrierType": "FleetCarrier",
+            "CarrierID": 3700569600,
+            "StarSystem": "Lupus Dark Region BQ-Y d66",
+            "SystemAddress": 2278253693331,
+            "BodyID": 0,
+        }
+    )
+
+    event = parser.parse_line(line)
+
+    assert event is not None
+    assert isinstance(event, CarrierLocationEvent)
+    assert event.carrier_id == 3700569600
+    assert event.star_system == "Lupus Dark Region BQ-Y d66"
+    assert event.system_address == 2278253693331
+
+
+def test_parse_carrier_stats_event(parser):
+    """Test parsing CarrierStats event including name, callsign and raw payload."""
+    data = {
+        "timestamp": "2025-12-15T10:55:20Z",
+        "event": "CarrierStats",
+        "CarrierID": 3700569600,
+        "CarrierType": "FleetCarrier",
+        "Callsign": "X7J-BQG",
+        "Name": "MIDNIGHT ELOQUENCE",
+        "DockingAccess": "squadron",
+        "SpaceUsage": {
+            "TotalCapacity": 25000,
+            "Crew": 3370,
+            "Cargo": 2316,
+            "CargoSpaceReserved": 0,
+            "ShipPacks": 0,
+            "ModulePacks": 0,
+            "FreeSpace": 19314,
+        },
+    }
+    line = json.dumps(data)
+
+    event = parser.parse_line(line)
+
+    assert event is not None
+    assert isinstance(event, CarrierStatsEvent)
+    assert event.carrier_id == 3700569600
+    assert event.name == "MIDNIGHT ELOQUENCE"
+    assert event.callsign == "X7J-BQG"
+    # Raw data should retain SpaceUsage for later aggregation
+    assert "SpaceUsage" in event.raw_data
+    assert event.raw_data["SpaceUsage"]["Cargo"] == 2316
+
+
+def test_parse_carrier_trade_order_sale_and_buy(parser):
+    """Test parsing CarrierTradeOrder for both sell and buy orders."""
+    # Sell order example
+    sale_line = json.dumps(
+        {
+            "timestamp": "2025-12-15T11:17:37Z",
+            "event": "CarrierTradeOrder",
+            "CarrierID": 3700569600,
+            "CarrierType": "FleetCarrier",
+            "BlackMarket": False,
+            "Commodity": "titanium",
+            "SaleOrder": 23,
+            "Price": 4446,
+        }
+    )
+
+    sale_event = parser.parse_line(sale_line)
+    assert sale_event is not None
+    assert isinstance(sale_event, CarrierTradeOrderEvent)
+    assert sale_event.carrier_id == 3700569600
+    assert sale_event.commodity == "titanium"
+    assert sale_event.sale_order == 23
+    assert sale_event.purchase_order == 0
+    assert sale_event.price == 4446
+
+    # Buy order example
+    buy_line = json.dumps(
+        {
+            "timestamp": "2025-12-15T11:20:15Z",
+            "event": "CarrierTradeOrder",
+            "CarrierID": 3700569600,
+            "CarrierType": "FleetCarrier",
+            "BlackMarket": False,
+            "Commodity": "tritium",
+            "PurchaseOrder": 5,
+            "Price": 51294,
+        }
+    )
+
+    buy_event = parser.parse_line(buy_line)
+    assert buy_event is not None
+    assert isinstance(buy_event, CarrierTradeOrderEvent)
+    assert buy_event.carrier_id == 3700569600
+    assert buy_event.commodity == "tritium"
+    assert buy_event.purchase_order == 5
+    assert buy_event.sale_order == 0
+    assert buy_event.price == 51294
+
+
+def test_parse_carrier_trade_order_cancel(parser):
+    """CarrierTradeOrder with only CancelTrade still yields an event but no orders."""
+    cancel_line = json.dumps(
+        {
+            "timestamp": "2025-12-15T11:20:20Z",
+            "event": "CarrierTradeOrder",
+            "CarrierID": 3700569600,
+            "CarrierType": "FleetCarrier",
+            "BlackMarket": False,
+            "Commodity": "tritium",
+            "CancelTrade": True,
+        }
+    )
+
+    event = parser.parse_line(cancel_line)
+
+    assert event is not None
+    assert isinstance(event, CarrierTradeOrderEvent)
+    assert event.carrier_id == 3700569600
+    assert event.commodity == "tritium"
+    # No explicit SaleOrder or PurchaseOrder were provided
+    assert event.sale_order == 0
+    assert event.purchase_order == 0

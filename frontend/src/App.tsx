@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ThemeProvider, createTheme, CssBaseline, Container, Box, Typography, Tabs, Tab, Link } from '@mui/material';
 import { SystemSelector } from './components/SystemSelector/SystemSelector';
 import { SiteList } from './components/SiteList/SiteList';
+import { FleetCarriersPanel } from './components/FleetCarriers/FleetCarriersPanel';
 import { useColonizationStore } from './stores/colonizationStore';
 import { SettingsPage } from './components/Settings/SettingsPage';
 import { api } from './services/api';
@@ -162,10 +163,13 @@ function App() {
                     >
                       <Tab label="System Commodities" />
                       <Tab label="Stations" />
+                      <Tab label="Fleet carriers" />
                     </Tabs>
                   </Box>
-
-                  <SiteList viewMode={systemViewTab === 0 ? 'system' : 'stations'} />
+ 
+                  {systemViewTab === 0 && <SiteList viewMode="system" />}
+                  {systemViewTab === 1 && <SiteList viewMode="stations" />}
+                  {systemViewTab === 2 && <FleetCarriersPanel />}
                 </>
               )}
 
