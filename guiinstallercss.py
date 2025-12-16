@@ -56,6 +56,27 @@ QPushButton#uninstallButton {
     border: none;
 }
 
+/* Theme toggle emoji buttons (header) – shared dark background */
+QPushButton#lightThemeButton,
+QPushButton#darkThemeButton {
+    border-radius: 16px;
+    min-width: 32px;
+    min-height: 32px;
+    max-width: 32px;
+    max-height: 32px;
+    padding: 0;
+    border: 1px solid #3a275e;
+    background-color: #1e1630;
+    color: #f5f5f7;
+}
+
+/* Active (checked) theme button: brighter border/background */
+QPushButton#lightThemeButton:checked,
+QPushButton#darkThemeButton:checked {
+    border: 1px solid #ff9f1c;
+    background-color: #2a203f;
+}
+
 /* Install: strong purple -> orange gradient */
 QPushButton#installButton {
     color: #f5f5f7;
@@ -105,33 +126,12 @@ QPushButton#uninstallButton:pressed {
     background-color: rgba(255, 159, 28, 0.18);
 }
 
-/* Theme toggle slider (header) */
-QSlider#themeSwitch {
-    min-width: 60px;
-}
-
-/* Groove: pill-shaped track */
-QSlider#themeSwitch::groove:horizontal {
-    border: 1px solid #6a4fbf;
-    border-radius: 11px;
-    height: 22px;
-    background: #2a203f;
-    margin: 0px;
-}
-
-/* Handle: circular thumb that slides left/right */
-QSlider#themeSwitch::handle:horizontal {
-    background: #ffffff;
-    border-radius: 9px;
-    width: 20px;
-    margin: 1px; /* keeps handle fully inside 22px-high groove */
-}
 """
 
 LIGHT_QSS = """
 QMainWindow {
     background-color: #f4f7fb;
-    color: #1f2933;
+    color: #000000;
 }
 
 QToolBar {
@@ -139,26 +139,128 @@ QToolBar {
     border-bottom: 1px solid #c7d7f0;
 }
 
+/* Ensure toolbar buttons / title-bar style items are readable in light mode */
+QToolBar QToolButton {
+    color: #000000;
+    background-color: transparent;
+}
+
+QToolBar QToolButton:hover {
+    background-color: #e3edf9;
+    color: #000000;
+}
+
+QToolBar QToolButton:pressed {
+    background-color: #d0e2ff;
+    color: #000000;
+}
+
+QMenuBar {
+    color: #000000;
+}
+
+/* Top-level menu items */
+QMenuBar::item {
+    color: #000000;
+    background-color: transparent;
+}
+
+/* Hover/selected for top-level menu items: light backgrounds with dark text */
+QMenuBar::item:selected {
+    background-color: #e3edf9;
+    color: #000000;
+}
+
+QMenuBar::item:pressed {
+    background-color: #d0e2ff;
+    color: #000000;
+}
+
+QMenu {
+    color: #000000;
+}
+
+/* Normal menu items in drop-down menus */
+QMenu::item {
+    color: #000000;
+    background-color: transparent;
+}
+
+/* Hovered/selected menu items in drop-down menus: light backgrounds */
+QMenu::item:selected {
+    background-color: #e3edf9;
+    color: #000000;
+}
+
 QStatusBar {
     background-color: #e3edf9;
-    color: #1f2933;
+    color: #000000;
     border-top: 1px solid #c7d7f0;
 }
 
+/* Message boxes in light mode: light background, dark text */
+QMessageBox {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+QMessageBox QLabel {
+    color: #000000;
+}
+
+/* OK/Cancel/etc buttons in message boxes: light background in all states */
+QMessageBox QPushButton {
+    color: #000000;
+    background-color: #f4f7fb;
+    border: 1px solid #c7d7f0;
+    padding: 4px 10px;
+    border-radius: 4px;
+}
+
+QMessageBox QPushButton:hover {
+    background-color: #e3edf9;
+}
+
+QMessageBox QPushButton:pressed {
+    background-color: #d0e2ff;
+}
+
 QLabel#titleLabel {
-    color: #1f2933;
+    color: #000000;
     font-size: 22px;
     font-weight: 600;
     padding-bottom: 4px;
 }
 
 QLabel {
-    color: #334e68;
+    color: #000000;
+}
+
+QCheckBox {
+    color: #000000;
+}
+
+/* Checkbox indicator in light mode: light background, visible when checked */
+QCheckBox::indicator {
+    width: 14px;
+    height: 14px;
+    background-color: #f4f7fb;
+    border: 1px solid #c7d7f0;
+    border-radius: 3px;
+}
+
+QCheckBox::indicator:hover {
+    background-color: #e3edf9;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #4f8df5;
+    border-color: #4f8df5;
 }
 
 QTextEdit {
     background-color: #ffffff;
-    color: #1f2933;
+    color: #000000;
     border: 1px solid #c7d7f0;
     border-radius: 8px;
 }
@@ -172,6 +274,26 @@ QPushButton#uninstallButton {
     border-radius: 20px;
     font-weight: 600;
     border: none;
+}
+
+/* Theme toggle emoji buttons (header) – light mauve background in light mode */
+QPushButton#lightThemeButton,
+QPushButton#darkThemeButton {
+    border-radius: 16px;
+    min-width: 32px;
+    min-height: 32px;
+    max-width: 32px;
+    max-height: 32px;
+    padding: 0;
+    border: 1px solid #c7b5ff;
+    background-color: #efe5ff;  /* light mauve */
+    color: #1f2933;
+}
+
+QPushButton#lightThemeButton:checked,
+QPushButton#darkThemeButton:checked {
+    border: 1px solid #8e6bff;
+    background-color: #e0d0ff;
 }
 
 /* Install: light blue -> light orange gradient */
@@ -223,25 +345,4 @@ QPushButton#uninstallButton:pressed {
     background-color: rgba(245, 166, 35, 0.20);
 }
 
-/* Theme toggle slider (header) */
-QSlider#themeSwitch {
-    min-width: 60px;
-}
-
-/* Groove: pill-shaped track */
-QSlider#themeSwitch::groove:horizontal {
-    border: 1px solid #90b4ff;
-    border-radius: 11px;
-    height: 22px;
-    background: #d0e2ff;
-    margin: 0px;
-}
-
-/* Handle: circular thumb that slides left/right */
-QSlider#themeSwitch::handle:horizontal {
-    background: #4f8df5;
-    border-radius: 9px;
-    width: 20px;
-    margin: 1px; /* keeps handle fully inside 22px-high groove */
-}
 """

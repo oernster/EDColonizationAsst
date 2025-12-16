@@ -6,7 +6,7 @@ Features:
 - Cross-platform PySide6 GUI (Windows / macOS / Linux).
 - Dark and light themes with a simple toggle.
 - Main actions: Install, Repair, Uninstall.
-- About dialog showing the LGPL-3 license text (read from LICENSE in project root).
+- About dialog showing the LGPL-3 license text (read from INSTALLER_LICENSE in project root).
 - Simple log area and status bar for feedback.
 
 This script is intended to be run as a GUI application. It expects that the
@@ -53,9 +53,10 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QToolBar,
     QCheckBox,
-    QSlider,
     QProgressBar,
     QSplashScreen,
+    QDialog,
+    QDialogButtonBox,
 )
 
 from guiinstallercss import DARK_QSS, LIGHT_QSS
@@ -225,18 +226,51 @@ def get_payload_root() -> Optional[Path]:
     return None
 
 
-def read_license_text() -> str:
-    """Read LICENSE file (LGPL-3) from bundled resources or project root.
+def _reflow_license_body(text: str, width: int = 75) -> str:
+    """
+    Reflow the plain-text LICENSE body so that paragraphs use wider lines.
 
-    When running as a compiled installer, LICENSE is expected to live next to
-    the compiled files. When running from source, we fall back to
+    The raw LGPL text is formatted for an ~80-column console. For a wide,
+    scrollable dialog we join intra-paragraph line breaks and let Qt re-wrap
+    to a larger width, while preserving blank lines between paragraphs.
+    """
+    import textwrap
+
+    paragraphs = text.split("\n\n")
+    reflowed: list[str] = []
+
+    for para in paragraphs:
+        lines = [ln.rstrip() for ln in para.splitlines()]
+        if not any(lines):
+            # Preserve empty paragraphs exactly
+            reflowed.append("")
+            continue
+
+        # If this paragraph looks like a block with significant indentation
+        # (e.g. code blocks), keep its internal line breaks.
+        if any(ln.startswith("    ") or ln.startswith("\t") for ln in lines):
+            reflowed.append("\n".join(lines))
+            continue
+
+        # Normal paragraph: join lines and re-wrap to the requested width.
+        joined = " ".join(ln.strip() for ln in lines)
+        reflowed.append(textwrap.fill(joined, width=width))
+
+    return "\n\n".join(reflowed)
+
+
+def read_license_text() -> str:
+    """Read LICENSE file (GPL-3) from bundled resources or project root.
+
+    When running as a compiled installer or main app, LICENSE is expected to
+    live next to the binaries. When running from source, we fall back to
     PROJECT_ROOT / 'LICENSE'. If all lookups fail, we show a URL instead.
     """
-    header = "GNU Lesser General Public License v3 (LGPL-3.0)\n\n"
+    header = "GNU General Public License v3 (GPL-3.0)\n\n"
 
     candidate_paths: list[Path] = []
 
-    # Compiled installer: look next to this module file
+    # Compiled build: look next to this module file
     try:
         candidate_paths.append(Path(__file__).resolve().parent / "LICENSE")
     except Exception:
@@ -248,7 +282,8 @@ def read_license_text() -> str:
     for license_path in candidate_paths:
         if license_path.exists():
             try:
-                return header + license_path.read_text(encoding="utf-8")
+                raw = license_path.read_text(encoding="utf-8")
+                return header + _reflow_license_body(raw)
             except Exception as exc:
                 return (
                     header
@@ -398,41 +433,32 @@ class InstallerWindow(QMainWindow):
         self.subtitle_label = QLabel("", self)
         self.subtitle_label.setWordWrap(True)
 
-        # Header row: title/subtitle on the left, theme switch + labels on the right
+        # Header row: title/subtitle on the left, theme emoji buttons on the right
         header_layout = QHBoxLayout()
         header_text_layout = QVBoxLayout()
         header_text_layout.addWidget(title_label)
         header_text_layout.addWidget(self.subtitle_label)
 
-        # Theme switch styled as a slider, with labels "Light" and "Dark"
+        # Theme switch: emoji buttons mirroring the main app header (☀️ / 🌙)
         theme_row = QHBoxLayout()
         theme_row.setSpacing(6)
 
-        self.light_label = QLabel("Light", self)
-        self.light_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.light_button = QPushButton("☀️", self)
+        self.light_button.setObjectName("lightThemeButton")
+        self.light_button.setCheckable(True)
+        self.light_button.setFixedSize(32, 32)
+        self.light_button.setToolTip("Switch to light mode")
+        self.light_button.clicked.connect(self.on_light_theme_clicked)
 
-        # Slider-based theme switch: 0 = light, 1 = dark
-        self.theme_switch = QSlider(Qt.Horizontal, self)
-        self.theme_switch.setObjectName("themeSwitch")
-        self.theme_switch.setRange(0, 1)
-        self.theme_switch.setSingleStep(1)
-        self.theme_switch.setPageStep(1)
-        self.theme_switch.setFixedWidth(60)
-        self.theme_switch.setToolTip("Slide towards Dark or Light mode")
-        self.theme_switch.valueChanged.connect(self.on_theme_slider_changed)
+        self.dark_button = QPushButton("🌙", self)
+        self.dark_button.setObjectName("darkThemeButton")
+        self.dark_button.setCheckable(True)
+        self.dark_button.setFixedSize(32, 32)
+        self.dark_button.setToolTip("Switch to dark mode")
+        self.dark_button.clicked.connect(self.on_dark_theme_clicked)
 
-        # Reflect initial theme without triggering the slot
-        self.theme_switch.blockSignals(True)
-        self.theme_switch.setValue(1 if self.current_theme == "dark" else 0)
-        self.theme_switch.blockSignals(False)
-
-        self.dark_label = QLabel("Dark", self)
-        self.dark_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-
-        # Left-to-right: "Light" [switch] "Dark"
-        theme_row.addWidget(self.light_label)
-        theme_row.addWidget(self.theme_switch)
-        theme_row.addWidget(self.dark_label)
+        theme_row.addWidget(self.light_button)
+        theme_row.addWidget(self.dark_button)
 
         # Place header text on the left, toggle row on the far right
         header_layout.addLayout(header_text_layout)
@@ -558,20 +584,27 @@ class InstallerWindow(QMainWindow):
         theme_manager = ThemeManager(app)
         self.current_theme = theme_manager.apply(mode)
         self._log(f"Switched to {self.current_theme} theme")
+        self._update_theme_buttons()
 
-    @Slot(int)
-    def on_theme_slider_changed(self, value: int) -> None:
-        """Slot for the theme slider (1 = dark, 0 = light)."""
-        mode = "dark" if value >= 1 else "light"
-        if mode == self.current_theme:
+    def _update_theme_buttons(self) -> None:
+        """Update the emoji theme buttons to reflect the current theme."""
+        light_btn = getattr(self, "light_button", None)
+        dark_btn = getattr(self, "dark_button", None)
+        if light_btn is None or dark_btn is None:
             return
+        is_dark = self.current_theme == "dark"
+        light_btn.setChecked(not is_dark)
+        dark_btn.setChecked(is_dark)
 
-        # Snap to exact positions and apply theme
-        self.theme_switch.blockSignals(True)
-        self.theme_switch.setValue(1 if mode == "dark" else 0)
-        self.theme_switch.blockSignals(False)
+    @Slot()
+    def on_light_theme_clicked(self) -> None:
+        if self.current_theme != "light":
+            self._apply_theme("light")
 
-        self._apply_theme(mode)
+    @Slot()
+    def on_dark_theme_clicked(self) -> None:
+        if self.current_theme != "dark":
+            self._apply_theme("dark")
 
     # ------------------------------------------------------------------ actions
 
@@ -802,12 +835,33 @@ class InstallerWindow(QMainWindow):
 
     @Slot()
     def on_about_clicked(self) -> None:
+        """
+        Show the LGPL license / About dialog.
+
+        Use a wider, scrollable dialog instead of a tall message box so that
+        the full license text remains usable on typical displays.
+        """
         text = read_license_text()
-        QMessageBox.information(
-            self,
-            f"About {APP_NAME}",
-            text,
-        )
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"About {APP_NAME}")
+
+        layout = QVBoxLayout(dialog)
+
+        text_edit = QTextEdit(dialog)
+        text_edit.setReadOnly(True)
+        text_edit.setPlainText(text)
+        text_edit.setLineWrapMode(QTextEdit.WidgetWidth)
+        layout.addWidget(text_edit)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok, parent=dialog)
+        buttons.accepted.connect(dialog.accept)
+        layout.addWidget(buttons)
+
+        # Make the license dialog narrow enough that the text column closely
+        # matches the window width with minimal right-side whitespace.
+        dialog.resize(480, 650)
+        dialog.exec()
 
     # ------------------------------------------------------------------ copying
 
