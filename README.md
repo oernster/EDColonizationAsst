@@ -4,6 +4,8 @@ Elite Dangerous Colonization Assistant (EDCA) helps you track in‑game coloniza
 
 ---
 
+### If you like it please buy me a coffee: [Donation link](https://www.paypal.com/ncp/payment/7XYN6DCYK24VY)
+
 ## Fleet carrier data and journal updates
 
 EDCA's Fleet Carrier view (cargo and market orders) is built **entirely** from the official Elite Dangerous journal files. The game only writes carrier trade information to the journals when you **edit or refresh trade orders on your carrier** (for example, by changing or cancelling a buy/sell order in the Carrier Management screen).
