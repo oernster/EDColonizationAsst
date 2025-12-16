@@ -116,19 +116,23 @@ export const SettingsPage = () => {
           Inara API Settings
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Enter your Inara.cz API key and commander name. Note: Inara integration is
-          currently not actively used by the application; these values are reserved
-          for future features.
+          Enter your Inara.cz API key and commander name.
+          <br />
+          <strong>
+            Note: Inara integration is not currently used by the application. Supplying an API key
+            is optional and only reserved for future features.
+          </strong>
         </Typography>
         <TextField
           fullWidth
-          label="Inara API Key"
+          label="Inara API Key (not used yet)"
           name="inara_api_key"
           value={settings.inara_api_key}
           onChange={handleChange}
           variant="outlined"
           sx={{ mb: 3 }}
           type="password"
+          disabled
         />
 
         <TextField

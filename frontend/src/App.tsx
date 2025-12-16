@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ThemeProvider, createTheme, CssBaseline, Container, Box, Typography, Tabs, Tab, Link } from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline, Container, Box, Typography, Tabs, Tab, Link, Button } from '@mui/material';
 import { SystemSelector } from './components/SystemSelector/SystemSelector';
 import { SiteList } from './components/SiteList/SiteList';
 import { FleetCarriersPanel } from './components/FleetCarriers/FleetCarriersPanel';
@@ -34,6 +34,32 @@ const darkTheme = createTheme({
   },
 });
 
+const lightTheme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: {
+      main: '#FF6B00', // Elite orange
+    },
+    secondary: {
+      main: '#2e7d32', // Darker green
+    },
+    background: {
+      default: '#fafafa',
+      paper: '#ffffff',
+    },
+    success: {
+      main: '#2e7d32',
+    },
+    warning: {
+      main: '#FF9800',
+    },
+  },
+  typography: {
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
+  },
+});
+
 function App() {
   const {
     currentSystem,
@@ -50,6 +76,19 @@ function App() {
   const [pythonVersion, setPythonVersion] = useState<string | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [commanderName, setCommanderName] = useState<string | null>(null);
+  const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
+
+  // Initialise theme mode from localStorage so we remember the user's choice.
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem('edcaThemeMode');
+      if (saved === 'dark' || saved === 'light') {
+        setThemeMode(saved);
+      }
+    } catch {
+      // If localStorage is unavailable, just stick with the default.
+    }
+  }, []);
 
   // Establish a WebSocket connection for live colonization updates. The REST
   // calls in SystemSelector provide the initial snapshot; this hook keeps the
@@ -87,8 +126,19 @@ function App() {
     setSystemViewTab(newValue);
   };
 
+  const setThemeModeAndPersist = (next: 'dark' | 'light') => {
+    setThemeMode(next);
+    try {
+      window.localStorage.setItem('edcaThemeMode', next);
+    } catch {
+      // Ignore persistence errors; theme will still switch for this session.
+    }
+  };
+
+  const theme = themeMode === 'dark' ? darkTheme : lightTheme;
+
   return (
-    <ThemeProvider theme={darkTheme}>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
       <Container maxWidth="xl">
         <Box sx={{ py: 4 }}>
@@ -131,6 +181,50 @@ function App() {
               >
                 {commanderName || 'Unknown'}
               </Typography>
+              {!commanderName && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  Set your commander name in the Settings tab.
+                </Typography>
+              )}
+              <Box
+                sx={{
+                  mt: 1,
+                  display: 'flex',
+                  justifyContent: { xs: 'flex-start', sm: 'flex-end' },
+                  gap: 1,
+                }}
+              >
+                <Button
+                  variant={themeMode === 'light' ? 'contained' : 'outlined'}
+                  size="small"
+                  onClick={() => setThemeModeAndPersist('light')}
+                  sx={{
+                    minWidth: 36,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 1,
+                    padding: 0,
+                    lineHeight: 1,
+                  }}
+                >
+                  ☀️
+                </Button>
+                <Button
+                  variant={themeMode === 'dark' ? 'contained' : 'outlined'}
+                  size="small"
+                  onClick={() => setThemeModeAndPersist('dark')}
+                  sx={{
+                    minWidth: 36,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 1,
+                    padding: 0,
+                    lineHeight: 1,
+                  }}
+                >
+                  🌙
+                </Button>
+              </Box>
             </Box>
           </Box>
 

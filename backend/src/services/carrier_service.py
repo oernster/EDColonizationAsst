@@ -45,6 +45,130 @@ from ..utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _prettify_commodity_name(raw_name: str, localised: str | None = None) -> str:
+    """
+    Produce a human‑friendly commodity name for display.
+
+    Priority:
+      1. Use the journal's localized name when provided (Commodity_Localised).
+      2. Apply lightweight cleanup heuristics to the internal name as a fallback.
+
+    The goal is to avoid obviously unformatted identifiers such as
+    "fruitandvegetables" where possible, without trying to reimplement the
+    entire commodity name table in code.
+    """
+    # Prefer the explicit localized label from the journal if available.
+    if localised:
+        return localised
+
+    name = raw_name or ""
+    name = name.strip()
+    if not name:
+        return raw_name
+
+    # Strip common journal wrappers like "$Foo_Bar_Name;" if they ever appear
+    # in carrier events.
+    if name.startswith("$") and name.endswith(";"):
+        name = name[1:-1]
+
+    # Replace underscores with spaces.
+    name = name.replace("_", " ")
+
+    # Known manual overrides for common unspaced identifiers.
+    overrides = {
+        "fruitandvegetables": "Fruit and Vegetables",
+    }
+    key = name.lower().replace(" ", "")
+    if key in overrides:
+        return overrides[key]
+
+    # Title-case the name, but keep small connector words (and, of, in, the,
+    # etc.) lower-case unless they are the first word.
+    words = name.split()
+    if not words:
+        return name
+
+    lowercase_words = {
+        "and",
+        "or",
+        "of",
+        "in",
+        "on",
+        "the",
+        "for",
+        "to",
+        "at",
+        "from",
+        "by",
+        "as",
+    }
+
+    normalised_words: list[str] = []
+    for idx, w in enumerate(words):
+        base = w.lower()
+        if idx > 0 and base in lowercase_words:
+            normalised_words.append(base)
+        else:
+            # Capitalise the first character and lower-case the rest.
+            normalised_words.append(base[:1].upper() + base[1:])
+
+    return " ".join(normalised_words)
+
+
+def _normalise_carrier_commodity_key(name: str) -> str:
+    """
+    Normalise a carrier commodity identifier into a stable key.
+
+    This ensures that logically identical commodities with different raw
+    representations (e.g. "titanium", "Titanium", "$Titanium_Name;") are
+    treated as the same thing for order aggregation and cancellation.
+    """
+    key = (name or "").strip().lower()
+    if not key:
+        return key
+
+    # Strip journal-style wrappers.
+    if key.startswith("$") and key.endswith(";"):
+        key = key[1:-1]
+
+    # Strip a trailing "_name" suffix if present.
+    if key.endswith("_name"):
+        key = key[: -len("_name")]
+
+    # Normalise separators and whitespace.
+    key = key.replace("_", " ")
+    key = key.replace(" ", "")
+
+    return key
+
+
+def _normalise_carrier_commodity_key(name: str) -> str:
+    """
+    Normalise a carrier commodity identifier into a stable key.
+
+    This is used to ensure that logically identical commodities with different
+    raw representations (e.g. "titanium", "Titanium", "$Titanium_Name;") are
+    treated as the same thing for the purposes of order aggregation.
+    """
+    key = (name or "").strip().lower()
+    if not key:
+        return key
+
+    # Strip journal-style wrappers.
+    if key.startswith("$") and key.endswith(";"):
+        key = key[1:-1]
+
+    # Strip a trailing "_name" suffix if present.
+    if key.endswith("_name"):
+        key = key[: -len("_name")]
+
+    # Normalise separators and whitespace.
+    key = key.replace("_", " ")
+    key = key.replace(" ", "")
+
+    return key
+
+
 # ---------------------------------------------------------------------------
 # Low-level event selection helpers
 # ---------------------------------------------------------------------------
@@ -255,7 +379,10 @@ def build_orders_for_carrier(
         if event.carrier_id != carrier_id:
             continue
 
-        commodity_key = event.commodity or ""
+        commodity_key = _normalise_carrier_commodity_key(event.commodity or "")
+        if not commodity_key:
+            # Ignore events with no usable commodity identifier.
+            continue
 
         # Explicit cancel: clear any existing orders and cargo entry.
         if event.raw_data.get("CancelTrade"):
@@ -284,33 +411,88 @@ def build_orders_for_carrier(
             event.outstanding if event.outstanding >= 0 else original_amount
         )
 
+        # Derive a best-effort view of *current* stock for SELL orders.
+        # Priority:
+        #   1. Explicit Stock when present (represents current on‑carrier stock).
+        #   2. Outstanding when present (remaining quantity to be filled).
+        #   3. Fallback to the configured SaleOrder size.
+        derived_stock: int | None = None
+        if order_type == CarrierOrderType.SELL:
+            if event.stock >= 0:
+                derived_stock = event.stock
+            elif event.outstanding >= 0:
+                derived_stock = event.outstanding
+            elif event.sale_order > 0:
+                derived_stock = event.sale_order
+
+        # If we could not infer a sensible stock value, keep None so that the
+        # API surface can distinguish "unknown" from an explicit zero.
+        order_stock: Optional[int]
+        if order_type == CarrierOrderType.SELL and derived_stock is not None:
+            order_stock = max(derived_stock, 0)
+        elif event.stock >= 0:
+            order_stock = max(event.stock, 0)
+        else:
+            order_stock = None
+
+        # Choose a human‑friendly display name, preferring the journal's
+        # localized label when available and falling back to a prettified
+        # internal name (e.g. "fruitandvegetables" → "Fruit and Vegetables").
+        display_name = _prettify_commodity_name(
+            raw_name=event.commodity,
+            localised=event.commodity_localised,
+        )
+
         order = CarrierOrder(
             order_type=order_type,
             commodity_name=event.commodity,
-            commodity_name_localised=event.commodity_localised or event.commodity,
+            commodity_name_localised=display_name,
             price=event.price,
             original_amount=max(original_amount, 0),
             remaining_amount=max(remaining_amount, 0),
-            stock=event.stock if event.stock >= 0 else None,
+            stock=order_stock,
         )
 
         if order_type == CarrierOrderType.SELL:
             # Latest SELL order wins for this commodity.
             sell_orders_by_commodity[commodity_key] = order
+            # A carrier cannot practically have both BUY and SELL orders for the
+            # same commodity; discard any stale BUY for this key.
+            buy_orders_by_commodity.pop(commodity_key, None)
 
             # Reflect SELL orders into a simple cargo view (latest snapshot).
-            sale_qty = max(event.sale_order, 0)
-            cargo_by_commodity[commodity_key] = {
-                "commodity_name": event.commodity,
-                "commodity_name_localised": event.commodity_localised
-                or event.commodity,
-                "stock": sale_qty,
-                "reserved": 0,
-                "capacity": None,
-            }
+            # Use the same derived stock heuristic as for the order itself.
+            stock_qty = derived_stock
+            if stock_qty is None:
+                stock_qty = event.sale_order if event.sale_order > 0 else 0
+
+            stock_qty = max(stock_qty, 0)
+
+            if stock_qty == 0:
+                # No remaining stock: remove the commodity from the cargo view
+                # so the UI does not report obsolete tonnage.
+                cargo_by_commodity.pop(commodity_key, None)
+            else:
+                # Use a human‑friendly display name for cargo as well, matching the
+                # formatting used for orders (e.g. "fruitandvegetables" →
+                # "Fruit and Vegetables").
+                display_name = _prettify_commodity_name(
+                    raw_name=event.commodity,
+                    localised=event.commodity_localised,
+                )
+                cargo_by_commodity[commodity_key] = {
+                    "commodity_name": event.commodity,
+                    "commodity_name_localised": display_name,
+                    "stock": stock_qty,
+                    "reserved": 0,
+                    "capacity": None,
+                }
         else:
             # Latest BUY order wins for this commodity.
             buy_orders_by_commodity[commodity_key] = order
+            # Likewise, a BUY order replaces any previous SELL configuration for
+            # the same commodity.
+            sell_orders_by_commodity.pop(commodity_key, None)
 
     # Convert cargo map into CarrierCargoItem list
     cargo_items: List[CarrierCargoItem] = []

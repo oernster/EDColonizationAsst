@@ -4,6 +4,19 @@ Elite Dangerous Colonization Assistant (EDCA) helps you track in‑game coloniza
 
 ---
 
+## Fleet carrier data and journal updates
+
+EDCA's Fleet Carrier view (cargo and market orders) is built **entirely** from the official Elite Dangerous journal files. The game only writes carrier trade information to the journals when you **edit or refresh trade orders on your carrier** (for example, by changing or cancelling a buy/sell order in the Carrier Management screen).
+
+This has two important consequences:
+
+- If you change your carrier's market in‑game but the game does **not** emit new journal events (such as `CarrierTradeOrder` entries), EDCA cannot see that change and the UI will continue to show the last state that was recorded in the journals.
+- To ensure EDCA shows valid, up‑to‑date carrier commodity data, you may occasionally need to:
+  - Open the Carrier Management screen and adjust or re‑apply your commodity orders (even if only by toggling/cancelling and re‑creating them), so that the game writes fresh carrier trade events to the journal.
+  - Wait a moment for the journal watcher to ingest the new lines and for the UI to refresh.
+
+EDCA cannot force Elite Dangerous to write new journal data; it can only reflect what is actually present in your local `Journal.*.log` files.
+
 ## Get the app on Windows
 
 For normal Windows use, download the prebuilt installer (no Python or Node.js required):
@@ -49,6 +62,24 @@ The installed runtime starts a local web server and opens your browser to:
 ```text
 http://127.0.0.1:8000/app/
 ```
+
+---
+
+## Elite Dangerous journal log location
+
+EDCA reads **Elite Dangerous journal files** directly from your local save folder. On a default Windows installation of the game (non‑Horizons4), the journals are typically located at:
+
+```text
+C:\Users\%USERNAME%\Saved Games\Frontier Developments\Elite Dangerous
+```
+
+If you run Elite via Steam Proton or Wine on Linux, the journal directory is usually under your Proton/Wine prefix, for example:
+
+```text
+~/.steam/steam/steamapps/compatdata/359320/pfx/drive_c/users/steamuser/Saved Games/Frontier Developments/Elite Dangerous
+```
+
+You can point EDCA at a different journal directory via the Settings page in the web UI (`Journal directory` field). The backend will monitor whatever path is configured there for `Journal.*.log` files.
 
 ---
 

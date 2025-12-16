@@ -242,7 +242,8 @@ class JournalFileHandler(FileSystemEventHandler):
                     merged_commodities.append(
                         Commodity(
                             name=name,
-                            name_localised=snap_comm.name_localised or prev.name_localised,
+                            name_localised=snap_comm.name_localised
+                            or prev.name_localised,
                             required_amount=max(
                                 prev.required_amount, snap_comm.required_amount
                             ),

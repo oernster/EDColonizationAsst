@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -17,8 +17,6 @@ import {
   CarrierOrder,
   CarrierCargoItem,
 } from '../../types/fleetCarriers';
-
-type CarrierViewTab = 'cargo' | 'market';
 
 const formatDockingAccess = (access: string) => {
   const normalized = access.toLowerCase();
@@ -108,10 +106,11 @@ export const FleetCarriersPanel = () => {
     myCarriersLoading,
     myCarriersError,
     loadCurrentCarrier,
+    refreshCurrentCarrier,
     loadMyCarriers,
+    carrierViewTab,
+    setCarrierViewTab,
   } = useCarrierStore();
-
-  const [carrierViewTab, setCarrierViewTab] = useState<CarrierViewTab>('cargo');
 
   const freeSpace = currentCarrierState?.free_space_tonnage ?? null;
   const outstandingBuyTonnage =
@@ -137,6 +136,27 @@ export const FleetCarriersPanel = () => {
     currentCarrierInfo && currentCarrierInfo.docked_at_carrier
       ? currentCarrierInfo.carrier
       : null;
+
+  // Periodically refresh the current carrier snapshot while docked so that
+  // market/cargo changes written to the journal are reflected without a full
+  // page reload. This complements the event-driven colonization updates.
+  useEffect(() => {
+    // Only poll while we are actually docked at a carrier.
+    if (!dockedIdentity) {
+      return;
+    }
+
+    const POLL_INTERVAL_MS = 5000;
+    const id = window.setInterval(() => {
+      // Use the background refresh variant so we don't toggle loading state or
+      // clear the visible UI, avoiding header "jiggle".
+      void refreshCurrentCarrier();
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(id);
+    };
+  }, [dockedIdentity, refreshCurrentCarrier]);
 
   const dockedServicesRaw = dockedIdentity?.services ?? [];
   const visibleDockedServices = dockedServicesRaw.filter(
@@ -174,14 +194,11 @@ export const FleetCarriersPanel = () => {
               Current carrier
             </Typography>
             {currentCarrierLoading && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CircularProgress size={18} />
-                <Typography variant="body2" color="text.secondary">
-                  Loading carrier information...
-                </Typography>
-              </Box>
+              <Typography variant="caption" color="text.secondary">
+                Loading carrier information...
+              </Typography>
             )}
-            {!currentCarrierLoading && !dockedIdentity && (
+            {!dockedIdentity && !currentCarrierLoading && (
               <Typography variant="body2" color="text.secondary">
                 You are not currently docked at a fleet carrier. Dock at your own or squadron carrier
                 to see its details here.
@@ -457,7 +474,7 @@ const CarrierCargoSection = ({ cargo }: CarrierCargoSectionProps) => {
   return (
     <Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        Current cargo snapshot (experimental; based on observed carrier trade events).
+        Current cargo snapshot.
       </Typography>
       <Divider sx={{ mb: 1 }} />
       <Stack spacing={1.5}>
@@ -475,9 +492,6 @@ const CarrierCargoSection = ({ cargo }: CarrierCargoSectionProps) => {
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="body2" noWrap>
                 {item.commodity_name_localised}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" noWrap>
-                {item.commodity_name}
               </Typography>
             </Box>
             <Box sx={{ textAlign: 'right' }}>
@@ -527,7 +541,7 @@ const CarrierMarketSection = ({ buyOrders, sellOrders }: CarrierMarketSectionPro
   return (
     <Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        Current carrier market orders (experimental; based on observed trade order events).
+        Current carrier market orders.
       </Typography>
       <Divider sx={{ mb: 2 }} />
 
@@ -589,9 +603,6 @@ const OrderList = ({ orders }: { orders: CarrierOrder[] }) => {
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="body2" noWrap>
                 {order.commodity_name_localised}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" noWrap>
-                {order.commodity_name}
               </Typography>
             </Box>
             <Box sx={{ textAlign: 'right' }}>

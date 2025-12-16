@@ -23,9 +23,15 @@ interface CarrierStoreState {
   myCarriersLoading: boolean;
   myCarriersError: string | null;
 
+  // UI state: active Fleet Carrier detail tab
+  carrierViewTab: 'cargo' | 'market';
+
   // Actions
   loadCurrentCarrier: () => Promise<void>;
+  // Background refresh that does not toggle loading state or clear the UI.
+  refreshCurrentCarrier: () => Promise<void>;
   loadMyCarriers: () => Promise<void>;
+  setCarrierViewTab: (tab: 'cargo' | 'market') => void;
   clearCarrierError: () => void;
 }
 
@@ -40,6 +46,9 @@ export const useCarrierStore = create<CarrierStoreState>((set) => ({
   myCarriers: null,
   myCarriersLoading: false,
   myCarriersError: null,
+
+  // UI state
+  carrierViewTab: 'cargo',
 
   // Actions
 
@@ -101,6 +110,34 @@ export const useCarrierStore = create<CarrierStoreState>((set) => ({
     }
   },
 
+  async refreshCurrentCarrier() {
+    try {
+      const info = await api.getCurrentCarrier();
+
+      // If not docked at a carrier, do not clear the current snapshot during
+      // background refresh; just update the info.
+      if (!info.docked_at_carrier || !info.carrier) {
+        set((prev) => ({
+          currentCarrierInfo: info,
+          currentCarrierState: prev.currentCarrierState,
+          lastKnownCarrierState: prev.lastKnownCarrierState,
+        }));
+        return;
+      }
+
+      const state = await api.getCurrentCarrierState();
+
+      set((prev) => ({
+        currentCarrierInfo: info,
+        currentCarrierState: state,
+        lastKnownCarrierState: state ?? prev.lastKnownCarrierState,
+      }));
+    } catch {
+      // Background refresh errors are intentionally ignored; the last known
+      // state remains visible and foreground loads surface errors instead.
+    }
+  },
+
   async loadMyCarriers() {
     try {
       set({
@@ -123,6 +160,10 @@ export const useCarrierStore = create<CarrierStoreState>((set) => ({
           'Failed to load carrier list',
       });
     }
+  },
+
+  setCarrierViewTab(tab) {
+    set({ carrierViewTab: tab });
   },
 
   clearCarrierError() {

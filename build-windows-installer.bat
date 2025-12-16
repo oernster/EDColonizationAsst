@@ -201,9 +201,18 @@ if errorlevel 1 (
     popd >nul
     exit /b 1
 )
+
+echo [BACKEND] Formatting backend Python code with black...
+call ".venv\Scripts\python.exe" -m black src tests
+if errorlevel 1 (
+    echo [ERROR] black formatting command 'python -m black src tests' failed in backend\.venv.
+    popd >nul
+    exit /b 1
+)
+
 popd >nul
 
-echo [BACKEND] Backend environment ready.
+echo [BACKEND] Backend environment ready (deps installed and code formatted with black).
 echo.
 
 REM ---------------------------------------------------------------------------

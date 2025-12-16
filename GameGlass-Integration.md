@@ -512,3 +512,219 @@ A typical GameGlass shard that wants to show **construction sites** and a **shop
    - Send an `unsubscribe` message for the old system, or close the WebSocket connection.
 
 This API-focused description is intended to be sufficient for shard authors to integrate with the ED Colonization Assistant without needing to inspect the backend code.
+
+---
+
+## 5. Fleet carrier APIs (optional)
+
+These endpoints expose the commander’s Fleet carrier data derived from Elite: Dangerous journal files. They are **optional** for GameGlass shards – use them if you want to display carrier cargo and market orders in addition to colonisation data.
+
+Fleet carrier state is reconstructed in memory from `CarrierLocation`, `CarrierStats` and `CarrierTradeOrder` events by the backend logic in [`carrier_service.py`](backend/src/services/carrier_service.py:1) and surfaced via the carrier API routes in [`carriers.py`](backend/src/api/carriers.py:60).
+
+### 5.1. Current docking context
+
+**Method:** GET
+**Path:** `/api/carriers/current`
+
+**Purpose**
+
+Returns whether the commander is currently docked at a Fleet carrier, and if so, basic identity information for that carrier.
+
+**Response Shape (simplified)**
+
+Based on [`CurrentCarrierResponse`](backend/src/models/api_models.py:129):
+
+```json
+{
+  "docked_at_carrier": true,
+  "carrier": {
+    "carrier_id": 3700569600,
+    "market_id": 3700569600,
+    "name": "MIDNIGHT ELOQUENCE",
+    "callsign": "X7J-BQG",
+    "docking_access": "squadron",
+    "allow_notorious": true,
+    "last_seen_system": "Lupus Dark Region BQ-Y d66",
+    "last_seen_station": "X7J-BQG",
+    "services": [
+      "dock",
+      "commodities",
+      "refuel",
+      "repair",
+      "rearm",
+      "outfitting",
+      "carrierfuel"
+    ],
+    "role": "own"
+  }
+}
+```
+
+Notes:
+
+- If `docked_at_carrier` is `false`, `carrier` will be `null`.
+- `services` is useful for displaying what is available at the current carrier.
+
+Typical usage in a shard:
+
+- Show a header indicating whether the commander is on a carrier and, if so, its name and callsign.
+- Use the `carrier_id` / `market_id` to correlate with `/api/carriers/mine`.
+
+### 5.2. Current carrier state snapshot
+
+**Method:** GET
+**Path:** `/api/carriers/current/state`
+
+**Purpose**
+
+Returns a reconstructed snapshot of the Fleet carrier the commander is currently docked at, including:
+
+- Identity
+- Cargo snapshot
+- Buy and sell orders
+- Basic cargo and capacity metrics
+
+**Response Shape (simplified)**
+
+Based on [`CarrierStateResponse`](backend/src/models/api_models.py:144) and [`CarrierState`](backend/src/models/carriers.py:1):
+
+```json
+{
+  "carrier": {
+    "identity": {
+      "carrier_id": 3700569600,
+      "market_id": 3700569600,
+      "name": "MIDNIGHT ELOQUENCE",
+      "callsign": "X7J-BQG",
+      "docking_access": "squadron",
+      "allow_notorious": true,
+      "last_seen_system": "Lupus Dark Region BQ-Y d66",
+      "last_seen_station": "X7J-BQG",
+      "services": [
+        "dock",
+        "commodities",
+        "refuel",
+        "repair",
+        "rearm",
+        "outfitting",
+        "carrierfuel"
+      ],
+      "role": "own"
+    },
+    "cargo": [
+      {
+        "commodity_name": "fruitandvegetables",
+        "commodity_name_localised": "Fruit and Vegetables",
+        "stock": 9,
+        "reserved": 0,
+        "capacity": 2302
+      }
+    ],
+    "buy_orders": [
+      {
+        "commodity_name": "fruitandvegetables",
+        "commodity_name_localised": "Fruit and Vegetables",
+        "price": 25,
+        "original_amount": 9,
+        "remaining_amount": 9
+      }
+    ],
+    "sell_orders": [],
+    "total_cargo_tonnage": 2302,
+    "free_space_tonnage": 19328,
+    "free_space_after_buys_tonnage": 19319
+  }
+}
+```
+
+Key fields for a shard:
+
+- `identity.name` / `identity.callsign`: for the carrier header.
+- `cargo[*].commodity_name_localised`, `stock`, `capacity`: for a simple cargo panel.
+- `buy_orders` / `sell_orders`:
+  - `commodity_name_localised` – display name.
+  - `price` – CR/t.
+  - `remaining_amount` / `original_amount` – order fill progress.
+- `free_space_after_buys_tonnage`: an approximate “free space after buy orders are filled” metric.
+
+If the commander is not docked at any Fleet carrier, the backend returns a 404 error `"Commander is not currently docked at a fleet carrier"`; shards should handle this by hiding or disabling carrier panels.
+
+### 5.3. Listing own and squadron carriers
+
+**Method:** GET
+**Path:** `/api/carriers/mine`
+
+**Purpose**
+
+Returns the commander's own carriers and (where detectable) squadron carriers, inferred from `CarrierStats` and `CarrierLocation` events in the latest journal file.
+
+**Response Shape (simplified)**
+
+Based on [`MyCarriersResponse`](backend/src/models/api_models.py:156):
+
+```json
+{
+  "own_carriers": [
+    {
+      "carrier_id": 3700569600,
+      "market_id": 3700569600,
+      "name": "MIDNIGHT ELOQUENCE",
+      "callsign": "X7J-BQG",
+      "docking_access": "squadron",
+      "allow_notorious": true,
+      "last_seen_system": "Lupus Dark Region BQ-Y d66",
+      "last_seen_station": "X7J-BQG",
+      "services": [
+        "dock",
+        "commodities",
+        "refuel",
+        "repair",
+        "rearm",
+        "outfitting",
+        "carrierfuel"
+      ],
+      "role": "own"
+    }
+  ],
+  "squadron_carriers": [
+    {
+      "carrier_id": 1234567890,
+      "market_id": 1234567890,
+      "name": "SQUADRON CARRIER",
+      "callsign": "AB1-CDE",
+      "docking_access": "squadron",
+      "allow_notorious": false,
+      "last_seen_system": "LHS 1234",
+      "last_seen_station": "AB1-CDE",
+      "services": [
+        "dock",
+        "commodities"
+      ],
+      "role": "squadron"
+    }
+  ]
+}
+```
+
+Typical usage in a shard:
+
+- Render a list of your carriers (own and squadron).
+- Highlight the carrier you are currently docked at by matching `carrier_id` / `market_id` against `/api/carriers/current`.
+- Optionally show `last_seen_system` and `services` for each carrier.
+
+### 5.4. Recommended Fleet carrier flow for a shard
+
+For a GameGlass shard that wants to display **Fleet carrier state** alongside colonisation data:
+
+1. **On load**
+   - Call `/api/health` to confirm the backend is running.
+   - Optionally call `/api/carriers/mine` to list known carriers.
+
+2. **When docked at a carrier**
+   - Call `/api/carriers/current` to check if `docked_at_carrier` is `true` and to get the carrier’s identity.
+   - If docked, call `/api/carriers/current/state` to get cargo and market orders and render a carrier panel.
+
+3. **When the commander undocks or moves**
+   - Handle the 404 from `/api/carriers/current/state` as “not docked at a Fleet carrier” and hide carrier‑specific panels in the shard.
+
+Carrier data is **derived purely from the latest journal file**; if the game has not yet written new `CarrierTradeOrder` / `CarrierStats` events, the snapshot will reflect the last known state.

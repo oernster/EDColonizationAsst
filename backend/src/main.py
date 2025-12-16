@@ -103,7 +103,9 @@ async def _prime_colonization_database_if_empty(
 
     # Reuse the same ingestion pipeline as the live FileWatcher and the
     # /api/debug/reload-journals endpoint so behaviour is consistent.
-    from .services.file_watcher import JournalFileHandler  # local import to avoid cycles
+    from .services.file_watcher import (
+        JournalFileHandler,
+    )  # local import to avoid cycles
     import asyncio
 
     handler = JournalFileHandler(

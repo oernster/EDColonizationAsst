@@ -373,6 +373,38 @@ mypy src/
 pylint src/
 ```
 
+### Git hooks (backend)
+
+This repository includes a shared git pre-commit hook under
+[`.githooks/pre-commit`](.githooks/pre-commit:1). When enabled, it will:
+
+- Format any **staged** Python files with `black` and re-stage them.
+- Run the backend pytest suite and block the commit if tests fail.
+
+The hook prefers the backend virtual environment, falling back to a global
+`black`/`pytest` if necessary:
+
+- `backend/.venv/bin/python -m black` / `-m pytest` (Linux/macOS)
+- `backend/.venv/Scripts/python.exe -m black` / `-m pytest` (Windows, Git Bash)
+- Plain `black` / `pytest` if no backend venv Python is found.
+
+To enable the shared hooks for **this clone only**, run once from the project root:
+
+```bash
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-commit
+```
+
+After that, every `git commit` will:
+
+1. Run `black` on staged `*.py` files and re-add them to the index.
+2. Run `pytest -q -c backend/pytest.ini backend/tests`.
+3. Abort the commit if either step fails.
+
+If you explicitly do **not** want the hook to enforce tests/formatting for a
+specific local clone (for example, on a CI machine that already runs its own
+checks), simply do not set `core.hooksPath` in that clone, or point it elsewhere.
+
 ### Backend project structure
 
 ```text

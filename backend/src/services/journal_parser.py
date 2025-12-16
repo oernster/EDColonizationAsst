@@ -444,11 +444,23 @@ class JournalParser(IJournalParser):
               "Price":4446
             }
 
-        Notes:
-            - Some clients also emit PurchaseOrder, Stock and Outstanding fields
-              for buy orders and remaining quantities. We handle those when
-              present but default sensibly when absent.
+        Notes
+        -----
+        - Some clients also emit PurchaseOrder, Stock and Outstanding fields
+          for buy orders and remaining quantities.
+        - When Stock/Outstanding are omitted we keep sentinel values so that
+          downstream logic can distinguish "unknown" from an explicit zero.
         """
+        # Sentinel -1 means "not provided in this journal line".
+        stock = data.get("Stock", -1)
+        outstanding = data.get("Outstanding")
+        if outstanding is None:
+            # Fall back to the configured order size when Outstanding is not
+            # present at all. For SELL orders this is SaleOrder; for BUY
+            # orders it is PurchaseOrder. If neither is present we keep the
+            # sentinel so that higher layers can fall back sensibly.
+            outstanding = data.get("SaleOrder", data.get("PurchaseOrder", -1))
+
         return CarrierTradeOrderEvent(
             timestamp=timestamp,
             event=data["event"],
@@ -457,11 +469,8 @@ class JournalParser(IJournalParser):
             commodity_localised=data.get("Commodity_Localised"),
             purchase_order=data.get("PurchaseOrder", 0),
             sale_order=data.get("SaleOrder", 0),
-            stock=data.get("Stock", 0),
-            outstanding=data.get(
-                "Outstanding",
-                data.get("SaleOrder", data.get("PurchaseOrder", 0)),
-            ),
+            stock=stock,
+            outstanding=outstanding,
             price=data.get("Price", 0),
             raw_data=data,
         )

@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Git pre-commit hook for EDColonizationAsst
+#
+# This hook automatically:
+#   1. Formats staged Python files with black.
+#   2. Re-stages any reformatted files.
+#   3. Runs the backend pytest suite and blocks the commit if tests fail.
+#
+# To enable this hook, run once in the repo root:
+#   git config core.hooksPath .githooks
+
+echo "[pre-commit] Checking for staged Python files to format with black..."
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "${REPO_ROOT}"
+
+# ---------------------------------------------------------------------------
+# 1. Format staged Python files with black
+# ---------------------------------------------------------------------------
+
+# List staged Python files (respecting git add -p, etc.)
+CHANGED_PY_FILES="$(git diff --cached --name-only -- '*.py' || true)"
+
+if [ -z "${CHANGED_PY_FILES}" ]; then
+  echo "[pre-commit] No staged Python files; skipping black."
+else
+  echo "[pre-commit] Running black on staged Python files:"
+  # shellcheck disable=SC2086
+  printf '  %s\n' ${CHANGED_PY_FILES}
+
+  # Choose how to invoke black:
+  #  - Prefer backend/.venv/bin/python (Linux/macOS venv)
+  #  - Then backend/.venv/Scripts/python.exe (Windows venv via Git Bash, etc.)
+  #  - Fall back to plain 'black' on PATH
+  BLACK_CMD=()
+  if [ -x "backend/.venv/bin/python" ]; then
+    BLACK_CMD=("backend/.venv/bin/python" "-m" "black")
+  elif [ -x "backend/.venv/Scripts/python.exe" ]; then
+    BLACK_CMD=("backend/.venv/Scripts/python.exe" "-m" "black")
+  else
+    BLACK_CMD=("black")
+  fi
+
+  # Run black on the staged Python files.
+  # Use NUL-separated xargs to handle spaces safely.
+  # shellcheck disable=SC2086
+  printf '%s\0' ${CHANGED_PY_FILES} | xargs -0 "${BLACK_CMD[@]}"
+
+  # Re-stage any files that black reformatted.
+  # shellcheck disable=SC2086
+  printf '%s\0' ${CHANGED_PY_FILES} | xargs -0 git add
+
+  echo "[pre-commit] black formatting complete; updated files re-staged."
+fi
+
+# ---------------------------------------------------------------------------
+# 2. Run backend unit tests with pytest and block commit on failure
+# ---------------------------------------------------------------------------
+
+echo "[pre-commit] Running backend unit tests (pytest)..."
+
+TEST_CMD=()
+if [ -x "backend/.venv/bin/python" ]; then
+  TEST_CMD=("backend/.venv/bin/python" "-m" "pytest" "-q" "-c" "backend/pytest.ini")
+elif [ -x "backend/.venv/Scripts/python.exe" ]; then
+  TEST_CMD=("backend/.venv/Scripts/python.exe" "-m" "pytest" "-q" "-c" "backend/pytest.ini")
+elif command -v pytest >/dev/null 2>&1; then
+  TEST_CMD=("pytest" "-q" "-c" "backend/pytest.ini")
+else
+  echo "[pre-commit] ERROR: pytest not found (no backend/.venv and no pytest on PATH)."
+  echo "[pre-commit]        Ensure the backend environment is set up before committing."
+  exit 1
+fi
+
+# Run tests targeting the backend test suite. Any failure will cause the hook
+# to exit non-zero (due to set -e), blocking the commit.
+"${TEST_CMD[@]}" backend/tests
+
+echo "[pre-commit] Backend pytest suite passed."
+echo "[pre-commit] All checks passed; proceeding with commit."
+exit 0

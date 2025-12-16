@@ -80,6 +80,11 @@ def _normalise_commodity_key(name: str) -> str:
 
 DB_FILE = _get_db_file()
 
+# Increment this when we make a breaking change to the on-disk schema for the
+# colonization database. The repository will reset (delete and recreate) any
+# existing DB that does not advertise this version in its metadata table.
+CURRENT_DB_SCHEMA_VERSION = 1
+
 
 class IColonizationRepository(ABC):
     """Interface for colonization data repository"""
@@ -134,7 +139,7 @@ class ColonizationRepository(IColonizationRepository):
 
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
-        self._create_tables()
+        self._initialise_database()
 
     def _get_db_connection(self):
         # Ensure the parent directory for the DB exists before connecting,
@@ -149,7 +154,7 @@ class ColonizationRepository(IColonizationRepository):
         return sqlite3.connect(DB_FILE)
 
     def _create_tables(self) -> None:
-        """Create database tables if they don't exist"""
+        """Create database tables if they don't exist."""
         with self._get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -168,7 +173,97 @@ class ColonizationRepository(IColonizationRepository):
                 )
             """
             )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS metadata (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """
+            )
             conn.commit()
+
+    def _get_schema_version(self) -> Optional[int]:
+        """
+        Read the current schema version from the metadata table, if present.
+
+        Returns:
+            The stored integer schema version, or None if missing/invalid.
+        """
+        try:
+            with self._get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT value FROM metadata WHERE key = 'db_schema_version'"
+                )
+                row = cursor.fetchone()
+                if not row:
+                    return None
+                return int(row[0])
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Failed to read db_schema_version from metadata; treating as unknown: %s",
+                exc,
+            )
+            return None
+
+    def _set_schema_version(self, version: int) -> None:
+        """Persist the given schema version into the metadata table."""
+        with self._get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO metadata (key, value)
+                VALUES ('db_schema_version', ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (str(version),),
+            )
+            conn.commit()
+
+    def _initialise_database(self) -> None:
+        """
+        Ensure the on-disk database matches the expected schema version.
+
+        Behaviour:
+            - If no DB file exists, create it, create tables and set the current
+              schema version.
+            - If a DB file exists but has no version metadata or a different
+              version, delete it once and recreate it with the current schema
+              version.
+
+        On first run (or after reset), the FastAPI lifespan helper
+        `_prime_colonization_database_if_empty` is responsible for repopulating
+        the fresh DB from the user's journal files.
+        """
+        # If the DB file does not exist at all, just create it and stamp the
+        # version.
+        if not DB_FILE.exists():
+            self._create_tables()
+            self._set_schema_version(CURRENT_DB_SCHEMA_VERSION)
+            return
+
+        # DB file exists; check metadata.
+        current_version = self._get_schema_version()
+        if current_version == CURRENT_DB_SCHEMA_VERSION:
+            return
+
+        # Unknown or outdated schema. Remove the file once and recreate it.
+        try:
+            DB_FILE.unlink()
+            logger.info(
+                "Deleted existing colonization DB at %s due to missing or "
+                "outdated schema metadata; a fresh DB will be created.",
+                DB_FILE,
+            )
+        except FileNotFoundError:
+            # Someone else may have removed it; that's fine.
+            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Failed to delete colonization DB %s: %s", DB_FILE, exc)
+
+        self._create_tables()
+        self._set_schema_version(CURRENT_DB_SCHEMA_VERSION)
 
     async def add_construction_site(self, site: ConstructionSite) -> None:
         async with self._lock:

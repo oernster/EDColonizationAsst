@@ -127,6 +127,15 @@ if [ "${EDCA_SKIP_BACKEND_DEPS:-0}" != "1" ]; then
 
   log "Installing backend dependencies (uv pip) ..."
   uv pip install -r backend/requirements.txt
+
+  # Always ensure black is available in the backend venv so we can format the
+  # backend codebase before running. This keeps the backend consistent with
+  # the Windows build script, which also runs black.
+  log "Installing black (code formatter) into backend venv (uv pip) ..."
+  uv pip install black
+
+  log "Formatting backend Python code with black ..."
+  "${VENV_PY}" -m black backend/src backend/tests
 else
   log "Skipping backend dependency install (EDCA_SKIP_BACKEND_DEPS=1)."
 fi
