@@ -13,6 +13,31 @@ _JOURNAL_SUBPATH = Path("Saved Games") / "Frontier Developments" / "Elite Danger
 _STEAM_APP_ID_ELITE_DANGEROUS = "359320"
 
 
+def _get_home_dir() -> Path:
+    """
+    Resolve a home directory for candidate generation.
+
+    Notes:
+    - In production, we fall back to Path.home().
+    - In unit tests we sometimes monkeypatch the module-level `os` with a minimal
+      stub that only provides `name` and `environ`. In that case, falling back
+      to Path.home() would probe the real machine and make tests nondeterministic.
+    """
+    try:
+        home_env = os.environ.get("HOME") or os.environ.get("USERPROFILE")
+    except Exception:
+        home_env = None
+    if home_env:
+        return Path(home_env)
+
+    # Only use Path.home() when `os` is the real stdlib module.
+    if getattr(os, "__name__", "") == "os":
+        return Path.home()
+
+    # Deterministic fallback for tests/stubs.
+    return Path("/nonexistent")
+
+
 def _iter_linux_journal_candidates() -> Iterable[Path]:
     """
     Yield likely Elite journal directories on Linux.
@@ -21,7 +46,7 @@ def _iter_linux_journal_candidates() -> Iterable[Path]:
       - Steam Proton (compatdata) via STEAM_COMPAT_DATA_PATH or common Steam roots
       - Wine / Lutris via WINEPREFIX or ~/.wine
     """
-    home = Path.home()
+    home = _get_home_dir()
     user = os.environ.get("USER") or os.environ.get("USERNAME") or "user"
 
     # Proton: explicit compat prefix if caller provided it.

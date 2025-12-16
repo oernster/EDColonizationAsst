@@ -175,13 +175,22 @@ def get_config() -> AppConfig:
 
         config_dict: dict = {}
         if config_path.exists():
-            with open(config_path, "r", encoding="utf-8") as f:
-                config_dict = yaml.safe_load(f) or {}
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config_dict = yaml.safe_load(f) or {}
+            except Exception:
+                # Be tolerant of user-edited YAML (e.g. Windows paths with backslashes
+                # inside double-quoted strings can be invalid YAML). Fall back to
+                # defaults rather than crashing startup/tests.
+                config_dict = {}
 
         commander_dict: dict = {}
         if commander_path.exists():
-            with open(commander_path, "r", encoding="utf-8") as f:
-                commander_dict = yaml.safe_load(f) or {}
+            try:
+                with open(commander_path, "r", encoding="utf-8") as f:
+                    commander_dict = yaml.safe_load(f) or {}
+            except Exception:
+                commander_dict = {}
 
         inara_cfg = InaraConfig(**commander_dict.get("inara", {}))
 
@@ -208,7 +217,12 @@ def get_config() -> AppConfig:
             )
 
             configured_path = Path(configured_str)
-            if looks_like_windows_default or not configured_path.exists():
+            # Only auto-detect when the configured value still looks like the baked-in
+            # Windows default and it doesn't exist on this platform.
+            #
+            # If the user explicitly sets a POSIX path that doesn't exist yet, we
+            # should not silently override it.
+            if looks_like_windows_default and not configured_path.exists():
                 try:
                     from .utils.journal import (
                         find_journal_directory,
