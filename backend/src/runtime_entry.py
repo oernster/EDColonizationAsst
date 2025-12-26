@@ -116,6 +116,13 @@ def main() -> int:
     """
     _debug_log("[runtime_entry] main() starting")
 
+    # When EDColonizationAsst.exe is started automatically (e.g. via Windows
+    # "Run" key on login), we typically want the tray + backend to come up
+    # silently without opening a browser window.
+    #
+    # The GUI installer can register the runtime with "--no-browser".
+    no_browser = "--no-browser" in sys.argv or "--background" in sys.argv
+
     try:
         # Enforce a single running instance per user. If another instance is
         # already holding the lock, we do not start a second backend/tray
@@ -127,11 +134,12 @@ def main() -> int:
                     "[runtime_entry] Another EDCA instance already running; "
                     "opening existing web UI and exiting.",
                 )
-                try:
-                    webbrowser.open("http://127.0.0.1:8000/app/")
-                except Exception:  # noqa: BLE001
-                    # Browser launch failures must not crash the runtime.
-                    pass
+                if not no_browser:
+                    try:
+                        webbrowser.open("http://127.0.0.1:8000/app/")
+                    except Exception:  # noqa: BLE001
+                        # Browser launch failures must not crash the runtime.
+                        pass
                 return 0
         except ApplicationInstanceLockError as lock_exc:
             _debug_log(
@@ -139,7 +147,12 @@ def main() -> int:
                 f"continuing without single-instance enforcement: {lock_exc!r}",
             )
 
-        runtime_app = RuntimeApplication()
+        # RuntimeApplication may be monkeypatched in unit tests with a dummy
+        # class that does not accept our newer keyword args.
+        try:
+            runtime_app = RuntimeApplication(open_browser=not no_browser)
+        except TypeError:
+            runtime_app = RuntimeApplication()  # type: ignore[call-arg]
         # Accessing the internal _env attribute is acceptable here purely for
         # diagnostic logging; RuntimeApplication owns the public behaviour.
         try:

@@ -160,7 +160,19 @@ def get_journal_directory() -> Path:
 
 def get_latest_journal_file(journal_dir: Path) -> Optional[Path]:
     """Get the latest journal file from the given directory."""
+    files = get_journal_files(journal_dir)
+    return files[-1] if files else None
+
+
+def get_journal_files(journal_dir: Path) -> list[Path]:
+    """Return all Journal.*.log files sorted oldest → newest by mtime.
+
+    Fleet carrier related events (CarrierStats/CarrierLocation/CarrierTradeOrder)
+    are not always present in the *latest* journal file. Callers that need the
+    most recent carrier data should scan multiple recent files rather than only
+    parsing the latest file.
+    """
     files = list(journal_dir.glob("Journal.*.log"))
     if not files:
-        return None
-    return max(files, key=lambda p: p.stat().st_mtime)
+        return []
+    return sorted(files, key=lambda p: p.stat().st_mtime)

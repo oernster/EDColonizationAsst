@@ -5,6 +5,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+import pytest_asyncio
 import src.config as config_module
 from fastapi import FastAPI, HTTPException
 
@@ -31,7 +32,7 @@ class _DummyInaraService:
         return self._sites_by_system.get(system_name, [])
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def api_app(
     repository: ColonizationRepository,
     aggregator: DataAggregator,

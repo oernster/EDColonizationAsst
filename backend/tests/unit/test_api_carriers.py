@@ -136,8 +136,8 @@ async def test_carriers_current_and_state_with_fleet_carrier(
     monkeypatch.setattr(carriers_api, "get_journal_directory", lambda: journal_dir)
     monkeypatch.setattr(
         carriers_api,
-        "get_latest_journal_file",
-        lambda _dir: journal_file,
+        "get_journal_files",
+        lambda _dir: [journal_file],
     )
 
     app = FastAPI()
@@ -202,6 +202,91 @@ async def test_carriers_current_and_state_with_fleet_carrier(
             and order["order_type"] == "sell"
             for order in sell_orders
         )
+
+
+@pytest.mark.asyncio
+async def test_carriers_scan_recent_files_for_most_recent_trade_orders(
+    tmp_path: Path, monkeypatch: Callable
+):
+    """Carrier data should be recovered even when it is not in the latest journal.
+
+    Scenario:
+      - An older journal contains Docked + CarrierStats + trade order events.
+      - The newest journal contains unrelated events only.
+    The /api/carriers endpoints should still pick up the carrier context from the
+    older file by scanning recent files.
+    """
+    journal_dir = tmp_path / "journals"
+    journal_dir.mkdir(parents=True, exist_ok=True)
+
+    older_file = journal_dir / "Journal.2025-12-15T104644.01.log"
+    newer_file = journal_dir / "Journal.2025-12-16T010101.01.log"
+
+    older_events = [
+        {
+            "timestamp": "2025-12-15T10:55:20Z",
+            "event": "CarrierStats",
+            "CarrierID": 3700569600,
+            "CarrierType": "FleetCarrier",
+            "Callsign": "X7J-BQG",
+            "Name": "MIDNIGHT ELOQUENCE",
+            "DockingAccess": "squadron",
+        },
+        {
+            "timestamp": "2025-12-15T10:54:47Z",
+            "event": "Docked",
+            "StationName": "X7J-BQG",
+            "StationType": "FleetCarrier",
+            "StarSystem": "Test System",
+            "SystemAddress": 2278253693331,
+            "MarketID": 3700569600,
+            "StationFaction": {"Name": "FleetCarrier"},
+            "StationGovernment": "$government_Carrier;",
+            "StationEconomy": "$economy_Carrier;",
+            "StationEconomies": [{"Name": "$economy_Carrier;", "Proportion": 1.0}],
+        },
+        {
+            "timestamp": "2025-12-15T11:20:15Z",
+            "event": "CarrierTradeOrder",
+            "CarrierID": 3700569600,
+            "CarrierType": "FleetCarrier",
+            "BlackMarket": False,
+            "Commodity": "tritium",
+            "Commodity_Localised": "Tritium",
+            "PurchaseOrder": 5,
+            "Price": 51294,
+        },
+    ]
+    newer_events = [
+        {
+            "timestamp": "2025-12-16T01:02:03Z",
+            "event": "FSDJump",
+            "StarSystem": "Other System",
+            "SystemAddress": 999,
+        }
+    ]
+
+    older_file.write_text("\n".join(json.dumps(e) for e in older_events), encoding="utf-8")
+    newer_file.write_text("\n".join(json.dumps(e) for e in newer_events), encoding="utf-8")
+
+    # Simulate newest file being "newer" by mtime to match production ordering.
+    older_file.touch()
+    newer_file.touch()
+
+    monkeypatch.setattr(carriers_api, "get_journal_directory", lambda: journal_dir)
+    # Let get_journal_files return both.
+    monkeypatch.setattr(carriers_api, "get_journal_files", lambda _dir: [older_file, newer_file])
+
+    app = FastAPI()
+    app.include_router(carriers_router)
+
+    async with httpx.AsyncClient(app=app, base_url="http://test") as client:
+        resp_current = await client.get("/api/carriers/current")
+        assert resp_current.status_code == 200
+        current_data = resp_current.json()
+        assert current_data["docked_at_carrier"] is True
+        assert current_data["carrier"]["name"] == "MIDNIGHT ELOQUENCE"
+
 
 
 @pytest.mark.asyncio
@@ -295,8 +380,8 @@ async def test_carriers_current_state_clears_sold_out_cargo(
     monkeypatch.setattr(carriers_api, "get_journal_directory", lambda: journal_dir)
     monkeypatch.setattr(
         carriers_api,
-        "get_latest_journal_file",
-        lambda _dir: journal_file,
+        "get_journal_files",
+        lambda _dir: [journal_file],
     )
 
     app = FastAPI()
@@ -359,8 +444,8 @@ async def test_carriers_mine_lists_own_and_squadron(
     monkeypatch.setattr(carriers_api, "get_journal_directory", lambda: journal_dir)
     monkeypatch.setattr(
         carriers_api,
-        "get_latest_journal_file",
-        lambda _dir: journal_file,
+        "get_journal_files",
+        lambda _dir: [journal_file],
     )
 
     app = FastAPI()
@@ -419,8 +504,8 @@ async def test_carriers_current_state_404_when_not_docked_at_carrier(
     monkeypatch.setattr(carriers_api, "get_journal_directory", lambda: journal_dir)
     monkeypatch.setattr(
         carriers_api,
-        "get_latest_journal_file",
-        lambda _dir: journal_file,
+        "get_journal_files",
+        lambda _dir: [journal_file],
     )
 
     app = FastAPI()

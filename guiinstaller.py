@@ -71,6 +71,10 @@ WINDOWS_UNINSTALL_KEY = (
     r"Software\Microsoft\Windows\CurrentVersion\Uninstall\EDColonizationAsst"
 )
 
+# Windows auto-start (per-user) registry Run key.
+WINDOWS_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+WINDOWS_RUN_VALUE_NAME = "EDColonizationAsst"
+
 
 def get_backend_version() -> str:
     """
@@ -500,14 +504,20 @@ class InstallerWindow(QMainWindow):
 
         layout.addWidget(self.install_dir_label)
 
-        # Windows-only options: desktop shortcut / start menu integration
+        # Windows-only options: desktop shortcut / start menu integration / auto-start
         self.desktop_shortcut_checkbox = QCheckBox("Create Desktop shortcut", self)
         self.start_menu_checkbox = QCheckBox("Add Start Menu entry", self)
+        self.autostart_checkbox = QCheckBox(
+            "Start EDCA automatically when I sign in (system tray)",
+            self,
+        )
 
         if sys.platform.startswith("win"):
             # Enabled and checked by default on Windows
             self.desktop_shortcut_checkbox.setChecked(True)
             self.start_menu_checkbox.setChecked(True)
+            # Default to off to avoid surprising users.
+            self.autostart_checkbox.setChecked(False)
         else:
             # Non-Windows platforms: disable and uncheck
             self.desktop_shortcut_checkbox.setChecked(False)
@@ -515,10 +525,14 @@ class InstallerWindow(QMainWindow):
             self.start_menu_checkbox.setChecked(False)
             self.start_menu_checkbox.setEnabled(False)
 
+            self.autostart_checkbox.setChecked(False)
+            self.autostart_checkbox.setEnabled(False)
+
         options_layout = QVBoxLayout()
         options_layout.setSpacing(2)
         options_layout.addWidget(self.desktop_shortcut_checkbox)
         options_layout.addWidget(self.start_menu_checkbox)
+        options_layout.addWidget(self.autostart_checkbox)
 
         layout.addLayout(options_layout)
 
@@ -724,6 +738,7 @@ class InstallerWindow(QMainWindow):
             # Windows-only: create shortcuts and register in Add/Remove Programs
             if sys.platform.startswith("win"):
                 self._create_windows_shortcuts()
+                self._apply_windows_autostart_setting()
                 self._register_windows_app()
 
             self._finish_progress("Installation complete")
@@ -800,6 +815,7 @@ class InstallerWindow(QMainWindow):
             # Windows-only: (re)create shortcuts if requested
             if sys.platform.startswith("win"):
                 self._create_windows_shortcuts()
+                self._apply_windows_autostart_setting()
 
             self._finish_progress("Repair complete")
             self.installed_version = self.version
@@ -1045,6 +1061,7 @@ class InstallerWindow(QMainWindow):
         # Windows-only: remove shortcuts and unregister Add/Remove entry
         if sys.platform.startswith("win"):
             self._remove_windows_shortcuts()
+            self._set_windows_autostart_enabled(False)
             self._unregister_windows_app()
 
         # Clear installed-version state and refresh UI.
@@ -1057,6 +1074,50 @@ class InstallerWindow(QMainWindow):
             "Uninstall complete",
             f"{APP_NAME} version {installed_version} has been removed from:\n{self.install_dir}",
         )
+
+    # ------------------------------------------------------------------ Windows autostart
+
+    def _apply_windows_autostart_setting(self) -> None:
+        """Apply the user's chosen auto-start preference (Windows only)."""
+        if not sys.platform.startswith("win"):
+            return
+        enabled = bool(getattr(self, "autostart_checkbox", None) and self.autostart_checkbox.isChecked())
+        self._set_windows_autostart_enabled(enabled)
+
+    def _set_windows_autostart_enabled(self, enabled: bool) -> None:
+        """Enable/disable per-user auto-start via HKCU\...\Run on Windows."""
+        if not sys.platform.startswith("win"):
+            return
+
+        try:
+            import winreg  # type: ignore[import-not-found]
+        except ImportError:
+            self._log("winreg not available; cannot configure auto-start.")
+            return
+
+        # Target the installed runtime EXE. Pass --no-browser so that login start
+        # does not pop a browser window.
+        runtime_exe = self.install_dir / "EDColonizationAsst.exe"
+        cmd = f'"{runtime_exe}" --no-browser'
+
+        try:
+            with winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                WINDOWS_RUN_KEY,
+                0,
+                winreg.KEY_SET_VALUE,
+            ) as key:
+                if enabled:
+                    winreg.SetValueEx(key, WINDOWS_RUN_VALUE_NAME, 0, winreg.REG_SZ, cmd)
+                    self._log("Enabled auto-start on login (system tray).")
+                else:
+                    try:
+                        winreg.DeleteValue(key, WINDOWS_RUN_VALUE_NAME)
+                    except FileNotFoundError:
+                        pass
+                    self._log("Disabled auto-start on login.")
+        except Exception as exc:
+            self._log(f"Failed to configure auto-start on login: {exc}")
 
     def _stop_running_tray(self) -> None:
         """

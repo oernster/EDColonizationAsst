@@ -1,6 +1,7 @@
 """Pytest configuration and fixtures"""
 
 import pytest
+import pytest_asyncio
 from pathlib import Path
 from datetime import datetime, UTC
 from src.models.colonization import Commodity, ConstructionSite
@@ -54,7 +55,7 @@ def sample_construction_site() -> ConstructionSite:
     )
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def repository() -> ColonizationRepository:
     """Create a fresh repository for testing"""
     repo = ColonizationRepository()
@@ -74,7 +75,7 @@ def system_tracker() -> SystemTracker:
     return SystemTracker()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def aggregator(repository: ColonizationRepository) -> DataAggregator:
     """Create a data aggregator for testing"""
     return DataAggregator(repository)

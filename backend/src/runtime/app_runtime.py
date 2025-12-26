@@ -337,9 +337,10 @@ class RuntimeApplication:
       the web UI and exit the application.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, open_browser: bool = True) -> None:
         self._env = RuntimeEnvironment.detect()
         self._backend = BackendServerController(self._env)
+        self._open_browser = open_browser
         _debug_log(
             "[RuntimeApplication] detected environment: "
             f"mode={self._env.mode}, project_root={self._env.project_root}",
@@ -415,10 +416,15 @@ class RuntimeApplication:
         _debug_log("[RuntimeApplication] TrayUIController created and shown")
 
         # Optionally auto-open the web UI on first run.
-        webbrowser.open(self._env.frontend_url)
-        _debug_log(
-            "[RuntimeApplication] Opening web UI at " f"{self._env.frontend_url}",
-        )
+        if self._open_browser:
+            webbrowser.open(self._env.frontend_url)
+            _debug_log(
+                "[RuntimeApplication] Opening web UI at " f"{self._env.frontend_url}",
+            )
+        else:
+            _debug_log(
+                "[RuntimeApplication] open_browser disabled; not launching web UI automatically",
+            )
 
         result = app.exec()
         _debug_log(
