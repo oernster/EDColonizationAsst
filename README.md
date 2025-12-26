@@ -2,7 +2,12 @@
 
 Elite Dangerous Colonization Assistant (EDCA) helps you track in‑game colonization efforts and related construction sites through a local web UI.
 
+<img width="1582" height="1248" alt="{D494D007-E38F-465D-9AF5-BF34A431AEF3}" src="https://github.com/user-attachments/assets/9b73bf79-8524-4c58-bd9e-ae8e70fc08ec" />
+<img width="1581" height="1180" alt="{173686A9-ADF6-4BC7-A637-A72F629DFEF4}" src="https://github.com/user-attachments/assets/e52917a0-dc5f-4938-b708-5151eb1f7060" />
+
 ---
+
+### If you like it please buy me a coffee: [Donation link](https://www.paypal.com/ncp/payment/7XYN6DCYK24VY)
 
 ## Fleet carrier data and journal updates
 
