@@ -7,7 +7,7 @@ Elite Dangerous Colonization Assistant (EDCA) helps you track in‑game coloniza
 
 ---
 
-### If you like it please buy me a coffee: [Donation link](https://www.paypal.com/ncp/payment/7XYN6DCYK24VY)
+### If you like it please buy me a coffee: [Donation link](https://www.paypal.com/ncp/payment/Z36XJEEA4MNV6)
 
 ## Fleet carrier data and journal updates
 
