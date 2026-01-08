@@ -203,6 +203,10 @@ function App() {
   }, [enableFromUserGesture]);
 
   const keepAwakeChip = useMemo(() => {
+    // Only show the keep-awake status indicator on mobile/tablet devices.
+    // Desktop users typically don't need it and it adds visual noise.
+    if (!isMobileOrTablet()) return null;
+
     const tooltip = keepAwakeStatus.message;
     const labelBase = 'Keep awake';
 

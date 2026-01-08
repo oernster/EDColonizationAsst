@@ -35,16 +35,37 @@ const canUseWakeLock = (): boolean => {
 
 const isSecureContextForWakeLock = (): boolean => {
   // Wake Lock requires a secure context (https or localhost).
-  // window.isSecureContext is the most reliable check.
   return typeof window !== 'undefined' && (window.isSecureContext ?? false);
 };
 
-// Minimal no-sleep video: a tiny, silent 1x1 mp4 (base64) that loops.
-// Source: generated blank frame mp4; kept small to reduce bandwidth.
-// Note: even if supported, browsers require a user gesture to start playback
-// in most cases, hence the "needs-user-gesture" state.
+/**
+ * Generic "tablet-ish" heuristic.
+ * We keep this conservative:
+ * - Prefer UA-CH mobile flag (where available)
+ * - Otherwise rely on coarse pointer / touch / screen size
+ */
+const isMobileOrTabletLike = (): boolean => {
+  if (typeof window === 'undefined') return false;
+
+  const nav = navigator as unknown as { userAgentData?: { mobile?: boolean } };
+  if (typeof nav.userAgentData?.mobile === 'boolean') return nav.userAgentData.mobile;
+
+  const hasTouch =
+    'ontouchstart' in window || (navigator.maxTouchPoints ?? 0) > 0;
+
+  const coarsePointer = typeof window.matchMedia === 'function'
+    ? window.matchMedia('(pointer: coarse)').matches
+    : false;
+
+  // Use viewport as a soft hint (avoids classifying small desktop windows).
+  const minDim = Math.min(window.screen?.width ?? 0, window.screen?.height ?? 0);
+  const screenLooksHandheld = minDim > 0 && minDim <= 1400;
+
+  return (hasTouch || coarsePointer) && screenLooksHandheld;
+};
+
 const TINY_MP4_DATA_URL =
-  'data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDJtcDQxaXNvbThtcDQyAAACAGlzb21pc28yYXZjMW1wNDEAAABsbW9vdgAAAGxtdmhkAAAAANr3xWna98VpAAABAAABR0gAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAABR0cmFrAAAAXHRraGQAAAAD2vfFadr3xWkAAAABAAAAAAAAAUdIAAEAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAABAAAAAQAAAAAAAEAAQAAAAEAAAAAAAAAAAAAAAAAAAAAACR0a2hkAAAAA9r3xWna98VpAAAAAQAAAAAAAAFHSAABAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAABAAAAAQAAAAAAAEAAQAAAAEAAAAAAAAAAAAAAAAAAAAAAAABdHJha2QAAAAcZHRzZAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAAAAAAA';
+  'data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDJtcDQxaXNvbThtcDQyAAACAGlzb21pc28yYXZjMW1wNDEAAABsbW9vdgAAAGxtdmhkAAAAANr3xWna98VpAAABAAABR0gAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAABR0cmFrAAAAXHRraGQAAAAD2vfFadr3xWkAAAABAAAAAAAAAUdIAAEAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAABAAAAAQAAAAAAAEAAQAAAAEAAAAAAAAAAAAAAAAAAAAAACR0a2hkAAAAA9r3xWna98VpAAAAAQAAAAAAAAFHSAABAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAABAAAAAQAAAAAAAEAAQAAAAEAAAAAAAAAAAAAAAAAAAAAAAABdHJha2QAAAAcZHRzZAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAEAAAABAAAAAQAAAAAAAAABAAAAAQAAAAAAAAAA';
 
 const createHiddenVideoElement = (): HTMLVideoElement => {
   const video = document.createElement('video');
@@ -53,8 +74,7 @@ const createHiddenVideoElement = (): HTMLVideoElement => {
   video.loop = true;
   video.preload = 'auto';
 
-  // Prefer a codec-free canvas capture stream where supported.
-  // This avoids relying on MP4 decode support on devices/browsers.
+  // Prefer canvas capture stream (codec-free) and *force* frame production.
   try {
     const canvas = document.createElement('canvas');
     canvas.width = 1;
@@ -74,7 +94,6 @@ const createHiddenVideoElement = (): HTMLVideoElement => {
         ctx.fillRect(0, 0, 1, 1);
       }, 1000);
 
-      // Stash cleanup metadata on the element.
       (video as unknown as { _edcaKeepAwake?: { intervalId: number; stream: MediaStream } })._edcaKeepAwake = {
         intervalId,
         stream,
@@ -86,7 +105,6 @@ const createHiddenVideoElement = (): HTMLVideoElement => {
     video.src = TINY_MP4_DATA_URL;
   }
 
-  // Keep it totally invisible and non-interactive.
   Object.assign(video.style, {
     position: 'fixed',
     width: '1px',
@@ -105,8 +123,48 @@ export const useKeepAwake = ({ enabled, allowFallbackVideo }: Options) => {
   const [status, setStatus] = useState<KeepAwakeStatus>({ state: 'off', message: 'Off' });
 
   const sentinelRef = useRef<WakeLockSentinelLike | null>(null);
+  const sentinelReleaseListenerRef = useRef<(() => void) | null>(null);
+
   const fallbackVideoRef = useRef<HTMLVideoElement | null>(null);
   const gestureListenerBoundRef = useRef(false);
+
+  // Optional 2 (device-agnostic): compositor heartbeat while Wake Lock is active,
+  // but only on mobile/tablet-like environments to avoid touching desktop unnecessarily.
+  const enableHeartbeatRef = useRef(false);
+  const repaintHeartbeatRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    enableHeartbeatRef.current = isMobileOrTabletLike();
+  }, []);
+
+  const startRepaintHeartbeat = useCallback(() => {
+    if (!enableHeartbeatRef.current) return;
+    if (repaintHeartbeatRef.current !== null) return;
+
+    repaintHeartbeatRef.current = window.setInterval(() => {
+      try {
+        document.body.style.transform = `translateZ(${Math.random() * 0.0001}px)`;
+      } catch {
+        // ignore
+      }
+    }, 2000);
+  }, []);
+
+  const stopRepaintHeartbeat = useCallback(() => {
+    if (repaintHeartbeatRef.current === null) return;
+    try {
+      window.clearInterval(repaintHeartbeatRef.current);
+    } catch {
+      // ignore
+    } finally {
+      repaintHeartbeatRef.current = null;
+    }
+    try {
+      document.body.style.transform = '';
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const wakeLockPossible = useMemo(() => {
     return canUseWakeLock() && isSecureContextForWakeLock();
@@ -114,6 +172,16 @@ export const useKeepAwake = ({ enabled, allowFallbackVideo }: Options) => {
 
   const releaseWakeLock = useCallback(async () => {
     try {
+      // Remove any release listener we attached.
+      if (sentinelRef.current && sentinelReleaseListenerRef.current) {
+        try {
+          sentinelRef.current.removeEventListener?.('release', sentinelReleaseListenerRef.current);
+        } catch {
+          // ignore
+        }
+      }
+      sentinelReleaseListenerRef.current = null;
+
       if (sentinelRef.current && !sentinelRef.current.released) {
         await sentinelRef.current.release();
       }
@@ -121,56 +189,40 @@ export const useKeepAwake = ({ enabled, allowFallbackVideo }: Options) => {
       // Best-effort.
     } finally {
       sentinelRef.current = null;
+      stopRepaintHeartbeat();
     }
-  }, []);
+  }, [stopRepaintHeartbeat]);
 
   const stopFallbackVideo = useCallback(() => {
     const video = fallbackVideoRef.current;
     if (!video) return;
 
-    // If we used a canvas capture stream, stop it.
     try {
-      const meta = (video as unknown as { _edcaKeepAwake?: { intervalId: number; stream: MediaStream } })._edcaKeepAwake;
+      const meta =
+        (video as unknown as { _edcaKeepAwake?: { intervalId: number; stream: MediaStream } })
+          ._edcaKeepAwake;
+
       if (meta) {
-        try {
-          window.clearInterval(meta.intervalId);
-        } catch {
-          // ignore
-        }
-        try {
-          meta.stream.getTracks().forEach((t) => t.stop());
-        } catch {
-          // ignore
-        }
-        try {
-          (video as unknown as { srcObject: MediaStream | null }).srcObject = null;
-        } catch {
-          // ignore
-        }
+        try { window.clearInterval(meta.intervalId); } catch {}
+        try { meta.stream.getTracks().forEach((t) => t.stop()); } catch {}
+        try { (video as unknown as { srcObject: MediaStream | null }).srcObject = null; } catch {}
         delete (video as unknown as { _edcaKeepAwake?: unknown })._edcaKeepAwake;
       }
     } catch {
       // ignore
     }
 
-    try {
-      video.pause();
-    } catch {
-      // ignore
-    }
-    try {
-      video.remove();
-    } catch {
-      // ignore
-    }
+    try { video.pause(); } catch {}
+    try { video.remove(); } catch {}
     fallbackVideoRef.current = null;
   }, []);
 
   const stopAll = useCallback(async () => {
     await releaseWakeLock();
     stopFallbackVideo();
+    stopRepaintHeartbeat();
     setStatus({ state: 'off', message: 'Off' });
-  }, [releaseWakeLock, stopFallbackVideo]);
+  }, [releaseWakeLock, stopFallbackVideo, stopRepaintHeartbeat]);
 
   const requestWakeLock = useCallback(async () => {
     const nav = navigator as unknown as { wakeLock?: WakeLockLike };
@@ -186,13 +238,27 @@ export const useKeepAwake = ({ enabled, allowFallbackVideo }: Options) => {
     try {
       const sentinel = await nav.wakeLock.request('screen');
       sentinelRef.current = sentinel;
+
+      // If the OS releases the lock, reflect that and allow re-acquire on visibility changes.
+      const onRelease = () => {
+        // Only update if we still consider keep-awake enabled.
+        setStatus({ state: 'error', message: 'Wake Lock was released by the system' });
+        stopRepaintHeartbeat();
+      };
+      sentinelReleaseListenerRef.current = onRelease;
+      sentinel.addEventListener?.('release', onRelease);
+
       setStatus({ state: 'active', mode: 'wake-lock', message: 'Keep-awake active (Wake Lock)' });
+
+      // Optional 2: heartbeat while Wake Lock is active.
+      startRepaintHeartbeat();
+
       return true;
-    } catch (err) {
+    } catch {
       setStatus({ state: 'error', message: 'Failed to acquire Wake Lock' });
       return false;
     }
-  }, []);
+  }, [startRepaintHeartbeat, stopRepaintHeartbeat]);
 
   const startFallbackVideo = useCallback(async () => {
     if (!allowFallbackVideo) {
@@ -209,13 +275,15 @@ export const useKeepAwake = ({ enabled, allowFallbackVideo }: Options) => {
     try {
       await video.play();
       setStatus({ state: 'active', mode: 'fallback-video', message: 'Keep-awake active (Fallback)' });
+      // Fallback already produces frames; heartbeat unnecessary.
+      stopRepaintHeartbeat();
       return true;
     } catch {
-      // Autoplay blocked until user gesture.
       setStatus({ state: 'needs-user-gesture', message: 'Tap once to enable keep-awake' });
+      stopRepaintHeartbeat();
       return false;
     }
-  }, [allowFallbackVideo]);
+  }, [allowFallbackVideo, stopRepaintHeartbeat]);
 
   const ensureEnabled = useCallback(async () => {
     if (!enabled) {
@@ -237,12 +305,10 @@ export const useKeepAwake = ({ enabled, allowFallbackVideo }: Options) => {
     await startFallbackVideo();
   }, [enabled, wakeLockPossible, requestWakeLock, startFallbackVideo, releaseWakeLock, stopAll, stopFallbackVideo]);
 
-  // Attempt to enable keep-awake *immediately* in a user-gesture call stack.
-  // This can allow the fallback media to start without requiring an extra tap
-  // (depends on browser autoplay policies).
+  // Attempt to enable within a user-gesture call stack.
+  // Avoid "await" before trying to play media, as it can lose the gesture.
   const enableFromUserGesture = useCallback(() => {
-    // IMPORTANT: avoid awaiting before trying to start playback; otherwise the
-    // browser may no longer consider this a user gesture.
+    if (!enabled) return Promise.resolve(false);
 
     if (wakeLockPossible) {
       return requestWakeLock().then((ok) => {
@@ -250,7 +316,6 @@ export const useKeepAwake = ({ enabled, allowFallbackVideo }: Options) => {
           stopFallbackVideo();
           return true;
         }
-        // Best-effort cleanup, but do not await.
         void releaseWakeLock();
         return startFallbackVideo();
       });
@@ -258,30 +323,24 @@ export const useKeepAwake = ({ enabled, allowFallbackVideo }: Options) => {
 
     void releaseWakeLock();
     return startFallbackVideo();
-  }, [wakeLockPossible, requestWakeLock, stopFallbackVideo, releaseWakeLock, startFallbackVideo]);
+  }, [enabled, wakeLockPossible, requestWakeLock, stopFallbackVideo, releaseWakeLock, startFallbackVideo]);
 
-  // If fallback needs a gesture, bind one-time listeners that attempt to start it.
+  // Bind "tap anywhere once" listeners whenever fallback playback is blocked.
   useEffect(() => {
     if (!enabled) return;
 
-    const shouldArmGesture =
-      status.state === 'needs-user-gesture' && allowFallbackVideo && !wakeLockPossible;
+    const shouldArmGesture = status.state === 'needs-user-gesture' && allowFallbackVideo;
     if (!shouldArmGesture) return;
-
     if (gestureListenerBoundRef.current) return;
     gestureListenerBoundRef.current = true;
 
     const onGesture = async () => {
-      await startFallbackVideo();
-      // If it succeeded, we can remove listeners.
-      if (fallbackVideoRef.current) {
-        try {
-          document.removeEventListener('click', onGesture, true);
-          document.removeEventListener('touchstart', onGesture, true);
-          document.removeEventListener('keydown', onGesture, true);
-        } catch {
-          // ignore
-        }
+      const ok = await startFallbackVideo();
+      if (ok) {
+        document.removeEventListener('click', onGesture, true);
+        document.removeEventListener('touchstart', onGesture, true);
+        document.removeEventListener('keydown', onGesture, true);
+        gestureListenerBoundRef.current = false;
       }
     };
 
@@ -295,7 +354,7 @@ export const useKeepAwake = ({ enabled, allowFallbackVideo }: Options) => {
       document.removeEventListener('touchstart', onGesture, true);
       document.removeEventListener('keydown', onGesture, true);
     };
-  }, [enabled, status.state, allowFallbackVideo, wakeLockPossible, startFallbackVideo]);
+  }, [enabled, status.state, allowFallbackVideo, startFallbackVideo]);
 
   // Re-acquire on visibility change.
   useEffect(() => {
@@ -305,14 +364,10 @@ export const useKeepAwake = ({ enabled, allowFallbackVideo }: Options) => {
       if (document.visibilityState === 'visible') {
         await ensureEnabled();
       } else {
-        // Release wake lock to be polite; keep fallback paused to avoid background playback.
+        // Be polite when hidden.
         await releaseWakeLock();
         if (fallbackVideoRef.current) {
-          try {
-            fallbackVideoRef.current.pause();
-          } catch {
-            // ignore
-          }
+          try { fallbackVideoRef.current.pause(); } catch {}
         }
       }
     };
@@ -330,6 +385,16 @@ export const useKeepAwake = ({ enabled, allowFallbackVideo }: Options) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
+  // Defensive: stop heartbeat if we’re no longer in wake-lock mode.
+  useEffect(() => {
+    if (!enabled) {
+      stopRepaintHeartbeat();
+      return;
+    }
+    if (status.state === 'active' && 'mode' in status && status.mode === 'wake-lock') return;
+    stopRepaintHeartbeat();
+  }, [enabled, status, stopRepaintHeartbeat]);
+
   return {
     status,
     ensureEnabled,
@@ -339,4 +404,3 @@ export const useKeepAwake = ({ enabled, allowFallbackVideo }: Options) => {
     secureContext: isSecureContextForWakeLock(),
   };
 };
-

@@ -350,7 +350,7 @@ Returns the health status of the assistant.
 ```json
 {
   "status": "healthy",
-  "version": "1.0.0",
+  "version": "2.2.1",
   "journal_directory": "C:\\\\Users\\\\Example\\\\Saved Games\\\\Frontier Developments\\\\Elite Dangerous",
   "journal_accessible": true
 }
