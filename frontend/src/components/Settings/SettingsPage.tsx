@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, TextField, Button, Paper, CircularProgress, Alert, Checkbox, FormControlLabel } from '@mui/material';
+import { Box, Typography, TextField, Button, Paper, CircularProgress, Alert, Checkbox, FormControlLabel, Divider } from '@mui/material';
 import { api } from '../../services/api';
 import { AppSettings } from '../../types/settings';
 import { useColonizationStore } from '../../stores/colonizationStore';
+import { isMobileOrTablet } from '../../utils/device';
 
 export const SettingsPage = () => {
   const { updateSettings } = useColonizationStore();
@@ -16,6 +17,19 @@ export const SettingsPage = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // --- Keep-awake (browser-side) ---
+  const keepAwakeStorageKey = 'edcaKeepAwakeEnabled';
+  const [keepAwakeEnabled, setKeepAwakeEnabled] = useState<boolean>(() => {
+    try {
+      const raw = window.localStorage.getItem(keepAwakeStorageKey);
+      if (raw === 'true') return true;
+      if (raw === 'false') return false;
+      return isMobileOrTablet();
+    } catch {
+      return isMobileOrTablet();
+    }
+  });
 
   const backendPort = 8000;
   const currentHost = window.location.hostname || 'localhost';
@@ -96,6 +110,55 @@ export const SettingsPage = () => {
       {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
       <Box component="form" noValidate autoComplete="off">
+        <Typography variant="h6" gutterBottom sx={{ mt: 1 }}>
+          Display / Power
+        </Typography>
+        <FormControlLabel
+          control={
+            <Checkbox
+              name="keep_awake"
+              color="primary"
+              checked={keepAwakeEnabled}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setKeepAwakeEnabled(next);
+                try {
+                  window.localStorage.setItem(keepAwakeStorageKey, String(next));
+                } catch {
+                  // Ignore.
+                }
+                // Notify App.tsx to re-read local preference immediately.
+                window.dispatchEvent(new Event('edcaKeepAwakeChanged'));
+
+                // If enabling, also attempt to start immediately while we're in a user gesture.
+                // If the browser still blocks autoplay, the header chip will show "Tap to enable"
+                // and the user can tap the chip (or anywhere) once.
+                if (next) {
+                  window.dispatchEvent(new Event('edcaKeepAwakeTryEnableNow'));
+                }
+              }}
+            />
+          }
+          label={
+            <Typography variant="body2">
+              Keep screen awake while EDCA is open (recommended for tablets)
+            </Typography>
+          }
+          sx={{ alignItems: 'flex-start', mb: 0.5 }}
+        />
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+          EDCA will attempt the browser Screen Wake Lock API when available (requires HTTPS or
+          localhost). Because you are typically using an HTTP LAN URL
+          (e.g. <code>http://&lt;PC-IP&gt;:8000/app/</code>), Wake Lock may be unavailable; in that
+          case EDCA uses a safe fallback that requires a single tap to start.
+          <br />
+          <strong>Where to tap:</strong> tap anywhere on the EDCA page after enabling this option
+          (for example, tap the page background or any button). The header indicator should change
+          from “Keep awake: Tap to enable” to “Keep awake: On”.
+        </Typography>
+
+        <Divider sx={{ my: 2 }} />
+
         <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
           Journal Directory
         </Typography>

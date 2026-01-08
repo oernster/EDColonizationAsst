@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { ThemeProvider, createTheme, CssBaseline, Container, Box, Typography, Tabs, Tab, Link, Button } from '@mui/material';
+import { useState, useEffect, useMemo } from 'react';
+import { ThemeProvider, createTheme, CssBaseline, Container, Box, Typography, Tabs, Tab, Link, Button, Chip, Tooltip } from '@mui/material';
 import { SystemSelector } from './components/SystemSelector/SystemSelector';
 import { SiteList } from './components/SiteList/SiteList';
 import { FleetCarriersPanel } from './components/FleetCarriers/FleetCarriersPanel';
@@ -7,6 +7,8 @@ import { useColonizationStore } from './stores/colonizationStore';
 import { SettingsPage } from './components/Settings/SettingsPage';
 import { api } from './services/api';
 import { useColonizationWebSocket } from './hooks/useColonizationWebSocket';
+import { useKeepAwake } from './hooks/useKeepAwake';
+import { isMobileOrTablet } from './utils/device';
 
 const darkTheme = createTheme({
   palette: {
@@ -77,6 +79,22 @@ function App() {
   const [healthError, setHealthError] = useState<string | null>(null);
   const [commanderName, setCommanderName] = useState<string | null>(null);
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
+  const keepAwakeStorageKey = 'edcaKeepAwakeEnabled';
+
+  const readKeepAwakeEnabled = () => {
+    try {
+      const raw = window.localStorage.getItem(keepAwakeStorageKey);
+      if (raw === 'true') return true;
+      if (raw === 'false') return false;
+      // Default ON for mobile/tablet, but do not override an explicit user choice.
+      return isMobileOrTablet();
+    } catch {
+      return isMobileOrTablet();
+    }
+  };
+
+  // Initialise from localStorage synchronously to avoid a "flash" of Off in tests/UI.
+  const [keepAwakeEnabled, setKeepAwakeEnabled] = useState<boolean>(() => readKeepAwakeEnabled());
 
   // Initialise theme mode from localStorage so we remember the user's choice.
   useEffect(() => {
@@ -88,6 +106,34 @@ function App() {
     } catch {
       // If localStorage is unavailable, just stick with the default.
     }
+  }, []);
+
+  // Initialise keep-awake preference.
+  useEffect(() => {
+    // Persist the default for mobile/tablet so the behaviour is stable.
+    try {
+      const existing = window.localStorage.getItem(keepAwakeStorageKey);
+      if (existing === null) {
+        window.localStorage.setItem(keepAwakeStorageKey, String(readKeepAwakeEnabled()));
+      }
+    } catch {
+      // Ignore.
+    }
+
+    const onLocalPreferenceChanged = () => {
+      setKeepAwakeEnabled(readKeepAwakeEnabled());
+    };
+
+    // Custom event fired by Settings when toggled.
+    window.addEventListener('edcaKeepAwakeChanged', onLocalPreferenceChanged);
+    // Also respond to cross-tab changes.
+    window.addEventListener('storage', onLocalPreferenceChanged);
+
+    return () => {
+      window.removeEventListener('edcaKeepAwakeChanged', onLocalPreferenceChanged);
+      window.removeEventListener('storage', onLocalPreferenceChanged);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Establish a WebSocket connection for live colonization updates. The REST
@@ -136,6 +182,114 @@ function App() {
   };
 
   const theme = themeMode === 'dark' ? darkTheme : lightTheme;
+
+  const {
+    status: keepAwakeStatus,
+    wakeLockPossible,
+    secureContext,
+    enableFromUserGesture,
+  } = useKeepAwake({
+    enabled: keepAwakeEnabled,
+    allowFallbackVideo: keepAwakeEnabled,
+  });
+
+  // If Settings enables keep-awake, try to start immediately within the same user gesture.
+  useEffect(() => {
+    const onTryEnableNow = () => {
+      void enableFromUserGesture();
+    };
+    window.addEventListener('edcaKeepAwakeTryEnableNow', onTryEnableNow);
+    return () => window.removeEventListener('edcaKeepAwakeTryEnableNow', onTryEnableNow);
+  }, [enableFromUserGesture]);
+
+  const keepAwakeChip = useMemo(() => {
+    const tooltip = keepAwakeStatus.message;
+    const labelBase = 'Keep awake';
+
+    // Avoid a brief "Off" state while the keep-awake hook is attempting to enable.
+    if (keepAwakeEnabled && keepAwakeStatus.state === 'off') {
+      return (
+        <Tooltip title="Enabling keep-awake…" arrow>
+          <Chip
+            size="small"
+            label={`${labelBase}: Starting`}
+            color="default"
+            variant="outlined"
+          />
+        </Tooltip>
+      );
+    }
+
+    if (keepAwakeStatus.state === 'active') {
+      return (
+        <Tooltip title={tooltip} arrow>
+          <Chip
+            size="small"
+            label={`${labelBase}: On`}
+            color="success"
+            variant="filled"
+          />
+        </Tooltip>
+      );
+    }
+
+    if (keepAwakeStatus.state === 'needs-user-gesture') {
+      return (
+        <Tooltip title={tooltip} arrow>
+          <Chip
+            size="small"
+            label={`${labelBase}: Tap to enable`}
+            color="warning"
+            variant="filled"
+            onClick={() => {
+              void enableFromUserGesture();
+            }}
+          />
+        </Tooltip>
+      );
+    }
+
+    if (keepAwakeEnabled && keepAwakeStatus.state === 'unsupported') {
+      const extra =
+        wakeLockPossible || secureContext
+          ? ''
+          : ' (HTTP/LAN often blocks Wake Lock; fallback requires a tap)';
+      return (
+        <Tooltip title={`${tooltip}${extra}`} arrow>
+          <Chip
+            size="small"
+            label={`${labelBase}: Unsupported`}
+            color="default"
+            variant="outlined"
+          />
+        </Tooltip>
+      );
+    }
+
+    if (keepAwakeEnabled && keepAwakeStatus.state === 'error') {
+      return (
+        <Tooltip title={tooltip} arrow>
+          <Chip
+            size="small"
+            label={`${labelBase}: Error`}
+            color="error"
+            variant="filled"
+          />
+        </Tooltip>
+      );
+    }
+
+    return (
+      <Tooltip title={keepAwakeEnabled ? tooltip : 'Off'} arrow>
+        <Chip
+          size="small"
+          label={`${labelBase}: Off`}
+          color="default"
+          variant="outlined"
+        />
+      </Tooltip>
+    );
+  }, [keepAwakeEnabled, keepAwakeStatus, wakeLockPossible, secureContext]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -192,8 +346,11 @@ function App() {
                   display: 'flex',
                   justifyContent: { xs: 'flex-start', sm: 'flex-end' },
                   gap: 1,
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
                 }}
               >
+                {keepAwakeChip}
                 <Button
                   variant={themeMode === 'light' ? 'contained' : 'outlined'}
                   size="small"

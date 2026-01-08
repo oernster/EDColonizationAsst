@@ -134,6 +134,22 @@ On your tablet/phone (connected to the same Wi‑Fi/LAN):
 
 This works **only on your local network**; EDCA is not intended to be exposed directly to the internet.
 
+### Keep the tablet screen awake (Android/Chrome)
+
+If your tablet dims/turns off the screen during long viewing sessions, EDCA provides an **in-browser keep-awake** feature.
+
+- Enable it in [`Settings`](frontend/src/components/Settings/SettingsPage.tsx:1) → **Display / Power** → “Keep screen awake while EDCA is open”.
+- Default behaviour: **ON** by default on mobile/tablet devices (can be turned off; it persists in `localStorage`).
+
+How it works:
+
+1. **Preferred**: Screen Wake Lock API (when supported).
+   - Requires a **secure context** (HTTPS or `localhost`).
+2. **Fallback** (for typical LAN access over HTTP like `http://<PC-LAN-IP>:8000/app/`):
+   - EDCA uses a safe fallback that requires a **single tap** to start (mobile autoplay restrictions).
+
+The current state is shown in the header via the “Keep awake” indicator in [`App()`](frontend/src/App.tsx:63).
+
 ---
 
 ## Development / source checkout

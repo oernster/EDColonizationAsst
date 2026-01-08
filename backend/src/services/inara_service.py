@@ -30,7 +30,11 @@ class InaraService:
     def __init__(self, inara_config: InaraConfig):
         self.config = inara_config
         self.app_name = inara_config.app_name
-        self.app_version = "1.0.0"
+        # Keep this aligned with the app version used elsewhere.
+        # Canonical version is loaded from the top-level VERSION file.
+        from .. import __version__
+
+        self.app_version = __version__
 
     async def get_system_colonization_data(
         self, system_name: str
