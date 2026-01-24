@@ -5,7 +5,7 @@ rem Log file next to this script
 set "LOG=%~dp0run-edca.log"
 echo ==== %date% %time% ==== >> "%LOG%"
 
-echo Elite: Dangerous Colonization Assistant
+echo Elite: Dangerous Colonisation Assistant
 echo ---------------------------------------
 echo Initialising, please wait...
 
@@ -13,9 +13,9 @@ rem Change to install root (directory of this script)
 cd /d "%~dp0"
 
 rem --- Prefer packaged runtime EXE (no dev environment required) ------
-if exist "%~dp0EDColonizationAsst.exe" (
+if exist "%~dp0EDColonisationAsst.exe" (
     echo Found packaged runtime EXE, launching... >>"%LOG%"
-    "%~dp0EDColonizationAsst.exe"
+    "%~dp0EDColonisationAsst.exe"
     goto End
 )
 

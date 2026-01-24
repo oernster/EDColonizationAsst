@@ -139,7 +139,7 @@ export const FleetCarriersPanel = () => {
 
   // Periodically refresh the current carrier snapshot while docked so that
   // market/cargo changes written to the journal are reflected without a full
-  // page reload. This complements the event-driven colonization updates.
+  // page reload. This complements the event-driven colonisation updates.
   useEffect(() => {
     // Only poll while we are actually docked at a carrier.
     if (!dockedIdentity) {

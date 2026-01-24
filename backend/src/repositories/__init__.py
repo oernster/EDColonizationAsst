@@ -1,5 +1,5 @@
 """Repository layer modules"""
 
-from .colonization_repository import ColonizationRepository, IColonizationRepository
+from .colonisation_repository import ColonisationRepository, IColonisationRepository
 
-__all__ = ["ColonizationRepository", "IColonizationRepository"]
+__all__ = ["ColonisationRepository", "IColonisationRepository"]

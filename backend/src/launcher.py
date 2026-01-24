@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GUI launcher for Elite: Dangerous Colonization Assistant.
+GUI launcher for Elite: Dangerous Colonisation Assistant.
 
 This module now acts primarily as a thin entrypoint and façade over the
 launcher components defined in
@@ -101,8 +101,8 @@ def main() -> int:
 
     # Ensure the taskbar / application icon is set for the launcher process.
     # Prefer the PNG (wrapped in a QIcon) for a crisp icon; fall back to the ICO.
-    png_path = project_root / "EDColonizationAsst.png"
-    ico_path = project_root / "EDColonizationAsst.ico"
+    png_path = project_root / "EDColonisationAsst.png"
+    ico_path = project_root / "EDColonisationAsst.ico"
     if png_path.exists():
         app.setWindowIcon(QIcon(str(png_path)))
     elif ico_path.exists():

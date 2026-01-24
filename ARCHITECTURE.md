@@ -1,4 +1,4 @@
-# Elite: Dangerous Colonization Assistant – Architecture Overview
+# Elite: Dangerous Colonisation Assistant – Architecture Overview
 
 This document is the **front door** to the EDCA architecture. It gives you the big picture and points you to the detailed backend and frontend/runtime documents that now serve as the source of truth.
 
@@ -12,7 +12,7 @@ This document is the **front door** to the EDCA architecture. It gives you the b
 │  - System selector, site list, Fleet Carriers, settings UI         │
 │  - Talks to backend via:                                           │
 │      • REST  → http://localhost:8000/api/*                         │
-│      • WebSocket → ws://localhost:8000/ws/colonization             │
+│      • WebSocket → ws://localhost:8000/ws/colonisation             │
 └─────────────────────────────────────────────────────────────────────┘
                             ▲                  ▲
                             │                  │
@@ -31,7 +31,7 @@ This document is the **front door** to the EDCA architecture. It gives you the b
 │      • Optionally enriches with Inara data                          │
 │  - APIs                                                             │
 │      • REST routes under /api/*                                     │
-│      • WebSocket endpoint /ws/colonization                          │
+│      • WebSocket endpoint /ws/colonisation                          │
 │      • Fleet carrier endpoints under /api/carriers/*                │
 └─────────────────────────────────────────────────────────────────────┘
                             ▲
@@ -69,7 +69,7 @@ That document focuses on:
   - Parser, file watcher, system tracker.
   - First‑run import vs incremental updates.
 - Colonisation data model and SQLite repository:
-  - `ConstructionSite`, `Commodity`, `SystemColonizationData`, `CommodityAggregate`.
+  - `ConstructionSite`, `Commodity`, `SystemColonisationData`, `CommodityAggregate`.
   - DB schema, versioning and automatic reset for incompatible schema changes.
 - Fleet carrier state reconstruction from carrier journal events:
   - `CarrierLocation`, `CarrierStats`, `CarrierTradeOrder`.
@@ -86,8 +86,8 @@ That document focuses on:
 
 - React/TypeScript frontend:
   - Component structure (SystemSelector, SiteList, FleetCarriersPanel, SettingsPage).
-  - Stores (`colonizationStore`, `carrierStore`) and hooks (`useColonizationWebSocket`).
-  - How the UI uses `/api/*` and `/ws/colonization`.
+  - Stores (`colonisationStore`, `carrierStore`) and hooks (`useColonisationWebSocket`).
+  - How the UI uses `/api/*` and `/ws/colonisation`.
 - Fleet Carriers UI:
   - Current docked carrier header and services.
   - Cargo and buy/sell order presentation.

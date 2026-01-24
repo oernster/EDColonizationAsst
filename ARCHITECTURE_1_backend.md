@@ -1,6 +1,6 @@
-# Elite: Dangerous Colonization Assistant – Backend Architecture
+# Elite: Dangerous Colonisation Assistant – Backend Architecture
 
-This document focuses on the **Python backend** of the Elite: Dangerous Colonization Assistant: how it ingests Elite journals, stores colonisation data, and exposes APIs. It is a backend‑only slice of the full architecture described in [`ARCHITECTURE.md`](ARCHITECTURE.md:1).
+This document focuses on the **Python backend** of the Elite: Dangerous Colonisation Assistant: how it ingests Elite journals, stores colonisation data, and exposes APIs. It is a backend‑only slice of the full architecture described in [`ARCHITECTURE.md`](ARCHITECTURE.md:1).
 
 ---
 
@@ -12,7 +12,7 @@ This document focuses on the **Python backend** of the Elite: Dangerous Coloniza
   - Pydantic v2 + `pydantic-settings` in [`backend/src/config.py`](backend/src/config.py:1)
   - YAML configuration in [`backend/config.yaml`](backend/config.yaml:1)
   - Commander/Inara secrets in `backend/commander.yaml` (user-created from the example)
-- **Persistence**: SQLite via `sqlite3` in [`ColonizationRepository`](backend/src/repositories/colonization_repository.py:130)
+- **Persistence**: SQLite via `sqlite3` in [`ColonisationRepository`](backend/src/repositories/colonisation_repository.py:130)
 - **File watching**: `watchdog` in [`FileWatcher`](backend/src/services/file_watcher.py:1)
 - **HTTP client**: `httpx` (for Inara) in [`backend/src/services/inara_service.py`](backend/src/services/inara_service.py:1)
 - **WebSockets**: FastAPI WebSocket support in [`backend/src/api/websocket.py`](backend/src/api/websocket.py:1)
@@ -37,19 +37,19 @@ backend/
 │   ├── api/
 │   │   ├── __init__.py
 │   │   ├── routes.py                  # Core REST API under /api
-│   │   ├── websocket.py               # /ws/colonization endpoint, broadcast
+│   │   ├── websocket.py               # /ws/colonisation endpoint, broadcast
 │   │   ├── settings.py                # /api/settings endpoints
 │   │   ├── carriers.py                # /api/carriers endpoints (Fleet carriers)
 │   │   └── journal.py                 # /api/journal/status, etc.
 │   ├── models/
 │   │   ├── __init__.py
 │   │   ├── api_models.py              # Response models for REST
-│   │   ├── colonization.py            # Core colonization domain models
+│   │   ├── colonisation.py            # Core colonisation domain models
 │   │   ├── carriers.py                # Fleet carrier domain models
 │   │   └── journal_events.py          # Typed journal event models
 │   ├── repositories/
 │   │   ├── __init__.py
-│   │   └── colonization_repository.py # SQLite-backed repository
+│   │   └── colonisation_repository.py # SQLite-backed repository
 │   ├── runtime/
 │   │   ├── __init__.py
 │   │   ├── app_runtime.py             # Packaged runtime orchestration
@@ -89,7 +89,7 @@ On startup, the lifespan context manager `lifespan(app)`:
 1. Loads configuration via [`get_config()`](backend/src/config.py:1).
 2. Constructs core components:
 
-   - [`ColonizationRepository`](backend/src/repositories/colonization_repository.py:130)
+   - [`ColonisationRepository`](backend/src/repositories/colonisation_repository.py:130)
    - [`DataAggregator`](backend/src/services/data_aggregator.py:37)
    - [`SystemTracker`](backend/src/services/system_tracker.py:1)
    - [`JournalParser`](backend/src/services/journal_parser.py:39)
@@ -100,9 +100,9 @@ On startup, the lifespan context manager `lifespan(app)`:
    - [`set_dependencies`](backend/src/api/routes.py:35) for REST routes.
    - [`set_aggregator`](backend/src/api/websocket.py:1) for the WebSocket layer.
 
-4. Performs a **one‑time initial import** of existing journals when the DB is empty, using `_prime_colonization_database_if_empty`:
+4. Performs a **one‑time initial import** of existing journals when the DB is empty, using `_prime_colonisation_database_if_empty`:
 
-   - Calls [`repository.get_stats()`](backend/src/repositories/colonization_repository.py:256).
+   - Calls [`repository.get_stats()`](backend/src/repositories/colonisation_repository.py:256).
    - If `total_sites == 0`, it:
      - Locates the journal directory from `config.journal.directory`.
      - Walks all `Journal.*.log` files.
@@ -118,12 +118,12 @@ On shutdown, the lifespan handler stops the `FileWatcher` and its watchdog obser
 
 ### 3.2 Automatic DB reset for new installs
 
-The colonisation SQLite DB is located via [`_get_db_file()`](backend/src/repositories/colonization_repository.py:18), which chooses:
+The colonisation SQLite DB is located via [`_get_db_file()`](backend/src/repositories/colonisation_repository.py:18), which chooses:
 
-- **Dev mode** (non‑frozen): `backend/colonization.db`
-- **Frozen/packaged runtime**: `%LOCALAPPDATA%\EDColonizationAsst\colonization.db` on Windows, or `~/.edcolonizationasst/colonization.db` on POSIX.
+- **Dev mode** (non‑frozen): `backend/colonisation.db`
+- **Frozen/packaged runtime**: `%LOCALAPPDATA%\EDColonisationAsst\colonisation.db` on Windows, or `~/.edcolonisationasst/colonisation.db` on POSIX.
 
-To ensure **new installs** and incompatible schema changes start from a clean slate, [`ColonizationRepository`](backend/src/repositories/colonization_repository.py:130) now:
+To ensure **new installs** and incompatible schema changes start from a clean slate, [`ColonisationRepository`](backend/src/repositories/colonisation_repository.py:130) now:
 
 - Defines a schema version constant:
 
@@ -131,7 +131,7 @@ To ensure **new installs** and incompatible schema changes start from a clean sl
   CURRENT_DB_SCHEMA_VERSION = 1
   ```
 
-- Creates two tables in [`_create_tables`](backend/src/repositories/colonization_repository.py:151):
+- Creates two tables in [`_create_tables`](backend/src/repositories/colonisation_repository.py:151):
 
   ```sql
   CREATE TABLE IF NOT EXISTS construction_sites (...);
@@ -162,7 +162,7 @@ With this design:
 
 ## 4. Data model overview
 
-Core colonisation models live in [`backend/src/models/colonization.py`](backend/src/models/colonization.py:1):
+Core colonisation models live in [`backend/src/models/colonisation.py`](backend/src/models/colonisation.py:1):
 
 - **`Commodity`**
   - `name`, `name_localised`
@@ -181,7 +181,7 @@ Core colonisation models live in [`backend/src/models/colonization.py`](backend/
   - `commodities: list[Commodity]`
   - `last_updated`, `last_source`
 
-- **`SystemColonizationData`**
+- **`SystemColonisationData`**
   - `system_name`
   - `construction_sites: list[ConstructionSite]`
   - Computed:
@@ -197,8 +197,8 @@ Core colonisation models live in [`backend/src/models/colonization.py`](backend/
 
 Journal event models are in [`backend/src/models/journal_events.py`](backend/src/models/journal_events.py:1), including:
 
-- `ColonizationConstructionDepotEvent`
-- `ColonizationContributionEvent`
+- `ColonisationConstructionDepotEvent`
+- `ColonisationContributionEvent`
 - `LocationEvent`
 - `FSDJumpEvent`
 - `DockedEvent`
@@ -212,7 +212,7 @@ Journal event models are in [`backend/src/models/journal_events.py`](backend/src
 
 ## 5. Repository and persistence
 
-[`ColonizationRepository`](backend/src/repositories/colonization_repository.py:130) abstracts the SQLite DB for colonisation data:
+[`ColonisationRepository`](backend/src/repositories/colonisation_repository.py:130) abstracts the SQLite DB for colonisation data:
 
 - Table `construction_sites` holds a row per depot, with `commodities` stored as JSON.
 - Table `metadata` stores `db_schema_version` and future metadata keys.
@@ -265,9 +265,9 @@ Concurrency:
 
     ```python
     RELEVANT_EVENTS = {
-        "ColonizationConstructionDepot",
         "ColonisationConstructionDepot",
-        "ColonizationContribution",
+        "ColonisationConstructionDepot",
+        "ColonisationContribution",
         "ColonisationContribution",
         "Location",
         "FSDJump",
@@ -317,23 +317,23 @@ Concurrency:
      - `DockedEvent`
   3. For `DockedEvent` at colonisation sites:
      - Invokes `_process_docked_at_construction_site` to create or enrich a `ConstructionSite`.
-  4. For `ColonizationConstructionDepotEvent`:
+  4. For `ColonisationConstructionDepotEvent`:
      - Invokes `_process_construction_depot` to:
        - Convert raw commodity payloads into `Commodity` models.
        - Merge new snapshot state with any existing site, ensuring we never regress progress values.
-  5. For `ColonizationContributionEvent`:
+  5. For `ColonisationContributionEvent`:
      - Invokes `_process_contribution` to call `repository.update_commodity`.
   6. Tracks which systems were updated and invokes the optional `update_callback(system_name)`; in production this is wired to `notify_system_update` to broadcast updates over WebSockets.
 
 ### 6.3 First‑run vs incremental ingestion
 
 - **First run / empty DB:**
-  - `_prime_colonization_database_if_empty(...)` runs once on startup (see section 3.1).
+  - `_prime_colonisation_database_if_empty(...)` runs once on startup (see section 3.1).
   - It uses `JournalFileHandler._process_file` to ingest all historical `Journal.*.log` files.
 
 - **Normal operation:**
   - `FileWatcher` watches the journal directory and calls the same `_process_file` for changed/created files.
-  - Only new activity is ingested; the DB persists across restarts unless a schema reset is triggered by `ColonizationRepository`.
+  - Only new activity is ingested; the DB persists across restarts unless a schema reset is triggered by `ColonisationRepository`.
 
 ---
 
@@ -341,7 +341,7 @@ Concurrency:
 
 [`DataAggregator`](backend/src/services/data_aggregator.py:37) provides high-level views over `ConstructionSite` data:
 
-- `aggregate_by_system(system_name) -> SystemColonizationData`:
+- `aggregate_by_system(system_name) -> SystemColonisationData`:
 
   - Fetches local sites via `repository.get_sites_by_system(system_name)`.
   - Optionally queries Inara via [`InaraService`](backend/src/services/inara_service.py:1) and merges:
@@ -384,7 +384,7 @@ Key colonisation endpoints:
 - `GET /api/systems` – systems with construction sites.
 - `GET /api/systems/search?q=...` – fuzzy search over known systems.
 - `GET /api/systems/current` – current system/station from `SystemTracker`.
-- `GET /api/system?name=...` – `SystemColonizationData` for one system.
+- `GET /api/system?name=...` – `SystemColonisationData` for one system.
 - `GET /api/system/commodities?name=...` – aggregated `CommodityAggregate` list.
 - `GET /api/sites` – global list of in‑progress and completed sites.
 - `GET /api/sites/{market_id}` – detail view of a single site.
@@ -393,10 +393,10 @@ Key colonisation endpoints:
 
 WebSocket endpoint:
 
-- `WS /ws/colonization`:
+- `WS /ws/colonisation`:
 
   - Manages client subscriptions per system.
-  - Pushes updated `SystemColonizationData` when journals change and ingestion updates the repository.
+  - Pushes updated `SystemColonisationData` when journals change and ingestion updates the repository.
 
 ---
 

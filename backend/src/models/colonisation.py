@@ -1,4 +1,4 @@
-"""Colonization-specific data models"""
+"""Colonisation-specific data models"""
 
 from datetime import datetime, UTC
 from enum import Enum
@@ -15,7 +15,7 @@ class CommodityStatus(str, Enum):
 
 
 class DataSource(str, Enum):
-    """Source of the colonization data"""
+    """Source of the colonisation data"""
 
     JOURNAL = "journal"
     INARA = "inara"
@@ -105,8 +105,8 @@ class ConstructionSite(BaseModel):
         return (total_provided / total_required) * 100.0
 
 
-class SystemColonizationData(BaseModel):
-    """Aggregated colonization data for a system"""
+class SystemColonisationData(BaseModel):
+    """Aggregated colonisation data for a system"""
 
     system_name: str = Field(description="Star system name")
     construction_sites: List[ConstructionSite] = Field(

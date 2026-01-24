@@ -1,6 +1,6 @@
-# Elite Dangerous Colonization Assistant
+# Elite Dangerous Colonisation Assistant
 
-Elite Dangerous Colonization Assistant (EDCA) helps you track in‑game colonization efforts and related construction sites through a local web UI.
+Elite Dangerous Colonisation Assistant (EDCA) helps you track in‑game colonisation efforts and related construction sites through a local web UI.
 
 <img width="1582" height="1248" alt="{D494D007-E38F-465D-9AF5-BF34A431AEF3}" src="https://github.com/user-attachments/assets/9b73bf79-8524-4c58-bd9e-ae8e70fc08ec" />
 <img width="1581" height="1180" alt="{173686A9-ADF6-4BC7-A637-A72F629DFEF4}" src="https://github.com/user-attachments/assets/e52917a0-dc5f-4938-b708-5151eb1f7060" />
@@ -30,11 +30,11 @@ For normal Windows use, download the prebuilt installer (no Python or Node.js re
 2. Download the latest Windows installer executable, typically named:
 
    ```text
-   EDColonizationAsstInstaller.exe
+   EDColonisationAsstInstaller.exe
    ```
 
 3. Double‑click it and follow the on‑screen instructions (Install / Repair / Uninstall).
-4. After installation, launch **Elite: Dangerous Colonization Assistant** from the
+4. After installation, launch **Elite: Dangerous Colonisation Assistant** from the
    Start Menu or Desktop shortcut.
 
 > **Note:** Because this is not a code‑signed commercial product, Windows SmartScreen

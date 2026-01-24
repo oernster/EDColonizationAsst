@@ -1,15 +1,15 @@
 """Application instance locking for single-instance runtime.
 
 This module implements a lightweight, cross-platform, per-user lock that
-prevents multiple instances of the Elite: Dangerous Colonization Assistant
+prevents multiple instances of the Elite: Dangerous Colonisation Assistant
 from running concurrently for the same OS user.
 
 The lock is based on an OS-level file lock:
 
 - On Windows it uses msvcrt.locking on a per-user lock file under
-  %LOCALAPPDATA%\\EDColonizationAsst.
+  %LOCALAPPDATA%\\EDColonisationAsst.
 - On POSIX systems it uses fcntl.flock on a file under either
-  $XDG_RUNTIME_DIR, $XDG_CACHE_HOME or ~/.cache/EDColonizationAsst.
+  $XDG_RUNTIME_DIR, $XDG_CACHE_HOME or ~/.cache/EDColonisationAsst.
 
 Operating system file locks are automatically released when the owning
 process exits, so stale locks are not an issue under normal crashes or
@@ -174,10 +174,10 @@ class ApplicationInstanceLock:
         if os.name == "nt":
             base = os.environ.get("LOCALAPPDATA")
             if base:
-                root = Path(base) / "EDColonizationAsst"
+                root = Path(base) / "EDColonisationAsst"
             else:
                 # Pragmatic fallback if LOCALAPPDATA is missing.
-                root = Path.home() / "AppData" / "Local" / "EDColonizationAsst"
+                root = Path.home() / "AppData" / "Local" / "EDColonisationAsst"
         else:
             runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
             if runtime_dir:
@@ -185,9 +185,9 @@ class ApplicationInstanceLock:
             else:
                 cache_home = os.environ.get("XDG_CACHE_HOME")
                 if cache_home:
-                    root = Path(cache_home) / "EDColonizationAsst"
+                    root = Path(cache_home) / "EDColonisationAsst"
                 else:
-                    root = Path.home() / ".cache" / "EDColonizationAsst"
+                    root = Path.home() / ".cache" / "EDColonisationAsst"
 
         try:
             root.mkdir(parents=True, exist_ok=True)

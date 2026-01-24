@@ -1,4 +1,4 @@
-"""Tests for colonization repository"""
+"""Tests for colonisation repository"""
 
 import pytest
 

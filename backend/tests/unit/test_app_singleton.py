@@ -97,7 +97,7 @@ def test_resolve_lock_path_uses_per_user_directory(
     # On Windows we expect the path to live under LOCALAPPDATA; on POSIX it
     # will use XDG_RUNTIME_DIR (overridden in _make_isolated_lock).
     if os.name == "nt":
-        base = Path(os.environ["LOCALAPPDATA"]) / "EDColonizationAsst"
+        base = Path(os.environ["LOCALAPPDATA"]) / "EDColonisationAsst"
     else:
         base = Path(os.environ["XDG_RUNTIME_DIR"]) / "edca"
 

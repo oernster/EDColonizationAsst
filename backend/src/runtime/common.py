@@ -33,7 +33,7 @@ from fastapi import FastAPI
 def _debug_log(message: str) -> None:
     """Lightweight debug logger for the frozen runtime.
 
-    Writes to EDColonizationAsst-runtime.log next to the EXE so that we can
+    Writes to EDColonisationAsst-runtime.log next to the EXE so that we can
     see how far startup progresses even if the Qt tray/icon never appears.
     This deliberately does not depend on the backend logging config.
     """
@@ -43,7 +43,7 @@ def _debug_log(message: str) -> None:
         except Exception:
             exe_dir = Path.cwd()
 
-        log_path = exe_dir / "EDColonizationAsst-runtime.log"
+        log_path = exe_dir / "EDColonisationAsst-runtime.log"
         with log_path.open("a", encoding="utf-8") as f:
             f.write(message + "\n")
     except Exception:
@@ -71,7 +71,7 @@ except Exception as exc:  # pragma: no cover - catastrophic import failure
         f"[runtime.common] FATAL importing FastAPI app or runtime utilities: {exc!r}"
     )
     # Re-raise so Nuitka/console still see the failure, but we at least have
-    # EDColonizationAsst-runtime.log with the cause.
+    # EDColonisationAsst-runtime.log with the cause.
     raise
 
 # Initialise logging once at import time so that all runtime modules share the

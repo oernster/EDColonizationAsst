@@ -11,9 +11,9 @@ from fastapi import FastAPI, HTTPException
 
 from src.api import routes as routes_api
 from src.api.routes import router as routes_router, set_dependencies
-from src.models.colonization import Commodity, ConstructionSite
+from src.models.colonisation import Commodity, ConstructionSite
 from src.models.journal_events import DockedEvent
-from src.repositories.colonization_repository import ColonizationRepository
+from src.repositories.colonisation_repository import ColonisationRepository
 from src.services.data_aggregator import DataAggregator
 from src.services.system_tracker import SystemTracker
 
@@ -28,17 +28,17 @@ class _DummyInaraService:
     def __init__(self, sites_by_system: dict[str, list[dict]] | None = None) -> None:
         self._sites_by_system = sites_by_system or {}
 
-    async def get_system_colonization_data(self, system_name: str):
+    async def get_system_colonisation_data(self, system_name: str):
         return self._sites_by_system.get(system_name, [])
 
 
 @pytest_asyncio.fixture
 async def api_app(
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
     aggregator: DataAggregator,
     system_tracker: SystemTracker,
 ) -> FastAPI:
-    """Create a FastAPI app wired with real dependencies for the colonization API."""
+    """Create a FastAPI app wired with real dependencies for the colonisation API."""
     # Ensure Inara is offline-safe for tests
     aggregator._inara_service = _DummyInaraService()
 
@@ -79,7 +79,7 @@ async def test_get_systems_empty(api_app: FastAPI):
 @pytest.mark.asyncio
 async def test_system_lifecycle_and_stats(
     api_app: FastAPI,
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
     system_tracker: SystemTracker,
 ):
     """Exercise system-level endpoints with a couple of real construction sites."""
@@ -402,7 +402,7 @@ async def test_reload_journals_raises_500_when_repository_not_set():
 
 @pytest.mark.asyncio
 async def test_reload_journals_missing_directory_returns_404(
-    repository: ColonizationRepository, tmp_path: Path
+    repository: ColonisationRepository, tmp_path: Path
 ):
     """reload_journals should raise 404 when configured journal directory does not exist."""
     missing_dir = tmp_path / "no_such_dir"
@@ -430,7 +430,7 @@ async def test_reload_journals_missing_directory_returns_404(
 
 @pytest.mark.asyncio
 async def test_reload_journals_processes_journal_files(
-    repository: ColonizationRepository, tmp_path: Path, sample_journal_line: str
+    repository: ColonisationRepository, tmp_path: Path, sample_journal_line: str
 ):
     """
     reload_journals should parse all Journal.*.log files in the configured directory
@@ -459,7 +459,7 @@ async def test_reload_journals_processes_journal_files(
         routes_api._repository = orig_repo
         config_module.get_config = orig_get_config
 
-    # We wrote exactly one file with a single ColonizationConstructionDepotEvent
+    # We wrote exactly one file with a single ColonisationConstructionDepotEvent
     assert result["total_events"] == 1
     assert result["processed_files"] == [journal_file.name]
     assert result["journal_directory"] == str(journal_dir)

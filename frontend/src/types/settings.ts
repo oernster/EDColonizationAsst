@@ -4,8 +4,8 @@ export interface AppSettings {
   inara_commander_name: string | null;
   /**
    * When true (default), systems where this commander's journals contain
-   * colonization sites are served purely from local journal data. Inara is
-   * only consulted for systems with no local colonization data. When false,
+   * colonisation sites are served purely from local journal data. Inara is
+   * only consulted for systems with no local colonisation data. When false,
    * Inara data is preferred wherever it is available.
    */
   prefer_local_for_commander_systems: boolean;

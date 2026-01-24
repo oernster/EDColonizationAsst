@@ -3,12 +3,12 @@
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
-from .colonization import ConstructionSite, SystemColonizationData, CommodityAggregate
+from .colonisation import ConstructionSite, SystemColonisationData, CommodityAggregate
 from .carriers import CarrierIdentity, CarrierState
 
 
 class SystemResponse(BaseModel):
-    """Response model for system colonization data"""
+    """Response model for system colonisation data"""
 
     system_name: str = Field(description="Star system name")
     construction_sites: List[ConstructionSite] = Field(

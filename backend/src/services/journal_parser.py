@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from ..models.journal_events import (
     JournalEvent,
-    ColonizationConstructionDepotEvent,
-    ColonizationContributionEvent,
+    ColonisationConstructionDepotEvent,
+    ColonisationContributionEvent,
     LocationEvent,
     FSDJumpEvent,
     DockedEvent,
@@ -44,10 +44,10 @@ class JournalParser(IJournalParser):
 
     # Event types we care about
     RELEVANT_EVENTS = {
-        # Colonization-related events (accept both US and UK spellings)
-        "ColonizationConstructionDepot",
+        # Colonisation-related events (accept both US and UK spellings)
         "ColonisationConstructionDepot",
-        "ColonizationContribution",
+        "ColonisationConstructionDepot",
+        "ColonisationContribution",
         "ColonisationContribution",
         # Location / movement / docking
         "Location",
@@ -119,11 +119,11 @@ class JournalParser(IJournalParser):
 
             # Route to appropriate parser
             if event_type in {
-                "ColonizationConstructionDepot",
+                "ColonisationConstructionDepot",
                 "ColonisationConstructionDepot",
             }:
                 return self._parse_construction_depot(data, timestamp)
-            elif event_type in {"ColonizationContribution", "ColonisationContribution"}:
+            elif event_type in {"ColonisationContribution", "ColonisationContribution"}:
                 return self._parse_contribution(data, timestamp)
             elif event_type == "Location":
                 return self._parse_location(data, timestamp)
@@ -153,8 +153,8 @@ class JournalParser(IJournalParser):
         self,
         data: Dict[str, Any],
         timestamp: datetime,
-    ) -> ColonizationConstructionDepotEvent:
-        """Parse ColonizationConstructionDepot event.
+    ) -> ColonisationConstructionDepotEvent:
+        """Parse ColonisationConstructionDepot event.
 
         Handles both legacy and current journal formats, including:
           - US/UK spellings (handled by RELEVANT_EVENTS / dispatch)
@@ -162,7 +162,7 @@ class JournalParser(IJournalParser):
           - Optional StarSystem / SystemAddress keys
         """
         logger.info(
-            "Raw ColonizationConstructionDepotEvent data: %s",
+            "Raw ColonisationConstructionDepotEvent data: %s",
             json.dumps(data),
         )
 
@@ -205,7 +205,7 @@ class JournalParser(IJournalParser):
         else:
             commodities = []
 
-        return ColonizationConstructionDepotEvent(
+        return ColonisationConstructionDepotEvent(
             timestamp=timestamp,
             event=data["event"],
             market_id=data["MarketID"],
@@ -222,9 +222,9 @@ class JournalParser(IJournalParser):
 
     def _parse_contribution(
         self, data: Dict[str, Any], timestamp: datetime
-    ) -> ColonizationContributionEvent:
+    ) -> ColonisationContributionEvent:
         """
-        Parse ColonizationContribution / ColonisationContribution event.
+        Parse ColonisationContribution / ColonisationContribution event.
 
         Supports both the legacy single-commodity schema:
 
@@ -252,18 +252,18 @@ class JournalParser(IJournalParser):
             }
 
         For the array form we currently materialise a single
-        ColonizationContributionEvent for the first contribution item.
+        ColonisationContributionEvent for the first contribution item.
         The per-commodity cumulative total is not present in this shape,
         so we treat the provided amount as both quantity and
         total_quantity. Downstream repository logic stores the maximum
         observed provided_amount and will be corrected by subsequent
         depot snapshots if needed.
         """
-        logger.info("Parsing ColonizationContributionEvent: %s", data)
+        logger.info("Parsing ColonisationContributionEvent: %s", data)
 
         # Legacy schema: flat fields on the event itself.
         if "Commodity" in data:
-            return ColonizationContributionEvent(
+            return ColonisationContributionEvent(
                 timestamp=timestamp,
                 event=data["event"],
                 market_id=data["MarketID"],
@@ -286,7 +286,7 @@ class JournalParser(IJournalParser):
             )
             amount = int(first.get("Amount", 0))
 
-            return ColonizationContributionEvent(
+            return ColonisationContributionEvent(
                 timestamp=timestamp,
                 event=data["event"],
                 market_id=data["MarketID"],
@@ -306,10 +306,10 @@ class JournalParser(IJournalParser):
         # treat it as a non-relevant event by raising a ValueError that
         # parse_line will catch and convert into a warning + None.
         logger.warning(
-            "Unsupported ColonizationContribution schema, ignoring event: %s",
+            "Unsupported ColonisationContribution schema, ignoring event: %s",
             data,
         )
-        raise ValueError("Unsupported ColonizationContribution schema")
+        raise ValueError("Unsupported ColonisationContribution schema")
 
     def _parse_location(
         self, data: Dict[str, Any], timestamp: datetime

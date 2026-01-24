@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# UNTESTED: Void Linux build + run helper for Elite: Dangerous Colonization Assistant.
+# UNTESTED: Void Linux build + run helper for Elite: Dangerous Colonisation Assistant.
 #
 # This is a convenience wrapper around the same workflow as
 # [`run-edca-built-debian.sh`](run-edca-built-debian.sh:1), but with Void-specific hints.

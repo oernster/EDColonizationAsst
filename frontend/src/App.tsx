@@ -3,10 +3,10 @@ import { ThemeProvider, createTheme, CssBaseline, Container, Box, Typography, Ta
 import { SystemSelector } from './components/SystemSelector/SystemSelector';
 import { SiteList } from './components/SiteList/SiteList';
 import { FleetCarriersPanel } from './components/FleetCarriers/FleetCarriersPanel';
-import { useColonizationStore } from './stores/colonizationStore';
+import { useColonisationStore } from './stores/colonisationStore';
 import { SettingsPage } from './components/Settings/SettingsPage';
 import { api } from './services/api';
-import { useColonizationWebSocket } from './hooks/useColonizationWebSocket';
+import { useColonisationWebSocket } from './hooks/useColonisationWebSocket';
 import { useKeepAwake } from './hooks/useKeepAwake';
 import { isMobileOrTablet } from './utils/device';
 
@@ -71,7 +71,7 @@ function App() {
     settingsVersion,
     setSystemData,
     setError,
-  } = useColonizationStore();
+  } = useColonisationStore();
   const [currentTab, setCurrentTab] = useState(0);
   const [systemViewTab, setSystemViewTab] = useState(0);
   const [appVersion, setAppVersion] = useState<string | null>(null);
@@ -136,10 +136,10 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Establish a WebSocket connection for live colonization updates. The REST
+  // Establish a WebSocket connection for live colonisation updates. The REST
   // calls in SystemSelector provide the initial snapshot; this hook keeps the
   // currently selected system in sync when journal events arrive.
-  useColonizationWebSocket(currentSystem, setSystemData, setError);
+  useColonisationWebSocket(currentSystem, setSystemData, setError);
 
   useEffect(() => {
     const loadMeta = async () => {
@@ -318,10 +318,10 @@ function App() {
                 gutterBottom
                 sx={{ color: 'primary.main', fontWeight: 'bold' }}
               >
-                Elite: Dangerous Colonization Assistant
+                Elite: Dangerous Colonisation Assistant
               </Typography>
               <Typography variant="subtitle1" color="text.secondary">
-                Real-time tracking for colonization efforts
+                Real-time tracking for colonisation efforts
               </Typography>
             </Box>
             <Box
@@ -415,7 +415,7 @@ function App() {
               {/* Loading State */}
               {loading && (
                 <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography>Loading colonization data...</Typography>
+                  <Typography>Loading colonisation data...</Typography>
                 </Box>
               )}
 
@@ -446,7 +446,7 @@ function App() {
               {!loading && !currentSystem && !error && (
                 <Box sx={{ textAlign: 'center', py: 8 }}>
                   <Typography variant="h6" color="text.secondary">
-                    Select a system to view colonization progress
+                    Select a system to view colonisation progress
                   </Typography>
                 </Box>
               )}
@@ -465,7 +465,7 @@ function App() {
                 About
               </Typography>
               <Typography variant="body1" sx={{ mb: 2 }}>
-                Application Name: EDColonizationAsst
+                Application Name: EDColonisationAsst
               </Typography>
               <Typography variant="body1" sx={{ mb: 2 }}>
                 Author: Oliver Ernster
@@ -503,7 +503,7 @@ function App() {
                 • <strong>PySide6</strong> – Qt for Python bindings used for the Windows tray UI
                   and installer tooling.<br />
                 • <strong>SQLAlchemy / SQLite</strong> and related tools – persistence layer for
-                  colonization data.<br />
+                  colonisation data.<br />
                 • Various supporting libraries for logging, testing, and utilities as listed in
                   <code>backend/requirements.txt</code> and <code>backend/requirements-dev.txt</code>.
               </Typography>
@@ -547,13 +547,13 @@ function App() {
                 License
               </Typography>
               <Typography variant="body1" sx={{ mb: 2 }}>
-                Elite Dangerous Colonization Assistant (EDCA) is distributed under the
+                Elite Dangerous Colonisation Assistant (EDCA) is distributed under the
                 terms of the <strong>GNU Lesser General Public License, version 3</strong> (LGPL‑3.0).
               </Typography>
               <Typography variant="body2" sx={{ mb: 2 }}>
                 The full text of the license is available online at{' '}
                 <Link
-                  href="https://github.com/oernster/EDColonizationAsst/blob/main/LICENSE"
+                  href="https://github.com/oernster/EDColonisationAsst/blob/main/LICENSE"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

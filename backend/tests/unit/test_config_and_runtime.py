@@ -62,7 +62,7 @@ def test_runtime_is_frozen_for_non_python_exe_path():
         if hasattr(sys, "frozen"):
             delattr(sys, "frozen")
 
-        sys.argv[0] = str(Path("C:/Games/EDColonizationAsst.exe"))
+        sys.argv[0] = str(Path("C:/Games/EDColonisationAsst.exe"))
         assert runtime_mod.is_frozen() is True
     finally:
         sys.argv[0] = orig_argv0
@@ -94,7 +94,7 @@ def test_get_config_paths_frozen_uses_exe_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """In frozen mode, get_config_paths should place config next to the executable."""
-    exe = tmp_path / "EDColonizationAsst.exe"
+    exe = tmp_path / "EDColonisationAsst.exe"
     exe.write_text("", encoding="utf-8")
 
     monkeypatch.setattr(config_mod, "_is_frozen", lambda: True)

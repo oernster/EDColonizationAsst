@@ -1,6 +1,6 @@
 # GameGlass Integration
 
-This document describes how a GameGlass shard (or any embedded web view) should talk to the ED Colonization Assistant backend. It focuses on:
+This document describes how a GameGlass shard (or any embedded web view) should talk to the ED Colonisation Assistant backend. It focuses on:
 
 - The HTTP **API endpoints** exposed by the assistant
 - The **request / response shapes** that are relevant to GameGlass
@@ -12,12 +12,12 @@ This document describes how a GameGlass shard (or any embedded web view) should 
 The backend is a FastAPI service that exposes:
 
 - **REST endpoints** under the `/api` prefix
-- A **WebSocket endpoint** at `/ws/colonization` for real-time updates
+- A **WebSocket endpoint** at `/ws/colonisation` for real-time updates
 
 By default the service listens on `http://localhost:<port>`, where the port is configured in the backend configuration (see the main application README / config). When developing a GameGlass shard on the same machine, the typical base URLs are:
 
 - `http://localhost:<port>/api/...` for HTTP requests
-- `ws://localhost:<port>/ws/colonization` for WebSocket connections
+- `ws://localhost:<port>/ws/colonisation` for WebSocket connections
 
 CORS is configured to allow browser-based clients, so calls from the shard’s embedded web view are permitted as long as they target the correct origin and port.
 
@@ -172,7 +172,7 @@ Typical usage:
 - Optionally show whether the player is docked and where
 
 
-### 2.3. Per-System Colonization Data
+### 2.3. Per-System Colonisation Data
 
 These endpoints operate on a **single system** and are useful for building a per-system view in the shard.
 
@@ -187,7 +187,7 @@ These endpoints operate on a **single system** and are useful for building a per
 
 **Purpose**
 
-Returns colonization data for a single system, including its construction sites and overall progress.
+Returns colonisation data for a single system, including its construction sites and overall progress.
 
 **Response Example (simplified)**
 
@@ -350,7 +350,7 @@ Returns the health status of the assistant.
 ```json
 {
   "status": "healthy",
-  "version": "2.2.1",
+  "version": "2.3.1",
   "journal_directory": "C:\\\\Users\\\\Example\\\\Saved Games\\\\Frontier Developments\\\\Elite Dangerous",
   "journal_accessible": true
 }
@@ -402,14 +402,14 @@ Accepts an updated settings object in JSON format. These endpoints are typically
 
 **Purpose**
 
-Returns overall statistics about colonization data stored in the assistant. This can be used for high-level summary panels in a shard (for example totals of sites, systems, etc.). Exact contents may evolve with the backend and can be inspected via the generated OpenAPI docs (`/docs` route) or by calling the endpoint directly.
+Returns overall statistics about colonisation data stored in the assistant. This can be used for high-level summary panels in a shard (for example totals of sites, systems, etc.). Exact contents may evolve with the backend and can be inspected via the generated OpenAPI docs (`/docs` route) or by calling the endpoint directly.
 
 
 ## 3. Real-Time Updates via WebSocket
 
 For a more responsive shard you can subscribe to real-time system updates instead of (or in addition to) polling REST endpoints.
 
-**URL:** `ws://localhost:<port>/ws/colonization`
+**URL:** `ws://localhost:<port>/ws/colonisation`
 
 
 ### 3.1. Subscribing to a System
@@ -504,14 +504,14 @@ A typical GameGlass shard that wants to show **construction sites** and a **shop
    - Call `/api/system/commodities?name=<system_name>` to build the aggregated **shopping list** for that system.
 
 3. **Optional: real-time updates**
-   - Open `ws://localhost:<port>/ws/colonization`.
+   - Open `ws://localhost:<port>/ws/colonisation`.
    - Send a `subscribe` message for the selected system.
    - Update the UI whenever an `update` message is received.
 
 4. **When the shard is closed or the system changes**
    - Send an `unsubscribe` message for the old system, or close the WebSocket connection.
 
-This API-focused description is intended to be sufficient for shard authors to integrate with the ED Colonization Assistant without needing to inspect the backend code.
+This API-focused description is intended to be sufficient for shard authors to integrate with the ED Colonisation Assistant without needing to inspect the backend code.
 
 ---
 

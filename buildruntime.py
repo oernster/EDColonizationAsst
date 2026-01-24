@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build script for packaging the ED Colonization Assistant runtime into a
+Build script for packaging the ED Colonisation Assistant runtime into a
 self-contained Windows .exe using Nuitka.
 
 This EXE is intended to be the primary entrypoint for end users after
@@ -12,7 +12,7 @@ Key properties:
     backend/src/runtime_entry.py
 
 - Output:
-    EDColonizationAsst.exe in the project root.
+    EDColonisationAsst.exe in the project root.
 
 - Behaviour:
     - In DEV mode (when run via python):
@@ -42,8 +42,8 @@ from pathlib import Path
 from typing import List
 
 
-APP_NAME = "Elite: Dangerous Colonization Assistant"
-RUNTIME_EXE_NAME = "EDColonizationAsst"
+APP_NAME = "Elite: Dangerous Colonisation Assistant"
+RUNTIME_EXE_NAME = "EDColonisationAsst"
 
 
 def build_runtime() -> None:
@@ -57,10 +57,10 @@ def build_runtime() -> None:
             "Ensure backend/src/runtime_entry.py exists before building the runtime."
         )
 
-    icon_path = project_root / "EDColonizationAsst.ico"
+    icon_path = project_root / "EDColonisationAsst.ico"
     if not icon_path.exists():
         raise FileNotFoundError(
-            f"Could not find EDColonizationAsst.ico at: {icon_path}\n"
+            f"Could not find EDColonisationAsst.ico at: {icon_path}\n"
             "Place the .ico file in the project root or update buildruntime.py."
         )
 
@@ -76,7 +76,7 @@ def build_runtime() -> None:
     # Allow temporarily enabling a visible console for debugging the packaged
     # runtime. When EDCA_DEBUG_CONSOLE=1 (or true/yes/on) is present in the
     # environment at build time, we use "--windows-console-mode=attach" so
-    # launching EDColonizationAsst.exe from PowerShell/CMD will show console
+    # launching EDColonisationAsst.exe from PowerShell/CMD will show console
     # output. For normal release builds we keep the console disabled.
     debug_console = os.environ.get("EDCA_DEBUG_CONSOLE", "").lower() in {
         "1",

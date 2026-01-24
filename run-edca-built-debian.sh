@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build + run helper (Linux) for Elite: Dangerous Colonization Assistant.
+# Build + run helper (Linux) for Elite: Dangerous Colonisation Assistant.
 #
 # Goal:
 #   Avoid Flatpak entirely. Build the frontend to frontend/dist (served by FastAPI at /app),

@@ -1,7 +1,7 @@
 [project]
-name = "ed-colonization-assistant-backend"
-version = "2.2.1"
-description = "Backend for Elite: Dangerous Colonization Assistant"
+name = "ed-colonisation-assistant-backend"
+version = "2.3.1"
+description = "Backend for Elite: Dangerous Colonisation Assistant"
 requires-python = ">=3.11"
 dependencies = []
 

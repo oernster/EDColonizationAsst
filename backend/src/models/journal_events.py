@@ -13,8 +13,8 @@ class JournalEvent(BaseModel):
     raw_data: Dict[str, Any] = Field(default_factory=dict, description="Raw event data")
 
 
-class ColonizationConstructionDepotEvent(JournalEvent):
-    """ColonizationConstructionDepot event - construction site status"""
+class ColonisationConstructionDepotEvent(JournalEvent):
+    """ColonisationConstructionDepot event - construction site status"""
 
     market_id: int = Field(description="Market ID")
     station_name: str = Field(description="Station name")
@@ -33,8 +33,8 @@ class ColonizationConstructionDepotEvent(JournalEvent):
     )
 
 
-class ColonizationContributionEvent(JournalEvent):
-    """ColonizationContribution event - player contribution"""
+class ColonisationContributionEvent(JournalEvent):
+    """ColonisationContribution event - player contribution"""
 
     market_id: int = Field(description="Market ID")
     commodity: str = Field(description="Commodity name")

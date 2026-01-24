@@ -1,4 +1,4 @@
-# Elite: Dangerous Colonization Assistant – Frontend & Runtime Architecture
+# Elite: Dangerous Colonisation Assistant – Frontend & Runtime Architecture
 
 This document complements [`ARCHITECTURE_1_backend.md`](ARCHITECTURE_1_backend.md:1) by focusing on:
 
@@ -45,12 +45,12 @@ frontend/
     ├── services/
     │   └── api.ts                # Axios client and typed API helpers
     ├── stores/
-    │   ├── colonizationStore.ts  # Zustand store for colonization data
+    │   ├── colonisationStore.ts  # Zustand store for colonisation data
     │   └── carrierStore.ts       # Zustand store for Fleet carrier data
     ├── hooks/
-    │   └── useColonizationWebSocket.ts
+    │   └── useColonisationWebSocket.ts
     ├── types/
-    │   ├── colonization.ts       # Shared frontend types for colonization data
+    │   ├── colonisation.ts       # Shared frontend types for colonisation data
     │   ├── fleetCarriers.ts      # Types for Fleet carrier data
     │   └── settings.ts           # Types for settings/Inara config
     ├── gameglass/
@@ -63,24 +63,24 @@ frontend/
 
 ### 1.3 Data flow (frontend)
 
-The frontend talks to the backend over both HTTP and WebSockets, using helpers in [`api.ts`](frontend/src/services/api.ts:1) and [`useColonizationWebSocket.ts`](frontend/src/hooks/useColonizationWebSocket.ts:1).
+The frontend talks to the backend over both HTTP and WebSockets, using helpers in [`api.ts`](frontend/src/services/api.ts:1) and [`useColonisationWebSocket.ts`](frontend/src/hooks/useColonisationWebSocket.ts:1).
 
 - **Initial data via REST**:
   - `/api/systems` – for the system selector.
-  - `/api/system` – `SystemColonizationData` for the selected system.
+  - `/api/system` – `SystemColonisationData` for the selected system.
   - `/api/system/commodities` – aggregated per‑commodity “shopping list”.
   - `/api/journal/status` – journal/latest‑file status.
   - `/api/settings` – app/journal/Inara settings.
   - `/api/carriers/*` – Fleet carrier identity and state.
 
 - **Live updates via WebSockets**:
-  - Connects to `ws://localhost:8000/ws/colonization`.
+  - Connects to `ws://localhost:8000/ws/colonisation`.
   - Subscribes to one or more systems.
   - Receives update messages whenever ingestion updates the repository and the backend calls `notify_system_update`.
 
 State is centralised in two Zustand stores:
 
-- [`colonizationStore`](frontend/src/stores/colonizationStore.ts:1)
+- [`colonisationStore`](frontend/src/stores/colonisationStore.ts:1)
   - `currentSystem`, `systemData`, `allSystems`, `loading`, `error`, `currentSystemInfo`, `settingsVersion`.
   - Actions to set the current system, update system data, update the system list, and react to WebSocket messages.
 
@@ -97,12 +97,12 @@ State is centralised in two Zustand stores:
 
   - Renders an autocomplete/dropdown of known systems.
   - Uses `/api/systems` and `/api/systems/search`.
-  - Updates the selected system in `colonizationStore` and triggers fetch/subscription.
+  - Updates the selected system in `colonisationStore` and triggers fetch/subscription.
 
 - **SiteList & SiteCard** – [`SiteList.tsx`](frontend/src/components/SiteList/SiteList.tsx:1)
 
   - Shows a **system summary**, **system shopping list** and **per‑station cards**.
-  - Reads `systemData` from `colonizationStore`:
+  - Reads `systemData` from `colonisationStore`:
     - Uses an internal `aggregateCommodities` helper to re‑aggregate commodities for the **System Shopping List**.
     - Displays per‑commodity and per‑site progress with MUI progress bars and chips.
 
@@ -150,14 +150,14 @@ The runtime code lives under [`backend/src/runtime`](backend/src/runtime:1) and 
 [`ApplicationInstanceLock`](backend/src/runtime/app_singleton.py:31) provides a **mutex‑like singleton** per user:
 
 - **Windows**:
-  - Lock file under `%LOCALAPPDATA%\EDColonizationAsst\<app_id>.lock`.
+  - Lock file under `%LOCALAPPDATA%\EDColonisationAsst\<app_id>.lock`.
   - Uses `msvcrt.locking` for non‑blocking exclusive file locking.
 
 - **POSIX**:
   - Lock file under one of:
     - `$XDG_RUNTIME_DIR/edca`
-    - `$XDG_CACHE_HOME/EDColonizationAsst`
-    - `~/.cache/EDColonizationAsst`
+    - `$XDG_CACHE_HOME/EDColonisationAsst`
+    - `~/.cache/EDColonisationAsst`
   - Uses `fcntl.flock` for non‑blocking exclusive locks.
 
 API:
@@ -181,7 +181,7 @@ This guarantees only one EDCA backend/tray/launcher combination runs at a time p
 
 [`runtime/common.py`](backend/src/runtime/common.py:1) centralises:
 
-- Lightweight debug logging via `_debug_log`, writing to `EDColonizationAsst-runtime.log` next to the executable.
+- Lightweight debug logging via `_debug_log`, writing to `EDColonisationAsst-runtime.log` next to the executable.
 - Import of the FastAPI [`app`](backend/src/main.py:1) as `fastapi_app` for in‑process servers.
 - Logging configuration (`setup_logging`, `logger`).
 - Runtime mode detection (`RuntimeMode`, `get_runtime_mode`) used by the packaged runtime and dev helpers.
@@ -232,7 +232,7 @@ In DEV mode, this is the simplest way to start both backend and frontend with he
   - Configures system tray icon and an Exit action.
   - Logs to:
     - `<install-root>/run-edca.log`
-    - `%LOCALAPPDATA%\EDColonizationAsst\run-edca.log` on Windows.
+    - `%LOCALAPPDATA%\EDColonisationAsst\run-edca.log` on Windows.
 
 [`tray_app.py`](backend/src/tray_app.py:1) is the thin entrypoint:
 

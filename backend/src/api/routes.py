@@ -16,24 +16,24 @@ from ..models.api_models import (
     ErrorResponse,
     HealthResponse,
 )
-from ..repositories.colonization_repository import IColonizationRepository
+from ..repositories.colonisation_repository import IColonisationRepository
 from ..services.data_aggregator import IDataAggregator
 from ..services.system_tracker import ISystemTracker
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api", tags=["colonization"])
+router = APIRouter(prefix="/api", tags=["colonisation"])
 
 
 # Dependency injection - these will be set by main.py
-_repository: Optional[IColonizationRepository] = None
+_repository: Optional[IColonisationRepository] = None
 _aggregator: Optional[IDataAggregator] = None
 _system_tracker: Optional[ISystemTracker] = None
 
 
 def set_dependencies(
-    repository: IColonizationRepository,
+    repository: IColonisationRepository,
     aggregator: IDataAggregator,
     system_tracker: ISystemTracker,
 ) -> None:
@@ -111,7 +111,7 @@ async def get_current_system() -> dict:
 async def get_system_data(
     name: str = Query(..., description="System name")
 ) -> SystemResponse:
-    """Get colonization data for a specific system"""
+    """Get colonisation data for a specific system"""
     if _aggregator is None:
         raise HTTPException(status_code=500, detail="Aggregator not initialized")
 
@@ -237,7 +237,7 @@ async def reload_journals() -> dict:
     # Import here to avoid circulars at module import time
     from ..services.file_watcher import JournalFileHandler
     from ..services.system_tracker import SystemTracker
-    from ..models.journal_events import ColonizationConstructionDepotEvent
+    from ..models.journal_events import ColonisationConstructionDepotEvent
 
     # Use a single tracker/handler so system context is preserved across files
     tracker = SystemTracker()
@@ -257,7 +257,7 @@ async def reload_journals() -> dict:
         # For simple stats, count colonisation depot events in this file
         events = parser.parse_file(journal_file)
         file_events = [
-            e for e in events if isinstance(e, ColonizationConstructionDepotEvent)
+            e for e in events if isinstance(e, ColonisationConstructionDepotEvent)
         ]
         if file_events:
             processed_files.append(journal_file.name)

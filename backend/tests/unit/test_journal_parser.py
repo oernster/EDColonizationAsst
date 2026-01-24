@@ -7,8 +7,8 @@ import pytest
 
 from src.services.journal_parser import JournalParser
 from src.models.journal_events import (
-    ColonizationConstructionDepotEvent,
-    ColonizationContributionEvent,
+    ColonisationConstructionDepotEvent,
+    ColonisationContributionEvent,
     LocationEvent,
     FSDJumpEvent,
     DockedEvent,
@@ -20,11 +20,11 @@ from src.models.journal_events import (
 
 
 def test_parse_construction_depot_event(parser, sample_journal_line):
-    """Test parsing ColonizationConstructionDepot event"""
+    """Test parsing ColonisationConstructionDepot event"""
     event = parser.parse_line(sample_journal_line)
 
     assert event is not None
-    assert isinstance(event, ColonizationConstructionDepotEvent)
+    assert isinstance(event, ColonisationConstructionDepotEvent)
     assert event.market_id == 123456
     assert event.station_name == "Test Station"
     assert event.system_name == "Test System"
@@ -33,9 +33,9 @@ def test_parse_construction_depot_event(parser, sample_journal_line):
 
 
 def test_parse_contribution_event(parser):
-    """Test parsing ColonizationContribution event"""
+    """Test parsing ColonisationContribution event"""
     line = (
-        '{"timestamp":"2025-11-29T01:00:00Z","event":"ColonizationContribution",'
+        '{"timestamp":"2025-11-29T01:00:00Z","event":"ColonisationContribution",'
         '"MarketID":123456,"Commodity":"Steel","Commodity_Localised":"Steel",'
         '"Quantity":100,"TotalQuantity":600,"CreditsReceived":123400}'
     )
@@ -43,7 +43,7 @@ def test_parse_contribution_event(parser):
     event = parser.parse_line(line)
 
     assert event is not None
-    assert isinstance(event, ColonizationContributionEvent)
+    assert isinstance(event, ColonisationContributionEvent)
     assert event.market_id == 123456
     assert event.commodity == "Steel"
     assert event.quantity == 100
@@ -71,7 +71,7 @@ def test_parse_contribution_event_contributions_array(parser):
     event = parser.parse_line(line)
 
     assert event is not None
-    assert isinstance(event, ColonizationContributionEvent)
+    assert isinstance(event, ColonisationContributionEvent)
     assert event.market_id == 3960951554
     assert event.commodity == "$Titanium_name;"
     assert event.commodity_localised == "Titanium"
@@ -213,15 +213,15 @@ async def test_parse_file_multiple_events(tmp_path: Path):
     file_path = tmp_path / "Journal.2025-11-29T010000.01.log"
 
     lines = [
-        # Relevant: ColonizationConstructionDepot
-        '{"timestamp":"2025-11-29T01:00:00Z","event":"ColonizationConstructionDepot",'
+        # Relevant: ColonisationConstructionDepot
+        '{"timestamp":"2025-11-29T01:00:00Z","event":"ColonisationConstructionDepot",'
         '"MarketID":123456,"StationName":"Test Station","StationType":"Depot",'
         '"StarSystem":"Test System","SystemAddress":987654,"ConstructionProgress":25.0,'
         '"Commodities":[{"Name":"Steel","Name_Localised":"Steel","Total":1000,"Delivered":250,"Payment":1000}]}',
         # Irrelevant: Scan
         '{"timestamp":"2025-11-29T01:01:00Z","event":"Scan","BodyName":"Something"}',
-        # Relevant: ColonizationContribution
-        '{"timestamp":"2025-11-29T01:02:00Z","event":"ColonizationContribution","MarketID":123456,'
+        # Relevant: ColonisationContribution
+        '{"timestamp":"2025-11-29T01:02:00Z","event":"ColonisationContribution","MarketID":123456,'
         '"Commodity":"Steel","Quantity":100,"TotalQuantity":350,"CreditsReceived":100000}',
     ]
 
@@ -229,17 +229,17 @@ async def test_parse_file_multiple_events(tmp_path: Path):
 
     events = parser.parse_file(file_path)
 
-    # Should get exactly the two relevant colonization events
+    # Should get exactly the two relevant colonisation events
     assert len(events) == 2
-    assert isinstance(events[0], ColonizationConstructionDepotEvent)
-    assert isinstance(events[1], ColonizationContributionEvent)
+    assert isinstance(events[0], ColonisationConstructionDepotEvent)
+    assert isinstance(events[1], ColonisationContributionEvent)
 
 
 def test_parse_construction_depot_with_resources_required(parser):
-    """ColonizationConstructionDepot using ResourcesRequired should be normalised correctly."""
+    """ColonisationConstructionDepot using ResourcesRequired should be normalised correctly."""
     data = {
         "timestamp": "2025-11-29T01:00:00Z",
-        "event": "ColonizationConstructionDepot",
+        "event": "ColonisationConstructionDepot",
         "MarketID": 54321,
         "StationName": "Resources Station",
         "StationType": "Depot",
@@ -261,7 +261,7 @@ def test_parse_construction_depot_with_resources_required(parser):
     event = parser.parse_line(line)
 
     assert event is not None
-    assert isinstance(event, ColonizationConstructionDepotEvent)
+    assert isinstance(event, ColonisationConstructionDepotEvent)
     assert event.market_id == 54321
     assert event.system_name == "Resources System"
     assert len(event.commodities) == 1

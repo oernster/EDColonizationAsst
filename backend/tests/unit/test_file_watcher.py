@@ -9,13 +9,13 @@ from pathlib import Path
 import pytest
 
 import src.services.file_watcher as fw_module
-from src.models.colonization import ConstructionSite, Commodity
+from src.models.colonisation import ConstructionSite, Commodity
 from src.models.journal_events import (
-    ColonizationConstructionDepotEvent,
-    ColonizationContributionEvent,
+    ColonisationConstructionDepotEvent,
+    ColonisationContributionEvent,
     DockedEvent,
 )
-from src.repositories.colonization_repository import ColonizationRepository
+from src.repositories.colonisation_repository import ColonisationRepository
 from src.services.file_watcher import FileWatcher, JournalFileHandler
 from src.services.journal_parser import JournalParser
 from src.services.system_tracker import SystemTracker
@@ -33,7 +33,7 @@ class _DummyParser:
 
 @pytest.mark.asyncio
 async def test_process_construction_depot_creates_site(
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
 ):
     """_process_construction_depot should create a ConstructionSite with commodities."""
     system_tracker = SystemTracker()
@@ -45,9 +45,9 @@ async def test_process_construction_depot_creates_site(
         loop=asyncio.get_running_loop(),
     )
 
-    event = ColonizationConstructionDepotEvent(
+    event = ColonisationConstructionDepotEvent(
         timestamp=datetime.now(UTC),
-        event="ColonizationConstructionDepot",
+        event="ColonisationConstructionDepot",
         market_id=1,
         station_name="Alpha Depot",
         station_type="Depot",
@@ -84,7 +84,7 @@ async def test_process_construction_depot_creates_site(
 
 @pytest.mark.asyncio
 async def test_process_construction_depot_reuses_existing_metadata(
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
 ):
     """When a site already exists, depot snapshots should reuse its metadata."""
     # Seed repository with a site that has good metadata
@@ -112,9 +112,9 @@ async def test_process_construction_depot_reuses_existing_metadata(
     )
 
     # Event with missing/placeholder metadata for the same MarketID
-    event = ColonizationConstructionDepotEvent(
+    event = ColonisationConstructionDepotEvent(
         timestamp=datetime.now(UTC),
-        event="ColonizationConstructionDepot",
+        event="ColonisationConstructionDepot",
         market_id=42,
         station_name="",  # should be ignored in favour of existing metadata
         station_type="",
@@ -141,7 +141,7 @@ async def test_process_construction_depot_reuses_existing_metadata(
 
 @pytest.mark.asyncio
 async def test_process_contribution_updates_commodity(
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
 ):
     """_process_contribution should update commodity provided_amount via repository.update_commodity."""
     # Seed repository with a site that has a single commodity
@@ -176,9 +176,9 @@ async def test_process_contribution_updates_commodity(
         loop=asyncio.get_running_loop(),
     )
 
-    event = ColonizationContributionEvent(
+    event = ColonisationContributionEvent(
         timestamp=datetime.now(UTC),
-        event="ColonizationContribution",
+        event="ColonisationContribution",
         market_id=7,
         commodity="Steel",
         commodity_localised="Steel",
@@ -199,7 +199,7 @@ async def test_process_contribution_updates_commodity(
 
 @pytest.mark.asyncio
 async def test_process_docked_at_construction_site_updates_existing_metadata(
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
 ):
     """Docked events should upgrade existing construction site metadata."""
     # Existing site with placeholder metadata
@@ -253,7 +253,7 @@ async def test_process_docked_at_construction_site_updates_existing_metadata(
 
 @pytest.mark.asyncio
 async def test_process_docked_at_construction_site_creates_placeholder_when_missing(
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
 ):
     """If no site exists, Docked events should create a placeholder ConstructionSite."""
     system_tracker = SystemTracker()
@@ -314,7 +314,7 @@ class _DummyObserver:
 
 @pytest.mark.asyncio
 async def test_file_watcher_start_and_stop(
-    tmp_path: Path, repository: ColonizationRepository
+    tmp_path: Path, repository: ColonisationRepository
 ):
     """FileWatcher.start_watching and stop_watching should manage the observer lifecycle."""
     journal_dir = tmp_path / "journals"
@@ -352,7 +352,7 @@ async def test_file_watcher_start_and_stop(
 
 @pytest.mark.asyncio
 async def test_file_watcher_start_raises_for_missing_directory(
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
 ):
     """FileWatcher.start_watching should raise FileNotFoundError when directory is missing."""
     missing_dir = Path("does_not_exist_12345")
@@ -372,14 +372,14 @@ async def test_file_watcher_start_raises_for_missing_directory(
 
 @pytest.mark.asyncio
 async def test_journal_file_handler_process_file_updates_tracker_and_repository(
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
 ):
     """_process_file should drive tracker updates, site creation, and callbacks for legacy schema."""
     from src.models.journal_events import (
         LocationEvent,
         FSDJumpEvent,
-        ColonizationConstructionDepotEvent,
-        ColonizationContributionEvent,
+        ColonisationConstructionDepotEvent,
+        ColonisationContributionEvent,
     )
     from src.services.system_tracker import SystemTracker as RealSystemTracker
 
@@ -390,7 +390,7 @@ async def test_journal_file_handler_process_file_updates_tracker_and_repository(
     #  - Jump to Beta
     #  - Dock at a construction station in Beta
     #  - Construction depot snapshot in Beta
-    #  - Contribution at that depot (legacy flat ColonizationContribution schema)
+    #  - Contribution at that depot (legacy flat ColonisationContribution schema)
     ts = datetime.now(UTC)
 
     location = LocationEvent(
@@ -433,9 +433,9 @@ async def test_journal_file_handler_process_file_updates_tracker_and_repository(
         raw_data={},
     )
 
-    depot = ColonizationConstructionDepotEvent(
+    depot = ColonisationConstructionDepotEvent(
         timestamp=ts,
-        event="ColonizationConstructionDepot",
+        event="ColonisationConstructionDepot",
         market_id=555,
         station_name="Beta Construction Site",
         station_type="Depot",
@@ -456,9 +456,9 @@ async def test_journal_file_handler_process_file_updates_tracker_and_repository(
         raw_data={},
     )
 
-    contribution = ColonizationContributionEvent(
+    contribution = ColonisationContributionEvent(
         timestamp=ts,
-        event="ColonizationContribution",
+        event="ColonisationContribution",
         market_id=555,
         commodity="Steel",
         commodity_localised="Steel",
@@ -516,14 +516,14 @@ async def test_journal_file_handler_process_file_updates_tracker_and_repository(
 
 @pytest.mark.asyncio
 async def test_journal_file_handler_process_file_handles_colonisation_contributions_array(
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
 ):
     """_process_file should handle ColonisationContribution with Contributions array schema."""
     from src.models.journal_events import (
         LocationEvent,
         FSDJumpEvent,
-        ColonizationConstructionDepotEvent,
-        ColonizationContributionEvent,
+        ColonisationConstructionDepotEvent,
+        ColonisationContributionEvent,
     )
     from src.services.system_tracker import SystemTracker as RealSystemTracker
 
@@ -574,7 +574,7 @@ async def test_journal_file_handler_process_file_handles_colonisation_contributi
     )
 
     # Initial depot snapshot using ResourcesRequired with zero provided amount
-    initial_depot = ColonizationConstructionDepotEvent(
+    initial_depot = ColonisationConstructionDepotEvent(
         timestamp=ts,
         event="ColonisationConstructionDepot",
         market_id=3960951554,
@@ -598,7 +598,7 @@ async def test_journal_file_handler_process_file_handles_colonisation_contributi
     )
 
     # ColonisationContribution in the new schema (we still use the model, but simulate the payload)
-    contribution = ColonizationContributionEvent(
+    contribution = ColonisationContributionEvent(
         timestamp=ts,
         event="ColonisationContribution",
         market_id=3960951554,
@@ -620,7 +620,7 @@ async def test_journal_file_handler_process_file_handles_colonisation_contributi
     )
 
     # Follow-up depot snapshot with ProvidedAmount = 23
-    updated_depot = ColonizationConstructionDepotEvent(
+    updated_depot = ColonisationConstructionDepotEvent(
         timestamp=ts,
         event="ColonisationConstructionDepot",
         market_id=3960951554,
@@ -704,7 +704,7 @@ def test_journal_file_handler_on_modified_schedules_for_journal_files(monkeypatc
 
     parser = _DummyParser()
     system_tracker = SystemTracker()
-    repository = ColonizationRepository()
+    repository = ColonisationRepository()
     loop = asyncio.get_event_loop()
     handler = JournalFileHandler(
         parser=parser,
@@ -775,7 +775,7 @@ def test_journal_file_handler_on_created_schedules_for_journal_files(monkeypatch
 
     parser = _DummyParser()
     system_tracker = SystemTracker()
-    repository = ColonizationRepository()
+    repository = ColonisationRepository()
     loop = asyncio.get_event_loop()
     handler = JournalFileHandler(
         parser=parser,
@@ -835,7 +835,7 @@ def test_journal_file_handler_on_created_schedules_for_journal_files(monkeypatch
 
 @pytest.mark.asyncio
 async def test_journal_file_handler_process_file_with_no_events_does_not_invoke_callback(
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
 ):
     """_process_file should return early when parser yields no events."""
     system_tracker = SystemTracker()
@@ -867,7 +867,7 @@ async def test_journal_file_handler_process_file_with_no_events_does_not_invoke_
 
 @pytest.mark.asyncio
 async def test_journal_file_handler_process_file_handles_parser_exception(
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
 ):
     """_process_file should catch and log exceptions from parser.parse_file."""
     system_tracker = SystemTracker()
@@ -894,7 +894,7 @@ async def test_journal_file_handler_process_file_handles_parser_exception(
 @pytest.mark.asyncio
 async def test_file_watcher_process_existing_files_invokes_handler_for_journals(
     tmp_path: Path,
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
 ):
     """_process_existing_files should call the handler for each existing Journal.*.log file."""
     journal_dir = tmp_path / "journals"

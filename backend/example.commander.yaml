@@ -1,4 +1,4 @@
-# Example commander configuration for ED Colonization Assistant
+# Example commander configuration for ED Colonisation Assistant
 #
 # Copy this file to `backend/commander.yaml` and then edit the values
 # to match your own Inara credentials. The running application will

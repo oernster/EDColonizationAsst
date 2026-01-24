@@ -1,16 +1,16 @@
 """Data models for the application"""
 
-from .colonization import (
+from .colonisation import (
     Commodity,
     CommodityStatus,
     ConstructionSite,
-    SystemColonizationData,
+    SystemColonisationData,
     CommodityAggregate,
 )
 from .journal_events import (
     JournalEvent,
-    ColonizationConstructionDepotEvent,
-    ColonizationContributionEvent,
+    ColonisationConstructionDepotEvent,
+    ColonisationContributionEvent,
     LocationEvent,
     FSDJumpEvent,
     DockedEvent,
@@ -24,16 +24,16 @@ from .api_models import (
 )
 
 __all__ = [
-    # Colonization models
+    # Colonisation models
     "Commodity",
     "CommodityStatus",
     "ConstructionSite",
-    "SystemColonizationData",
+    "SystemColonisationData",
     "CommodityAggregate",
     # Journal event models
     "JournalEvent",
-    "ColonizationConstructionDepotEvent",
-    "ColonizationContributionEvent",
+    "ColonisationConstructionDepotEvent",
+    "ColonisationContributionEvent",
     "LocationEvent",
     "FSDJumpEvent",
     "DockedEvent",

@@ -66,8 +66,8 @@ class InaraConfig(BaseSettings):
         default=True,
         description=(
             "When true (default), systems where this commander's journals contain "
-            "colonization sites are served purely from local journal data. Inara is "
-            "only consulted for systems with no local colonization data. When false, "
+            "colonisation sites are served purely from local journal data. Inara is "
+            "only consulted for systems with no local colonisation data. When false, "
             "Inara data is preferred wherever it is available."
         ),
     )
@@ -111,9 +111,9 @@ def _get_user_config_dir() -> Path:
     """
     Return the per-user configuration directory for the packaged runtime.
 
-    On Windows this resolves to %APPDATA%\\EDColonizationAsst.
+    On Windows this resolves to %APPDATA%\\EDColonisationAsst.
     On other platforms it follows the XDG base directory spec or falls back
-    to ~/.config/EDColonizationAsst.
+    to ~/.config/EDColonisationAsst.
     """
     if os.name == "nt":
         appdata = os.environ.get("APPDATA")
@@ -129,7 +129,7 @@ def _get_user_config_dir() -> Path:
         else:
             base = Path.home() / ".config"
 
-    return base / "EDColonizationAsst"
+    return base / "EDColonisationAsst"
 
 
 def get_config_paths() -> tuple[Path, Path]:
@@ -142,7 +142,7 @@ def get_config_paths() -> tuple[Path, Path]:
 
     - In the packaged (frozen) runtime we store configuration alongside
       the installed executable so that the DB, logs and config all live
-      under the single install directory (e.g. AppData\\Local\\EDColonizationAssistant).
+      under the single install directory (e.g. AppData\\Local\\EDColonisationAssistant).
     """
     if _is_frozen():
         # Directory containing the running EXE (install root when packaged).

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { SystemColonizationData, CurrentSystem } from '../types/colonization';
+import { SystemColonisationData, CurrentSystem } from '../types/colonisation';
 import { AppSettings } from '../types/settings';
 import {
   CarrierState,
@@ -35,9 +35,9 @@ export const api = {
     return response.data;
   },
  
-  // Get system colonization data
-  async getSystemData(systemName: string): Promise<SystemColonizationData> {
-    const response = await axios.get<SystemColonizationData>(`${API_BASE_URL}/system`, {
+  // Get system colonisation data
+  async getSystemData(systemName: string): Promise<SystemColonisationData> {
+    const response = await axios.get<SystemColonisationData>(`${API_BASE_URL}/system`, {
       params: { name: systemName },
       paramsSerializer: params => {
         return Object.entries(params)

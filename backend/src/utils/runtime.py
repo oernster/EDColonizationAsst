@@ -35,7 +35,7 @@ def is_frozen() -> bool:
     or may not behave as expected. As a pragmatic fallback we also treat
     any process whose argv[0] is a non-Python ``.exe`` as frozen. This
     covers the typical case where the runtime is launched via the
-    Nuitka-built EDColonizationAsst.exe rather than ``python.exe``.
+    Nuitka-built EDColonisationAsst.exe rather than ``python.exe``.
     """
     # Primary detection: explicit flag set by freezer.
     if bool(getattr(sys, "frozen", False)):

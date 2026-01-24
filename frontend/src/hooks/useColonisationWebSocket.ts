@@ -1,18 +1,18 @@
 import { useEffect, useRef } from 'react';
-import type { SystemColonizationData } from '../types/colonization';
+import type { SystemColonisationData } from '../types/colonisation';
 
 /**
- * Lightweight WebSocket client for live colonization updates.
+ * Lightweight WebSocket client for live colonisation updates.
  *
- * It connects to `/ws/colonization`, subscribes to the currently selected
- * system, and updates the colonization store whenever UPDATE messages arrive.
+ * It connects to `/ws/colonisation`, subscribes to the currently selected
+ * system, and updates the colonisation store whenever UPDATE messages arrive.
  *
  * The hook is intentionally conservative: it keeps the REST-driven initial
  * snapshot (via /api/system) and only applies incremental updates on top.
  */
-export function useColonizationWebSocket(
+export function useColonisationWebSocket(
   currentSystem: string | null,
-  setSystemData: (data: SystemColonizationData | null) => void,
+  setSystemData: (data: SystemColonisationData | null) => void,
   setError: (message: string | null) => void,
 ): void {
   const wsRef = useRef<WebSocket | null>(null);
@@ -31,7 +31,7 @@ export function useColonizationWebSocket(
 
       try {
         const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const url = `${wsScheme}://${window.location.host}/ws/colonization`;
+        const url = `${wsScheme}://${window.location.host}/ws/colonisation`;
 
         const socket = new WebSocket(url);
         wsRef.current = socket;
@@ -69,8 +69,8 @@ export function useColonizationWebSocket(
               }
 
               // The backend sends a payload that is structurally compatible with
-              // SystemColonizationData minus system_name. We rehydrate it here.
-              const updated: SystemColonizationData = {
+              // SystemColonisationData minus system_name. We rehydrate it here.
+              const updated: SystemColonisationData = {
                 system_name: systemName,
                 construction_sites: data.construction_sites ?? [],
                 total_sites: data.total_sites ?? 0,
@@ -83,7 +83,7 @@ export function useColonizationWebSocket(
             } else if (msgType === 'error') {
               // Surface WebSocket-level errors as a non-fatal message in the UI.
               const message: string =
-                payload.error || 'WebSocket error receiving colonization updates';
+                payload.error || 'WebSocket error receiving colonisation updates';
               setError(message);
             } else if (msgType === 'pong') {
               // No-op; reserved for future heartbeat handling.

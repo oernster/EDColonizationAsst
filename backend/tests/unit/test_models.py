@@ -1,11 +1,11 @@
 """Tests for data models"""
 
 import pytest
-from src.models.colonization import (
+from src.models.colonisation import (
     Commodity,
     CommodityStatus,
     ConstructionSite,
-    SystemColonizationData,
+    SystemColonisationData,
 )
 
 
@@ -95,8 +95,8 @@ def test_construction_site_commodities_progress(sample_construction_site):
     assert abs(progress - 83.33) < 0.1  # Allow small floating point difference
 
 
-def test_system_colonization_data_totals():
-    """Test system colonization data calculations"""
+def test_system_colonisation_data_totals():
+    """Test system colonisation data calculations"""
     sites = [
         ConstructionSite(
             market_id=1,
@@ -122,7 +122,7 @@ def test_system_colonization_data_totals():
         ),
     ]
 
-    system_data = SystemColonizationData(
+    system_data = SystemColonisationData(
         system_name="Test System", construction_sites=sites
     )
 

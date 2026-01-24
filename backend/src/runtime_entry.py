@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-Runtime entrypoint for the Elite: Dangerous Colonization Assistant.
+Runtime entrypoint for the Elite: Dangerous Colonisation Assistant.
 
 This module is designed to be used as the main entry when building a
 self-contained runtime executable with Nuitka. It now acts as a *thin*
@@ -39,7 +39,7 @@ import webbrowser
 def _bootstrap_debug_log(message: str) -> None:
     """Minimal logger used when runtime.common cannot be imported.
 
-    Writes to EDColonizationAsst-runtime.log next to the EXE (or CWD) and
+    Writes to EDColonisationAsst-runtime.log next to the EXE (or CWD) and
     must never raise.
     """
     try:
@@ -47,7 +47,7 @@ def _bootstrap_debug_log(message: str) -> None:
             exe_dir = Path(sys.argv[0]).resolve().parent
         except Exception:
             exe_dir = Path.cwd()
-        log_path = exe_dir / "EDColonizationAsst-runtime.log"
+        log_path = exe_dir / "EDColonisationAsst-runtime.log"
         with log_path.open("a", encoding="utf-8") as f:
             f.write(message + "\n")
     except Exception:
@@ -67,7 +67,7 @@ except Exception as exc1:  # noqa: BLE001
         from backend.src.runtime.common import _debug_log  # type: ignore[import-error]
     except Exception as exc2:  # noqa: BLE001
         # As a last resort, fall back to a local bootstrap logger so that we
-        # still get EDColonizationAsst-runtime.log even if runtime.common
+        # still get EDColonisationAsst-runtime.log even if runtime.common
         # cannot be imported at all.
         _bootstrap_debug_log(
             f"[runtime_entry] FATAL importing runtime.common: {exc1!r}; "
@@ -109,14 +109,14 @@ def main() -> int:
     """
     Entry point for the packaged runtime executable.
 
-    In FROZEN mode this is invoked by the Nuitka-built EDColonizationAsst.exe.
+    In FROZEN mode this is invoked by the Nuitka-built EDColonisationAsst.exe.
     To make failures in the frozen runtime debuggable on end-user machines,
     we capture any unhandled exceptions and write them to a plain text log file
     next to the executable.
     """
     _debug_log("[runtime_entry] main() starting")
 
-    # When EDColonizationAsst.exe is started automatically (e.g. via Windows
+    # When EDColonisationAsst.exe is started automatically (e.g. via Windows
     # "Run" key on login), we typically want the tray + backend to come up
     # silently without opening a browser window.
     #
@@ -176,7 +176,7 @@ def main() -> int:
         except Exception:
             exe_dir = Path.cwd()
 
-        log_path = exe_dir / "EDColonizationAsst-runtime-error.log"
+        log_path = exe_dir / "EDColonisationAsst-runtime-error.log"
         try:
             with log_path.open("a", encoding="utf-8") as f:
                 f.write("[runtime_entry] FATAL exception in packaged runtime\n")

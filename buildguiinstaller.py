@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Build script for packaging the ED Colonization Assistant GUI installer
+Build script for packaging the ED Colonisation Assistant GUI installer
 into a Windows .exe using Nuitka.
 
 This script expects:
 - The PySide6-based installer UI to live in `guiinstaller.py`
 - The project root to contain:
-    - EDColonizationAsst.ico   (application icon)
+    - EDColonisationAsst.ico   (application icon)
     - build_payload/           (optional curated payload tree to ship with the installer)
     - LICENSE                  (LGPL-3 text, shown in the About dialog)
 
@@ -16,7 +16,7 @@ It is intended to be run via `uv`, for example:
     uv run python buildguiinstaller.py
 
 The resulting installer executable will be created under `./` (current
-directory) with the name `EDColonizationAsstInstaller.exe`.
+directory) with the name `EDColonisationAsstInstaller.exe`.
 
 Nuitka notes:
 - We use `--onefile` for a single exe.
@@ -33,8 +33,8 @@ from typing import List
 import subprocess
 
 
-APP_NAME = "Elite: Dangerous Colonization Assistant"
-INSTALLER_NAME = "EDColonizationAsstInstaller"
+APP_NAME = "Elite: Dangerous Colonisation Assistant"
+INSTALLER_NAME = "EDColonisationAsstInstaller"
 
 
 def build_installer() -> None:
@@ -48,21 +48,21 @@ def build_installer() -> None:
             "Make sure the installer UI script has been renamed to guiinstaller.py."
         )
 
-    icon_path = project_root / "EDColonizationAsst.ico"
+    icon_path = project_root / "EDColonisationAsst.ico"
     if not icon_path.exists():
         raise FileNotFoundError(
-            f"Could not find EDColonizationAsst.ico at: {icon_path}\n"
+            f"Could not find EDColonisationAsst.ico at: {icon_path}\n"
             "Place the .ico file in the project root or update buildguiinstaller.py."
         )
 
     # Hard-require the self-contained runtime executable so that all shortcuts
-    # created by the installer can point at EDColonizationAsst.exe and never
+    # created by the installer can point at EDColonisationAsst.exe and never
     # fall back to the Python/Node-based developer scripts.
-    runtime_exe = project_root / "EDColonizationAsst.exe"
+    runtime_exe = project_root / "EDColonisationAsst.exe"
     if not runtime_exe.exists():
         raise FileNotFoundError(
             f"Could not find runtime EXE at: {runtime_exe}\n"
-            "Run `uv run python buildruntime.py` to build EDColonizationAsst.exe "
+            "Run `uv run python buildruntime.py` to build EDColonisationAsst.exe "
             "before building the GUI installer."
         )
 
@@ -130,11 +130,11 @@ def build_installer() -> None:
         nuitka_args.append(f"--include-data-dir={payload_src}=payload")
 
     # Data: runtime EXE as a dedicated data file inside the bundle.
-    # This ensures EDColonizationAsst.exe is always present at
-    # "runtime/EDColonizationAsst.exe" at installer runtime, even if Nuitka
+    # This ensures EDColonisationAsst.exe is always present at
+    # "runtime/EDColonisationAsst.exe" at installer runtime, even if Nuitka
     # decides to strip or ignore executables inside an included data directory.
     nuitka_args.append(
-        f"--include-data-file={runtime_exe}=runtime/EDColonizationAsst.exe"
+        f"--include-data-file={runtime_exe}=runtime/EDColonisationAsst.exe"
     )
 
     # Data: LICENSE file.
@@ -252,20 +252,20 @@ def _ensure_payload_dir(project_root: Path) -> Path:
 
     # Curated top-level files to include, if present.
     # Keep this list minimal to avoid bloating the installer with dev docs.
-    # NOTE: EDColonizationAsst.exe is the Nuitka-built runtime that embeds
+    # NOTE: EDColonisationAsst.exe is the Nuitka-built runtime that embeds
     # Python and all backend dependencies so that end users do not need a
     # system-wide Python installation.
     # VERSION is the single source of truth for the application version and is
     # used by both the backend (__version__) and the installer UI. Including it
     # here ensures that the installed runtime directory always contains a
-    # VERSION file next to EDColonizationAsst.exe, so the packaged backend can
+    # VERSION file next to EDColonisationAsst.exe, so the packaged backend can
     # report the correct version instead of falling back to "0.0.0".
     curated_files = [
-        "EDColonizationAsst.ico",
-        "EDColonizationAsst.png",
+        "EDColonisationAsst.ico",
+        "EDColonisationAsst.png",
         "LICENSE",
         "VERSION",
-        "EDColonizationAsst.exe",
+        "EDColonisationAsst.exe",
     ]
 
     # Curated directories to include, if present.
@@ -391,7 +391,7 @@ def _ensure_payload_dir(project_root: Path) -> Path:
         raise RuntimeError(
             f"Bootstrapped payload directory '{payload_dir}' is empty.\n"
             "No curated files or directories were found to copy. "
-            "Add at least one of: backend/, frontend/, EDColonizationAsst.exe, etc."
+            "Add at least one of: backend/, frontend/, EDColonisationAsst.exe, etc."
         )
 
     print(f"[buildguiinstaller] Bootstrapped payload directory at: {payload_dir}")

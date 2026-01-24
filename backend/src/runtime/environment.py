@@ -47,7 +47,7 @@ class RuntimeEnvironment:
         Best-effort resolution of the EDCA icon on disk.
 
         In a frozen onefile build we prefer the install directory that contains
-        EDColonizationAsst.exe (so that the tray and any Qt surfaces use the
+        EDColonisationAsst.exe (so that the tray and any Qt surfaces use the
         same icon as the runtime EXE). In dev mode we fall back to the
         project_root next to backend/, which matches the existing layout.
         """
@@ -56,12 +56,12 @@ class RuntimeEnvironment:
         # 1) Directory of the running executable (frozen) or script (dev).
         try:
             exe_dir = Path(sys.argv[0]).resolve().parent
-            candidates.append(exe_dir / "EDColonizationAsst.ico")
+            candidates.append(exe_dir / "EDColonisationAsst.ico")
         except Exception:
             pass
 
         # 2) Project root as detected by RuntimeEnvironment.detect().
-        candidates.append(self.project_root / "EDColonizationAsst.ico")
+        candidates.append(self.project_root / "EDColonisationAsst.ico")
 
         for path in candidates:
             if path.exists():

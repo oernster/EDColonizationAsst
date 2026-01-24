@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 import src.main as main_mod
-from src.repositories.colonization_repository import ColonizationRepository
+from src.repositories.colonisation_repository import ColonisationRepository
 from src.services.data_aggregator import DataAggregator
 from src.services.system_tracker import SystemTracker
 
@@ -51,7 +51,7 @@ async def test_main_lifespan_wires_dependencies_and_stops_watcher():
             tracker = getattr(main_mod.app.state, "system_tracker", None)
             watcher = getattr(main_mod.app.state, "file_watcher", None)
 
-            assert isinstance(repo, ColonizationRepository)
+            assert isinstance(repo, ColonisationRepository)
             assert isinstance(agg, DataAggregator)
             assert isinstance(tracker, SystemTracker)
             assert isinstance(watcher, DummyFileWatcher)

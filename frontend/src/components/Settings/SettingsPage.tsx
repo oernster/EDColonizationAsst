@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { Box, Typography, TextField, Button, Paper, CircularProgress, Alert, Checkbox, FormControlLabel, Divider } from '@mui/material';
 import { api } from '../../services/api';
 import { AppSettings } from '../../types/settings';
-import { useColonizationStore } from '../../stores/colonizationStore';
+import { useColonisationStore } from '../../stores/colonisationStore';
 import { isMobileOrTablet } from '../../utils/device';
 
 export const SettingsPage = () => {
-  const { updateSettings } = useColonizationStore();
+  const { updateSettings } = useColonisationStore();
   const [settings, setSettings] = useState<AppSettings>({
     journal_directory: '',
     inara_api_key: '',
@@ -219,7 +219,7 @@ export const SettingsPage = () => {
           }
           label={
             <Typography variant="body2">
-              Prefer local journal data for this commander's systems (use Inara only for systems without any local colonization data).
+              Prefer local journal data for this commander's systems (use Inara only for systems without any local colonisation data).
             </Typography>
           }
           sx={{ alignItems: 'flex-start', mb: 1 }}

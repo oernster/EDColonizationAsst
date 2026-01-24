@@ -29,7 +29,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 
-APP_NAME = "Elite: Dangerous Colonization Assistant"
+APP_NAME = "Elite: Dangerous Colonisation Assistant"
 
 
 class ProcessGroup:
@@ -105,7 +105,7 @@ class TrayController:
         self._start_services()
 
     def _configure_tray_icon(self) -> None:
-        icon_path = self._root / "EDColonizationAsst.ico"
+        icon_path = self._root / "EDColonisationAsst.ico"
         if icon_path.exists():
             self._tray.setIcon(QIcon(str(icon_path)))
         self._tray.setToolTip(APP_NAME)
@@ -127,7 +127,7 @@ class TrayController:
         - The same run-edca.log used by run-edca.bat in the install root.
 
         Secondary target (best-effort):
-        - A user-local log under %LOCALAPPDATA%\\EDColonizationAsst\\run-edca.log
+        - A user-local log under %LOCALAPPDATA%\\EDColonisationAsst\\run-edca.log
           to avoid any filesystem virtualisation / permission issues writing
           directly into Program Files.
         """
@@ -144,7 +144,7 @@ class TrayController:
         try:
             local_base = os.environ.get("LOCALAPPDATA")
             if local_base:
-                user_log_dir = Path(local_base) / "EDColonizationAsst"
+                user_log_dir = Path(local_base) / "EDColonisationAsst"
                 user_log_dir.mkdir(parents=True, exist_ok=True)
                 user_log = user_log_dir / "run-edca.log"
                 with user_log.open("a", encoding="utf-8") as f:

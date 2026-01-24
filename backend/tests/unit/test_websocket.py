@@ -181,7 +181,7 @@ async def test_send_personal_message_handles_send_error():
 
 
 class _DummySystemData:
-    """Simple stand-in for SystemColonizationData used by notify_system_update."""
+    """Simple stand-in for SystemColonisationData used by notify_system_update."""
 
     def __init__(self, system_name: str) -> None:
         self.system_name = system_name

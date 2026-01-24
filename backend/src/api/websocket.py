@@ -157,7 +157,7 @@ def set_aggregator(aggregator: IDataAggregator) -> None:
 
 async def websocket_endpoint(websocket: WebSocket) -> None:
     """
-    WebSocket endpoint for real-time colonization updates
+    WebSocket endpoint for real-time colonisation updates
 
     Args:
         websocket: WebSocket connection

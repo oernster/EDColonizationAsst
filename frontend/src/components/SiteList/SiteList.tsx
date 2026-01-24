@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Box, Typography, Paper, LinearProgress, Chip, Grid, Collapse, IconButton, Tabs, Tab } from '@mui/material';
 import { CheckCircle, Construction, ExpandLess, ExpandMore } from '@mui/icons-material';
-import { useColonizationStore } from '../../stores/colonizationStore';
-import { ConstructionSite, CommodityStatus, CommodityAggregate } from '../../types/colonization';
+import { useColonisationStore } from '../../stores/colonisationStore';
+import { ConstructionSite, CommodityStatus, CommodityAggregate } from '../../types/colonisation';
 
 const aggregateCommodities = (
   sites: ConstructionSite[]
@@ -83,7 +83,7 @@ const aggregateCommodities = (
 };
 
 export const SiteList = ({ viewMode = 'system' }: { viewMode?: 'system' | 'stations' }) => {
-  const { systemData } = useColonizationStore();
+  const { systemData } = useColonisationStore();
   const [systemExpanded, setSystemExpanded] = useState(true);
   const [stationTab, setStationTab] = useState(0);
 

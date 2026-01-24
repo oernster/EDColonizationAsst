@@ -4,8 +4,8 @@ import pytest
 import pytest_asyncio
 from pathlib import Path
 from datetime import datetime, UTC
-from src.models.colonization import Commodity, ConstructionSite
-from src.repositories.colonization_repository import ColonizationRepository
+from src.models.colonisation import Commodity, ConstructionSite
+from src.repositories.colonisation_repository import ColonisationRepository
 from src.services.journal_parser import JournalParser
 from src.services.system_tracker import SystemTracker
 from src.services.data_aggregator import DataAggregator
@@ -56,9 +56,9 @@ def sample_construction_site() -> ConstructionSite:
 
 
 @pytest_asyncio.fixture
-async def repository() -> ColonizationRepository:
+async def repository() -> ColonisationRepository:
     """Create a fresh repository for testing"""
-    repo = ColonizationRepository()
+    repo = ColonisationRepository()
     yield repo
     await repo.clear_all()
 
@@ -76,7 +76,7 @@ def system_tracker() -> SystemTracker:
 
 
 @pytest_asyncio.fixture
-async def aggregator(repository: ColonizationRepository) -> DataAggregator:
+async def aggregator(repository: ColonisationRepository) -> DataAggregator:
     """Create a data aggregator for testing"""
     return DataAggregator(repository)
 
@@ -84,7 +84,7 @@ async def aggregator(repository: ColonizationRepository) -> DataAggregator:
 @pytest.fixture
 def sample_journal_line() -> str:
     """Sample journal line for testing"""
-    return '{"timestamp":"2025-11-29T01:00:00Z","event":"ColonizationConstructionDepot","MarketID":123456,"StationName":"Test Station","StationType":"Planetary Construction Depot","StarSystem":"Test System","SystemAddress":987654,"ConstructionProgress":50.0,"Commodities":[{"Name":"Steel","Name_Localised":"Steel","Total":1000,"Delivered":500,"Payment":1234}]}'
+    return '{"timestamp":"2025-11-29T01:00:00Z","event":"ColonisationConstructionDepot","MarketID":123456,"StationName":"Test Station","StationType":"Planetary Construction Depot","StarSystem":"Test System","SystemAddress":987654,"ConstructionProgress":50.0,"Commodities":[{"Name":"Steel","Name_Localised":"Steel","Total":1000,"Delivered":500,"Payment":1234}]}'
 
 
 @pytest.fixture

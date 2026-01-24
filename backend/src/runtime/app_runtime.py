@@ -264,7 +264,7 @@ class TrayUIController:
         icon_path = self._env.icon_path
         if icon_path.exists():
             self._tray.setIcon(QIcon(str(icon_path)))
-        self._tray.setToolTip("Elite: Dangerous Colonization Assistant")
+        self._tray.setToolTip("Elite: Dangerous Colonisation Assistant")
         self._tray.setVisible(True)
 
     def _create_menu(self) -> None:
@@ -303,7 +303,7 @@ class TrayUIController:
         # Confirm with the user to avoid accidental shutdown.
         reply = QMessageBox.question(
             None,
-            "Exit ED Colonization Assistant",
+            "Exit ED Colonisation Assistant",
             "Are you sure you want to exit EDCA?",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
@@ -392,11 +392,11 @@ class RuntimeApplication:
         """
         _debug_log("[RuntimeApplication] _run_frozen() starting")
         app = QApplication([])
-        app.setApplicationName("Elite: Dangerous Colonization Assistant")
+        app.setApplicationName("Elite: Dangerous Colonisation Assistant")
         app.setQuitOnLastWindowClosed(False)
 
         # Ensure the runtime EXE has the correct icon in the Windows taskbar.
-        # In frozen mode this process is the Nuitka-built EDColonizationAsst.exe,
+        # In frozen mode this process is the Nuitka-built EDColonisationAsst.exe,
         # not python.exe, so Qt will use this icon for the taskbar button.
         icon_path = self._env.icon_path
         if icon_path.exists():

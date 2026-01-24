@@ -1,5 +1,5 @@
 /**
- * TypeScript types for colonization data
+ * TypeScript types for colonisation data
  */
 
 export enum CommodityStatus {
@@ -36,7 +36,7 @@ export interface ConstructionSite {
   last_source?: 'journal' | 'inara';
 }
 
-export interface SystemColonizationData {
+export interface SystemColonisationData {
   system_name: string;
   construction_sites: ConstructionSite[];
   total_sites: number;

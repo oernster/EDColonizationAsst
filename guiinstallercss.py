@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-QSS style definitions for the ED Colonization Assistant GUI installer.
+QSS style definitions for the ED Colonisation Assistant GUI installer.
 
 This module isolates the dark and light theme QSS strings so that the main
 `guiinstaller.py` script can remain more focused on application logic.

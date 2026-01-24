@@ -3,15 +3,15 @@
 import pytest
 from datetime import datetime, UTC
 
-from src.models.colonization import Commodity, ConstructionSite, SystemColonizationData
-from src.repositories.colonization_repository import ColonizationRepository
+from src.models.colonisation import Commodity, ConstructionSite, SystemColonisationData
+from src.repositories.colonisation_repository import ColonisationRepository
 from src.services.data_aggregator import DataAggregator
 
 
 class _DummyInaraService:
     """Simple stub for InaraService used only for tests.
 
-    It mimics the `get_system_colonization_data` coroutine but never
+    It mimics the `get_system_colonisation_data` coroutine but never
     touches the network.
     """
 
@@ -20,7 +20,7 @@ class _DummyInaraService:
         self._sites_by_system = sites_by_system or {}
         self._should_fail = should_fail
 
-    async def get_system_colonization_data(self, system_name: str):
+    async def get_system_colonisation_data(self, system_name: str):
         if self._should_fail:
             raise RuntimeError("Inara is temporarily unavailable")
         return self._sites_by_system.get(system_name, [])
@@ -28,7 +28,7 @@ class _DummyInaraService:
 
 @pytest.mark.asyncio
 async def test_aggregate_by_system_local_only(
-    repository: ColonizationRepository, sample_construction_site
+    repository: ColonisationRepository, sample_construction_site
 ):
     """When Inara has no data, aggregation should return local sites unchanged."""
     await repository.add_construction_site(sample_construction_site)
@@ -39,7 +39,7 @@ async def test_aggregate_by_system_local_only(
 
     system_data = await aggregator.aggregate_by_system("Test System")
 
-    assert isinstance(system_data, SystemColonizationData)
+    assert isinstance(system_data, SystemColonisationData)
     assert system_data.system_name == "Test System"
     assert len(system_data.construction_sites) == 1
     site = system_data.construction_sites[0]
@@ -51,7 +51,7 @@ async def test_aggregate_by_system_local_only(
 
 @pytest.mark.asyncio
 async def test_aggregate_by_system_inara_upgrades_local(
-    repository: ColonizationRepository, sample_construction_site
+    repository: ColonisationRepository, sample_construction_site
 ):
     """Inara data should upgrade completion/progress for existing local sites."""
     # Local site: incomplete, 50% progress, with one underfilled commodity
@@ -101,7 +101,7 @@ async def test_aggregate_by_system_inara_upgrades_local(
 
 
 @pytest.mark.asyncio
-async def test_aggregate_commodities_and_summary(repository: ColonizationRepository):
+async def test_aggregate_commodities_and_summary(repository: ColonisationRepository):
     """End-to-end test of commodity aggregation and system summary."""
     # Two sites in the same system with overlapping and distinct commodities
     site1 = ConstructionSite(
@@ -190,7 +190,7 @@ async def test_aggregate_commodities_and_summary(repository: ColonizationReposit
 
 @pytest.mark.asyncio
 async def test_aggregate_by_system_inara_failure_falls_back_to_local(
-    repository: ColonizationRepository, sample_construction_site
+    repository: ColonisationRepository, sample_construction_site
 ):
     """If Inara fails, aggregate_by_system should still return local data without raising."""
     await repository.add_construction_site(sample_construction_site)
@@ -209,7 +209,7 @@ async def test_aggregate_by_system_inara_failure_falls_back_to_local(
 
 @pytest.mark.asyncio
 async def test_aggregate_by_system_inara_only_completed_site_added(
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
 ):
     """Completed sites that exist only in Inara should be added to the repository."""
     inara_payload = {
@@ -245,7 +245,7 @@ async def test_aggregate_by_system_inara_only_completed_site_added(
 
 @pytest.mark.asyncio
 async def test_aggregate_by_system_inara_upgrades_existing_local_site(
-    repository: ColonizationRepository,
+    repository: ColonisationRepository,
 ):
     """Inara should upgrade an existing local incomplete site to completed and fill commodities."""
     # Local site in the same system that we will query

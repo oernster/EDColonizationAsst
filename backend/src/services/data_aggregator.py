@@ -3,12 +3,12 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any
 from collections import defaultdict
-from ..models.colonization import (
+from ..models.colonisation import (
     ConstructionSite,
-    SystemColonizationData,
+    SystemColonisationData,
     CommodityAggregate,
 )
-from ..repositories.colonization_repository import IColonizationRepository
+from ..repositories.colonisation_repository import IColonisationRepository
 from .inara_service import InaraService, get_inara_service
 from ..config import get_config
 from ..utils.logger import get_logger
@@ -22,7 +22,7 @@ class IDataAggregator(ABC):
     @abstractmethod
     async def aggregate_by_system(  # pragma: no cover
         self, system_name: str
-    ) -> SystemColonizationData:
+    ) -> SystemColonisationData:
         """Aggregate all construction sites in a system"""
         pass
 
@@ -36,7 +36,7 @@ class IDataAggregator(ABC):
 
 class DataAggregator(IDataAggregator):
     """
-    Aggregates colonization data.
+    Aggregates colonisation data.
     Follows Open/Closed Principle - extensible for new aggregation types.
 
     Strategy:
@@ -49,13 +49,13 @@ class DataAggregator(IDataAggregator):
 
     def __init__(
         self,
-        repository: IColonizationRepository,
+        repository: IColonisationRepository,
         inara_service: InaraService | None = None,
     ) -> None:
         """Create a DataAggregator with its required dependencies.
 
         Args:
-            repository: Repository used to persist and retrieve colonization data.
+            repository: Repository used to persist and retrieve colonisation data.
             inara_service: Optional InaraService; if omitted a default instance
                 will be resolved via get_inara_service().
         """
@@ -74,7 +74,7 @@ class DataAggregator(IDataAggregator):
             # rely on local journal data as the primary source.
             self._prefer_local_for_commander_systems = True
 
-    async def aggregate_by_system(self, system_name: str) -> SystemColonizationData:
+    async def aggregate_by_system(self, system_name: str) -> SystemColonisationData:
         """
         Aggregate all construction sites in a system.
 
@@ -85,7 +85,7 @@ class DataAggregator(IDataAggregator):
             system_name: Star system name
 
         Returns:
-            Aggregated system colonization data
+            Aggregated system colonisation data
         """
         # Get local data from journal files
         local_sites = await self._repository.get_sites_by_system(system_name)
@@ -107,17 +107,17 @@ class DataAggregator(IDataAggregator):
         ):
             logger.debug(
                 "Using local journal data only for commander system %s; "
-                "skipping Inara colonization lookup due to settings.",
+                "skipping Inara colonisation lookup due to settings.",
                 system_name,
             )
-            return SystemColonizationData(
+            return SystemColonisationData(
                 system_name=system_name,
                 construction_sites=sorted(local_sites, key=lambda s: s.station_name),
             )
 
         # Get data from Inara
         try:
-            inara_sites_data = await self._inara_service.get_system_colonization_data(
+            inara_sites_data = await self._inara_service.get_system_colonisation_data(
                 system_name
             )
             inara_sites = [
@@ -129,7 +129,7 @@ class DataAggregator(IDataAggregator):
 
         # If Inara has no data, just return the local data
         if not inara_sites:
-            return SystemColonizationData(
+            return SystemColonisationData(
                 system_name=system_name,
                 construction_sites=sorted(local_sites, key=lambda s: s.station_name),
             )
@@ -192,7 +192,7 @@ class DataAggregator(IDataAggregator):
         # no local data. This avoids phantom in-progress stations that the
         # commander has never seen in their own journals.
 
-        return SystemColonizationData(
+        return SystemColonisationData(
             system_name=system_name,
             construction_sites=sorted(
                 merged_sites.values(), key=lambda s: s.station_name
@@ -274,7 +274,7 @@ class DataAggregator(IDataAggregator):
 
     async def get_system_summary(self, system_name: str) -> Dict[str, any]:
         """
-        Get a summary of colonization progress in a system
+        Get a summary of colonisation progress in a system
 
         Args:
             system_name: Star system name
@@ -313,7 +313,7 @@ class DataAggregator(IDataAggregator):
         """
         Transforms Inara API data into a ConstructionSite model.
         """
-        from ..models.colonization import DataSource, Commodity
+        from ..models.colonisation import DataSource, Commodity
 
         commodities = []
         for comm in inara_site_data.get("commodities", []):

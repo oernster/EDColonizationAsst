@@ -12,7 +12,7 @@ from watchdog.observers import Observer
 from .journal_parser import IJournalParser
 from .system_tracker import ISystemTracker
 from .journal_ingestion import JournalFileHandler
-from ..repositories.colonization_repository import IColonizationRepository
+from ..repositories.colonisation_repository import IColonisationRepository
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -52,7 +52,7 @@ class FileWatcher(IFileWatcher):
         self,
         parser: IJournalParser,
         system_tracker: ISystemTracker,
-        repository: IColonizationRepository,
+        repository: IColonisationRepository,
         loop: Optional[asyncio.AbstractEventLoop] = None,
     ) -> None:
         self.parser = parser

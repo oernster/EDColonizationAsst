@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Tray controller entrypoint for Elite: Dangerous Colonization Assistant.
+"""Tray controller entrypoint for Elite: Dangerous Colonisation Assistant.
 
 This module is now a thin entrypoint that focuses on:
 

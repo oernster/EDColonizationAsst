@@ -34,9 +34,9 @@ def test_debug_log_creates_log_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """
-    _debug_log should append a line to EDColonizationAsst-runtime.log next to argv[0].
+    _debug_log should append a line to EDColonisationAsst-runtime.log next to argv[0].
     """
-    exe = tmp_path / "EDColonizationAsst.exe"
+    exe = tmp_path / "EDColonisationAsst.exe"
     exe.write_text("", encoding="utf-8")
 
     orig_argv0 = sys.argv[0]
@@ -46,7 +46,7 @@ def test_debug_log_creates_log_file(
     finally:
         sys.argv[0] = orig_argv0
 
-    log_path = tmp_path / "EDColonizationAsst-runtime.log"
+    log_path = tmp_path / "EDColonisationAsst-runtime.log"
     assert log_path.exists()
     contents = log_path.read_text(encoding="utf-8")
     assert "hello runtime" in contents

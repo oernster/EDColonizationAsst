@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Elite: Dangerous Colonization Assistant"
+echo "Elite: Dangerous Colonisation Assistant"
 echo "---------------------------------------"
 echo "Developer helper script (Linux/macOS): runs backend + Vite dev server from source."
 echo

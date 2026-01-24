@@ -1,10 +1,10 @@
 ## Production release: building the Windows installer
 
 This section summarises the end-to-end steps to produce a **production-ready**
-Windows installer (`EDColonizationAsstInstaller.exe`) that:
+Windows installer (`EDColonisationAsstInstaller.exe`) that:
 
 - Installs EDCA under a user-writable directory (no admin required by default).
-- Ships a self-contained runtime executable (`EDColonizationAsst.exe`) with an
+- Ships a self-contained runtime executable (`EDColonisationAsst.exe`) with an
   embedded Python interpreter and backend dependencies.
 - Serves the pre-built frontend from FastAPI at `http://127.0.0.1:8000/app/`.
 - Does **not** require end users to install Python or Node.js.
@@ -19,7 +19,7 @@ and GUI installer is to run the root-level batch script
 
 ```powershell
 # From the project root
-cd C:\Users\Oliver\Development\EDColonizationAsst
+cd C:\Users\Oliver\Development\EDColonisationAsst
 .\build-windows-installer.bat
 ```
 
@@ -45,8 +45,8 @@ What the script does:
    Best-effort `taskkill` calls ensure no leftover processes are holding files
    open inside the repo:
 
-   - `EDColonizationAsst.exe`
-   - `EDColonizationAsstInstaller.exe`
+   - `EDColonisationAsst.exe`
+   - `EDColonisationAsstInstaller.exe`
    - `node.exe`
    - `python.exe`
 
@@ -56,8 +56,8 @@ What the script does:
    - Deletes Nuitka build artefacts:
      - `build`, `build_payload`, `guiinstaller.*`, `runtime_entry.*`, etc.
    - Removes old EXEs:
-     - `EDColonizationAsst.exe`
-     - `EDColonizationAsstInstaller.exe`
+     - `EDColonisationAsst.exe`
+     - `EDColonisationAsstInstaller.exe`
    - Deletes logs such as:
      - `guiinstaller.log`
      - `run-edca.log`
@@ -90,7 +90,7 @@ What the script does:
    Uses the backend venv Python to run
    [`buildruntime.py`](buildruntime.py:49), which invokes Nuitka to create:
 
-   - `EDColonizationAsst.exe` – the self-contained runtime executable.
+   - `EDColonisationAsst.exe` – the self-contained runtime executable.
 
 6. **Build GUI installer EXE**
 
@@ -100,7 +100,7 @@ What the script does:
    - Rebuilds the curated `build_payload/` tree (backend, frontend, runtime EXE, etc.).
    - Invokes Nuitka on [`guiinstaller.py`](guiinstaller.py:1) to produce:
 
-     - `EDColonizationAsstInstaller.exe` – the PySide6 GUI installer.
+     - `EDColonisationAsstInstaller.exe` – the PySide6 GUI installer.
 
 After the script completes successfully, both EXEs are written to the project
 root and are ready for smoke testing and release.
@@ -154,7 +154,7 @@ Notes:
 
 ### 4. Build the runtime EXE (embedded Python backend)
 
-From the **project root** (`c:/Users/Oliver/Development/EDColonizationAsst`):
+From the **project root** (`c:/Users/Oliver/Development/EDColonisationAsst`):
 
 ```bash
 uv run python buildruntime.py
@@ -164,7 +164,7 @@ This runs [`buildruntime.py`](buildruntime.py:1), which:
 
 - Uses Nuitka to compile [`backend/src/runtime_entry.py`](backend/src/runtime_entry.py:1)
   into a single-file EXE:
-  - `EDColonizationAsst.exe` (in the project root).
+  - `EDColonisationAsst.exe` (in the project root).
 - The EXE embeds:
   - Python runtime.
   - Backend code and dependencies.
@@ -190,29 +190,29 @@ This runs [`buildguiinstaller.py`](buildguiinstaller.py:40), which:
   - Includes:
     - `backend/` (with `.py` renamed to `.py_`).
     - `frontend/` (including `dist/`).
-    - `run-edca.bat`, `EDColonizationAsst.ico`, `LICENSE`.
-    - `EDColonizationAsst.exe` (runtime EXE created in step 4).
+    - `run-edca.bat`, `EDColonisationAsst.ico`, `LICENSE`.
+    - `EDColonisationAsst.exe` (runtime EXE created in step 4).
 - Builds the PySide6 GUI installer via Nuitka from [`guiinstaller.py`](guiinstaller.py:1):
-  - Output: `EDColonizationAsstInstaller.exe` in the project root.
+  - Output: `EDColonisationAsstInstaller.exe` in the project root.
 
 ### 6. Verify the installer (smoke test)
 
 On a Windows test machine:
 
-1. Copy `EDColonizationAsstInstaller.exe` to the machine.
+1. Copy `EDColonisationAsstInstaller.exe` to the machine.
 2. Run it and choose **Install**:
    - Default install directory should be:
-     - `%LOCALAPPDATA%\EDColonizationAssistant`
+     - `%LOCALAPPDATA%\EDColonisationAssistant`
 3. After install, check that the install directory contains:
-   - `EDColonizationAsst.exe`
+   - `EDColonisationAsst.exe`
    - `backend/`, `frontend/` (with `frontend/dist`).
 4. Launch EDCA via the Start Menu / Desktop shortcut:
-   - The shortcut should point to `EDColonizationAsst.exe`.
+   - The shortcut should point to `EDColonisationAsst.exe`.
    - A tray icon should appear.
    - The browser should open `http://127.0.0.1:8000/app/` and load the UI.
    - No system Python or Node.js should be required.
 
-If all of the above succeeds, `EDColonizationAsstInstaller.exe` is ready to be
+If all of the above succeeds, `EDColonisationAsstInstaller.exe` is ready to be
 shipped as a production installer.
 
 ---
@@ -229,7 +229,7 @@ shipped as a production installer.
 
 ## Backend development (FastAPI, Python)
 
-Python FastAPI backend for the Elite: Dangerous Colonization Assistant.
+Python FastAPI backend for the Elite: Dangerous Colonisation Assistant.
 
 ### Setup
 
@@ -279,7 +279,7 @@ Commander-specific and Inara secrets live in [`backend/commander.yaml`](backend/
 
 ```yaml
 inara:
-  app_name: "ED Colonization Assistant"
+  app_name: "ED Colonisation Assistant"
   api_key: "INARA-API-KEY-GOES-HERE"
   commander_name: "CMDR Example"
 ```
@@ -312,7 +312,7 @@ The API will be available at:
 
 - REST API: `http://localhost:8000`
 - API docs (Swagger): `http://localhost:8000/docs`
-- WebSocket: `ws://localhost:8000/ws/colonization`
+- WebSocket: `ws://localhost:8000/ws/colonisation`
 
 #### Production server
 
@@ -433,7 +433,7 @@ The backend exposes REST endpoints and a WebSocket. Key routes (actual implement
 - `GET /api/health` – health check.
 - `GET /api/systems` – list all systems with construction sites known locally.
 - `GET /api/systems/current` – get current player system and (if docked) station.
-- `GET /api/system?name={system_name}` – get colonization data for a specific system.
+- `GET /api/system?name={system_name}` – get colonisation data for a specific system.
 - `GET /api/system/commodities?name={system_name}` – get aggregated commodities (system shopping list).
 - `GET /api/sites` – get all construction sites, categorized by status.
 - `GET /api/sites/{market_id}` – get a specific construction site.
@@ -445,7 +445,7 @@ The backend exposes REST endpoints and a WebSocket. Key routes (actual implement
 
 #### WebSocket
 
-`WS /ws/colonization` – real-time updates (see [`backend/src/api/websocket.py`](backend/src/api/websocket.py:1) for full details).
+`WS /ws/colonisation` – real-time updates (see [`backend/src/api/websocket.py`](backend/src/api/websocket.py:1) for full details).
 
 Typical message flow:
 
@@ -495,7 +495,7 @@ The backend follows SOLID principles and a clean layered approach:
   - System tracker
   - Data aggregator
   - Inara service wrapper
-- **Repositories** – data access layer (SQLite persistence via [`ColonizationRepository`](backend/src/repositories/colonization_repository.py:65)).
+- **Repositories** – data access layer (SQLite persistence via [`ColonisationRepository`](backend/src/repositories/colonisation_repository.py:65)).
 - **API** – REST and WebSocket endpoints.
 
 Key components:
@@ -504,7 +504,7 @@ Key components:
 2. **File Watcher** – monitors the journal directory and re-parses on change.
 3. **System Tracker** – tracks the commander’s current system and station.
 4. **Data Aggregator** – merges local journal data (and, in future, Inara data) into system/site summaries.
-5. **Repository** – thread-safe, lock-protected access to persisted colonization data in SQLite.
+5. **Repository** – thread-safe, lock-protected access to persisted colonisation data in SQLite.
 6. **WebSocket Manager** – manages client connections and broadcasts updates on system changes.
 
 ### Backend configuration
@@ -553,7 +553,7 @@ Commander/Inara settings are stored separately in [`backend/commander.yaml`](bac
 
 ## Frontend development (React + TypeScript)
 
-React + TypeScript frontend for the Elite: Dangerous Colonization Assistant.
+React + TypeScript frontend for the Elite: Dangerous Colonisation Assistant.
 
 ### Setup
 
@@ -652,7 +652,7 @@ frontend/
 
 ### Frontend features
 
-- **System Selector** – dropdown of all known colonization systems (from journal data) with client-side autocomplete.
+- **System Selector** – dropdown of all known colonisation systems (from journal data) with client-side autocomplete.
 - **System View**:
   - System-level shopping list of commodities (aggregated across all sites in the selected system).
   - Per-station view: tabs for each construction site with detailed commodity progress.
@@ -816,7 +816,7 @@ Backend will be available at:
 
 - API:  http://localhost:8000
 - Docs: http://localhost:8000/docs
-- WS:   ws://localhost:8000/ws/colonization
+- WS:   ws://localhost:8000/ws/colonisation
 
 ```bash
 # Terminal 2 – frontend (Vite + React)
@@ -841,16 +841,16 @@ Those sections show `uvicorn src.main:app --reload` and `npm run dev` from withi
 ## Windows GUI installer build (current pipeline)
 
 This section documents the concrete Windows build pipeline that produces the
-self-contained GUI installer executable (`EDColonizationAsstInstaller.exe`)
+self-contained GUI installer executable (`EDColonisationAsstInstaller.exe`)
 using Nuitka and the PySide6-based installer UI in
 [`guiinstaller.py`](guiinstaller.py:1).
 
 The resulting installer:
 
 - Installs EDCA into a **user-writable directory** under
-  `%LOCALAPPDATA%\EDColonizationAssistant` by default (no elevation required).
+  `%LOCALAPPDATA%\EDColonisationAssistant` by default (no elevation required).
 - Ships:
-  - `EDColonizationAsst.exe` – the self-contained runtime executable built
+  - `EDColonisationAsst.exe` – the self-contained runtime executable built
     from [`backend/src/runtime_entry.py`](backend/src/runtime_entry.py:1) via
     [`buildruntime.py`](buildruntime.py:49). This embeds the Python runtime and
     backend dependencies and is the primary entrypoint for end users.
@@ -887,8 +887,8 @@ On the **developer** machine (where you build the installer):
   The `backend/requirements-dev.txt` file includes all backend and installer
   build dependencies, including **Nuitka**. Nuitka is required for:
 
-  - [`buildruntime.py`](buildruntime.py:49) → builds `EDColonizationAsst.exe`
-  - [`buildguiinstaller.py`](buildguiinstaller.py:40) → builds `EDColonizationAsstInstaller.exe`
+  - [`buildruntime.py`](buildruntime.py:49) → builds `EDColonisationAsst.exe`
+  - [`buildguiinstaller.py`](buildguiinstaller.py:40) → builds `EDColonisationAsstInstaller.exe`
 
   The dev requirements include FastAPI, PySide6, and other libraries used by
   the backend and installer.
@@ -971,7 +971,7 @@ Notes:
 
 ### 2. Build the GUI installer executable
 
-From the **project root** (`c:/Users/Oliver/Development/EDColonizationAsst`):
+From the **project root** (`c:/Users/Oliver/Development/EDColonisationAsst`):
 
 ```bash
 uv run python buildguiinstaller.py
@@ -1000,16 +1000,16 @@ This runs [`build_installer()`](buildguiinstaller.py:40), which:
 
 On success, it produces:
 
-- `EDColonizationAsstInstaller.exe` in the **project root**.
+- `EDColonisationAsstInstaller.exe` in the **project root**.
 
 ### 3. Install / repair using the GUI installer
 
-Run `EDColonizationAsstInstaller.exe` on Windows:
+Run `EDColonisationAsstInstaller.exe` on Windows:
 
 - The default install directory (shown in the installer window) is:
 
   ```text
-  %LOCALAPPDATA%\EDColonizationAssistant
+  %LOCALAPPDATA%\EDColonisationAssistant
   ```
 
   This is computed by [`get_default_install_dir()`](guiinstaller.py:154) and
@@ -1032,9 +1032,9 @@ Run `EDColonizationAsstInstaller.exe` on Windows:
 After installation:
 
 - The Start Menu / Desktop shortcuts created by the installer point directly
-  to `EDColonizationAsst.exe` in the install directory.
+  to `EDColonisationAsst.exe` in the install directory.
 
-- `EDColonizationAsst.exe` is a Nuitka-built wrapper around
+- `EDColonisationAsst.exe` is a Nuitka-built wrapper around
   [`RuntimeApplication`](backend/src/runtime_entry.py:280):
 
   - It detects that it is running in **FROZEN** mode via
@@ -1111,12 +1111,12 @@ Developer steps:
    uv run python buildguiinstaller.py
    ```
 
-4. Ship/execute `EDColonizationAsstInstaller.exe`.
+4. Ship/execute `EDColonisationAsstInstaller.exe`.
 
 User steps:
 
-1. Run `EDColonizationAsstInstaller.exe` and click **Install**.
-2. Use the Start Menu / Desktop shortcut “Elite: Dangerous Colonization
+1. Run `EDColonisationAsstInstaller.exe` and click **Install**.
+2. Use the Start Menu / Desktop shortcut “Elite: Dangerous Colonisation
    Assistant”.
 3. Wait for the launcher to report “Ready” and click “Open Web UI”.
 
@@ -1164,7 +1164,7 @@ Regardless of OS, the bundle needs:
 
 - Python runtime (if you don’t embed it).
 - Backend code: [`backend/src/`](backend/src:1) and configs such as [`backend/config.yaml`](backend/config.yaml:1).
-- Persistence: SQLite database created/used by [`ColonizationRepository`](backend/src/repositories/colonization_repository.py:64).
+- Persistence: SQLite database created/used by [`ColonisationRepository`](backend/src/repositories/colonisation_repository.py:64).
 - Static frontend: `frontend/dist/`.
 
 **Windows options (Python‑centric):**
@@ -1213,7 +1213,7 @@ In this model:
 
 - The React UI runs inside the desktop shell.
 - It communicates with the Python backend over:
-  - `http://localhost:8000` and `ws://localhost:8000/ws/colonization`, or
+  - `http://localhost:8000` and `ws://localhost:8000/ws/colonisation`, or
   - Embedded Python bindings (more complex).
 
 Pros:

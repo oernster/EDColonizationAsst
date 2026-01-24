@@ -36,27 +36,27 @@ class InaraService:
 
         self.app_version = __version__
 
-    async def get_system_colonization_data(
+    async def get_system_colonisation_data(
         self, system_name: str
     ) -> List[Dict[str, Any]]:
         """
-        Fetch colonization-related data for a specific system from Inara.
+        Fetch colonisation-related data for a specific system from Inara.
 
         NOTE:
         There is currently no confirmed INAPI v1 event that exposes the
-        construction/colonization data this application needs (stations or
+        construction/colonisation data this application needs (stations or
         planetary bases under construction, required commodities, etc.).
         Previous attempts incorrectly used community-goal events, which are
         unrelated to this feature and caused confusing errors and logs.
 
-        Until a proper colonization-related Inara event is identified, this
+        Until a proper colonisation-related Inara event is identified, this
         method intentionally performs **no HTTP requests** and always returns
         an empty list so that the rest of the application relies solely on
-        local journal data for colonization tracking.
+        local journal data for colonisation tracking.
         """
         logger.debug(
-            "Inara colonization integration not implemented for system %s; "
-            "returning no remote colonization data.",
+            "Inara colonisation integration not implemented for system %s; "
+            "returning no remote colonisation data.",
             system_name,
         )
         return []

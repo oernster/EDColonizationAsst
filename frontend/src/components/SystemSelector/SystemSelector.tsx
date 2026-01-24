@@ -7,7 +7,7 @@ import {
   Chip,
   CircularProgress 
 } from '@mui/material';
-import { useColonizationStore } from '../../stores/colonizationStore';
+import { useColonisationStore } from '../../stores/colonisationStore';
 import { api } from '../../services/api';
 
 export const SystemSelector = () => {
@@ -22,7 +22,7 @@ export const SystemSelector = () => {
    setCurrentSystemInfo,
    setLoading,
    setError,
- } = useColonizationStore();
+ } = useColonisationStore();
 
  const [searchQuery, setSearchQuery] = useState('');
  const [loadingSystems, setLoadingSystems] = useState(false);
@@ -88,7 +88,7 @@ export const SystemSelector = () => {
         onInputChange={(_, newInputValue) => setSearchQuery(newInputValue)}
         options={allSystems}
         loading={loadingSystems}
-        noOptionsText="No known systems with colonization data"
+        noOptionsText="No known systems with colonisation data"
         renderInput={(params) => (
           <TextField
             {...params}

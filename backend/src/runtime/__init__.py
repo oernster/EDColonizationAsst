@@ -1,4 +1,4 @@
-"""Runtime infrastructure package for the Elite: Dangerous Colonization Assistant.
+"""Runtime infrastructure package for the Elite: Dangerous Colonisation Assistant.
 
 This package currently provides:
 

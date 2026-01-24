@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { SystemColonizationData, CurrentSystem } from '../types/colonization';
+import { SystemColonisationData, CurrentSystem } from '../types/colonisation';
 
-interface ColonizationStore {
+interface ColonisationStore {
   // State
   currentSystem: string | null;
-  systemData: SystemColonizationData | null;
+  systemData: SystemColonisationData | null;
   allSystems: string[];
   loading: boolean;
   error: string | null;
@@ -13,7 +13,7 @@ interface ColonizationStore {
 
  // Actions
  setCurrentSystem: (system: string | null) => void;
- setSystemData: (data: SystemColonizationData | null) => void;
+ setSystemData: (data: SystemColonisationData | null) => void;
  setAllSystems: (systems: string[]) => void;
  setLoading: (loading: boolean) => void;
  setError: (error: string | null) => void;
@@ -22,7 +22,7 @@ interface ColonizationStore {
  updateSettings: () => void;
 }
 
-export const useColonizationStore = create<ColonizationStore>((set) => ({
+export const useColonisationStore = create<ColonisationStore>((set) => ({
   // Initial state
   currentSystem: null,
   systemData: null,

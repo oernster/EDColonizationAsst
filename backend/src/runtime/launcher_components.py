@@ -39,7 +39,7 @@ from PySide6.QtWidgets import (
 )
 
 
-APP_NAME = "Elite: Dangerous Colonization Assistant"
+APP_NAME = "Elite: Dangerous Colonisation Assistant"
 BACKEND_PORT = 8000
 FRONTEND_PORT = 5173
 PROGRESS_MAX = 100
@@ -97,7 +97,7 @@ class QtLaunchWindow(QMainWindow, LaunchView):
         # STRICTLY use the PNG for the in-window artwork so it renders crisply.
         # We intentionally do NOT fall back to the ICO here; if the PNG cannot
         # be loaded, the label will remain empty so the problem is obvious.
-        png_path = self._project_root / "EDColonizationAsst.png"
+        png_path = self._project_root / "EDColonisationAsst.png"
 
         pixmap = QPixmap()
         if png_path.exists():

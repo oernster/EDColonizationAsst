@@ -13,8 +13,8 @@ from .services.journal_parser import JournalParser
 from .services.file_watcher import FileWatcher
 from .services.data_aggregator import DataAggregator
 from .services.system_tracker import SystemTracker
-from .repositories.colonization_repository import ColonizationRepository
-from .api.routes import router as colonization_router, set_dependencies
+from .repositories.colonisation_repository import ColonisationRepository
+from .api.routes import router as colonisation_router, set_dependencies
 from .api.settings import router as settings_router
 from .api.journal import router as journal_router
 from .api.carriers import router as carriers_router
@@ -52,14 +52,14 @@ except Exception:
 # Application lifespan management
 
 
-async def _prime_colonization_database_if_empty(
-    repository: ColonizationRepository,
+async def _prime_colonisation_database_if_empty(
+    repository: ColonisationRepository,
     parser: JournalParser,
     system_tracker: SystemTracker,
 ) -> None:
     """
     On first run (or after the database has been deleted), backfill the
-    colonization database from existing journal files.
+    colonisation database from existing journal files.
 
     This mirrors the behaviour of the /api/debug/reload-journals endpoint but
     is applied automatically when the database contains no sites. It ensures
@@ -157,12 +157,12 @@ async def lifespan(app: FastAPI):
     - performing a one-time initial journal import when the DB is empty
     - starting and stopping the journal file watcher
     """
-    logger.info("Starting Elite: Dangerous Colonization Assistant")
+    logger.info("Starting Elite: Dangerous Colonisation Assistant")
 
     config = get_config()
 
     # Initialize core components
-    repository = ColonizationRepository()
+    repository = ColonisationRepository()
     aggregator = DataAggregator(repository)
     system_tracker = SystemTracker()
     parser = JournalParser()
@@ -179,11 +179,11 @@ async def lifespan(app: FastAPI):
     set_aggregator(aggregator)
 
     # Perform a one-time initial import of existing journals when the
-    # colonization database is empty. This ensures that on a fresh
+    # colonisation database is empty. This ensures that on a fresh
     # installation (or after the DB has been deleted) we immediately
     # populate sites and commodities without requiring the user to call
     # /api/debug/reload-journals manually.
-    await _prime_colonization_database_if_empty(repository, parser, system_tracker)
+    await _prime_colonisation_database_if_empty(repository, parser, system_tracker)
 
     # Set update callback for file watcher
     file_watcher.set_update_callback(notify_system_update)
@@ -217,7 +217,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         # Shutdown
-        logger.info("Shutting down Elite: Dangerous Colonization Assistant")
+        logger.info("Shutting down Elite: Dangerous Colonisation Assistant")
         file_watcher_from_state: FileWatcher | None = getattr(
             app.state, "file_watcher", None
         )
@@ -227,8 +227,8 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI application
 app = FastAPI(
-    title="Elite: Dangerous Colonization Assistant",
-    description="Real-time tracking for Elite: Dangerous colonization efforts",
+    title="Elite: Dangerous Colonisation Assistant",
+    description="Real-time tracking for Elite: Dangerous colonisation efforts",
     version=__version__,
     lifespan=lifespan,
 )
@@ -261,20 +261,20 @@ else:
     )
 
 # Include routers
-app.include_router(colonization_router)
+app.include_router(colonisation_router)
 app.include_router(settings_router)
 app.include_router(journal_router)
 app.include_router(carriers_router)
 
 # WebSocket endpoint
-app.add_api_websocket_route("/ws/colonization", websocket_endpoint)
+app.add_api_websocket_route("/ws/colonisation", websocket_endpoint)
 
 
 @app.get("/")
 async def root():
     """Root endpoint"""
     return {
-        "name": "Elite: Dangerous Colonization Assistant",
+        "name": "Elite: Dangerous Colonisation Assistant",
         "version": __version__,
         "status": "running",
         "docs": "/docs",

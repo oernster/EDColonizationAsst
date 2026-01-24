@@ -1,4 +1,4 @@
-"""Colonization data repository"""
+"""Colonisation data repository"""
 
 import asyncio
 import json
@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
 from datetime import datetime, UTC
 from pathlib import Path
-from ..models.colonization import ConstructionSite, Commodity
+from ..models.colonisation import ConstructionSite, Commodity
 from ..utils.logger import get_logger
 from ..utils.runtime import is_frozen
 
@@ -17,30 +17,30 @@ logger = get_logger(__name__)
 
 def _get_db_file() -> Path:
     """
-    Determine the location of the colonization SQLite database.
+    Determine the location of the colonisation SQLite database.
 
     - In DEV mode (non-frozen): keep the DB next to backend/src as before:
-        backend/colonization.db
+        backend/colonisation.db
 
     - In FROZEN mode (packaged EXE via Nuitka): store the DB under a
       user-local, writable directory so it persists across runs and does
       not live in Nuitka's temporary onefile extraction directory:
 
-        %LOCALAPPDATA%\\EDColonizationAsst\\colonization.db
+        %LOCALAPPDATA%\\EDColonisationAsst\\colonisation.db
 
       If LOCALAPPDATA is not set for any reason, fall back to the user's
       home directory.
     """
     if not is_frozen():
-        return Path(__file__).parent.parent / "colonization.db"
+        return Path(__file__).parent.parent / "colonisation.db"
 
     local_appdata = os.environ.get("LOCALAPPDATA")
     if local_appdata:
-        base = Path(local_appdata) / "EDColonizationAsst"
+        base = Path(local_appdata) / "EDColonisationAsst"
     else:
-        base = Path.home() / ".edcolonizationasst"
+        base = Path.home() / ".edcolonisationasst"
 
-    return base / "colonization.db"
+    return base / "colonisation.db"
 
 
 def _normalise_commodity_key(name: str) -> str:
@@ -52,8 +52,8 @@ def _normalise_commodity_key(name: str) -> str:
       - "aluminium"
       - "$Aluminium_Name;"
 
-    To ensure ColonizationContribution events can always be matched to the
-    commodities discovered via ColonizationConstructionDepot snapshots, we
+    To ensure ColonisationContribution events can always be matched to the
+    commodities discovered via ColonisationConstructionDepot snapshots, we
     convert both sides to a canonical, lower-case token:
 
       - strip surrounding whitespace
@@ -81,13 +81,13 @@ def _normalise_commodity_key(name: str) -> str:
 DB_FILE = _get_db_file()
 
 # Increment this when we make a breaking change to the on-disk schema for the
-# colonization database. The repository will reset (delete and recreate) any
+# colonisation database. The repository will reset (delete and recreate) any
 # existing DB that does not advertise this version in its metadata table.
 CURRENT_DB_SCHEMA_VERSION = 1
 
 
-class IColonizationRepository(ABC):
-    """Interface for colonization data repository"""
+class IColonisationRepository(ABC):
+    """Interface for colonisation data repository"""
 
     @abstractmethod
     async def add_construction_site(self, site: ConstructionSite) -> None:
@@ -132,9 +132,9 @@ class IColonizationRepository(ABC):
         pass
 
 
-class ColonizationRepository(IColonizationRepository):
+class ColonisationRepository(IColonisationRepository):
     """
-    SQLite-based persistent storage for colonization data.
+    SQLite-based persistent storage for colonisation data.
     """
 
     def __init__(self) -> None:
@@ -144,7 +144,7 @@ class ColonizationRepository(IColonizationRepository):
     def _get_db_connection(self):
         # Ensure the parent directory for the DB exists before connecting,
         # especially in FROZEN mode where we store the DB under
-        # %LOCALAPPDATA%\\EDColonizationAsst.
+        # %LOCALAPPDATA%\\EDColonisationAsst.
         db_dir = DB_FILE.parent
         try:
             db_dir.mkdir(parents=True, exist_ok=True)
@@ -233,7 +233,7 @@ class ColonizationRepository(IColonizationRepository):
               version.
 
         On first run (or after reset), the FastAPI lifespan helper
-        `_prime_colonization_database_if_empty` is responsible for repopulating
+        `_prime_colonisation_database_if_empty` is responsible for repopulating
         the fresh DB from the user's journal files.
         """
         # If the DB file does not exist at all, just create it and stamp the
@@ -252,7 +252,7 @@ class ColonizationRepository(IColonizationRepository):
         try:
             DB_FILE.unlink()
             logger.info(
-                "Deleted existing colonization DB at %s due to missing or "
+                "Deleted existing colonisation DB at %s due to missing or "
                 "outdated schema metadata; a fresh DB will be created.",
                 DB_FILE,
             )
@@ -260,7 +260,7 @@ class ColonizationRepository(IColonizationRepository):
             # Someone else may have removed it; that's fine.
             pass
         except Exception as exc:  # noqa: BLE001
-            logger.error("Failed to delete colonization DB %s: %s", DB_FILE, exc)
+            logger.error("Failed to delete colonisation DB %s: %s", DB_FILE, exc)
 
         self._create_tables()
         self._set_schema_version(CURRENT_DB_SCHEMA_VERSION)
@@ -391,7 +391,7 @@ class ColonizationRepository(IColonizationRepository):
         Matching strategy:
             Elite Dangerous can emit slightly different identifiers for the
             same commodity across events (e.g. "aluminium" vs
-            "$Aluminium_Name;"). To ensure ColonizationContribution events
+            "$Aluminium_Name;"). To ensure ColonisationContribution events
             update the correct Commodity row even when the raw strings differ,
             we compare normalised keys derived via _normalise_commodity_key(...)
             on both the stored commodity name and the incoming commodity_name.
@@ -448,7 +448,7 @@ class ColonizationRepository(IColonizationRepository):
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM construction_sites")
                 conn.commit()
-            logger.info("Cleared all colonization data")
+            logger.info("Cleared all colonisation data")
 
     def _row_to_site(self, row: sqlite3.Row) -> Optional[ConstructionSite]:
         if not row:

@@ -9,8 +9,8 @@ REM then:
 REM   1. Clean backend/frontend envs and artefacts
 REM   2. Recreate backend venv and install requirements-dev (incl. Nuitka)
 REM   3. Install frontend deps and run npm run build
-REM   4. Build EDColonizationAsst.exe (runtime) via buildruntime.py
-REM   5. Build EDColonizationAsstInstaller.exe (GUI installer) via buildguiinstaller.py
+REM   4. Build EDColonisationAsst.exe (runtime) via buildruntime.py
+REM   5. Build EDColonisationAsstInstaller.exe (GUI installer) via buildguiinstaller.py
 REM ===========================================================================
 
 REM Resolve project root to the directory of this script
@@ -40,8 +40,8 @@ REM these image names, so avoid running unrelated node/python work while
 REM invoking this script.
 
 for %%P in (
-    EDColonizationAsst.exe
-    EDColonizationAsstInstaller.exe
+    EDColonisationAsst.exe
+    EDColonisationAsstInstaller.exe
 ) do (
     taskkill /IM "%%P" /F /T >nul 2>&1
 )
@@ -106,9 +106,9 @@ if exist "backend\.venv" (
     rmdir /s /q "backend\.venv"
 )
 
-REM Backend colonization DB (runtime-created)
-if exist "backend\src\colonization.db" (
-    del /f /q "backend\src\colonization.db"
+REM Backend colonisation DB (runtime-created)
+if exist "backend\src\colonisation.db" (
+    del /f /q "backend\src\colonisation.db"
 )
 
 REM Python __pycache__ under backend
@@ -138,8 +138,8 @@ for %%D in (
 
 REM Final EXEs
 for %%F in (
-    EDColonizationAsst.exe
-    EDColonizationAsstInstaller.exe
+    EDColonisationAsst.exe
+    EDColonisationAsstInstaller.exe
 ) do (
     if exist "%%F" del /f /q "%%F"
 )
@@ -261,10 +261,10 @@ echo [FRONTEND] Frontend production bundle built (frontend/dist) with audit fixe
 echo.
 
 REM ---------------------------------------------------------------------------
-REM 4. Build runtime EXE (EDColonizationAsst.exe) via Nuitka
+REM 4. Build runtime EXE (EDColonisationAsst.exe) via Nuitka
 REM ---------------------------------------------------------------------------
 
-echo [RUNTIME] Building EDColonizationAsst.exe via buildruntime.py ...
+echo [RUNTIME] Building EDColonisationAsst.exe via buildruntime.py ...
 
 REM Use the backend venv Python created by uv venv so that Nuitka and all
 REM backend dependencies are available.
@@ -281,20 +281,20 @@ if errorlevel 1 (
     exit /b 1
 )
 
-if not exist "EDColonizationAsst.exe" (
-    echo [WARN] buildruntime.py completed but EDColonizationAsst.exe was not found.
+if not exist "EDColonisationAsst.exe" (
+    echo [WARN] buildruntime.py completed but EDColonisationAsst.exe was not found.
     echo        Check the buildruntime output above for details.
 ) else (
-    echo [RUNTIME] Built runtime: "%CD%\EDColonizationAsst.exe"
+    echo [RUNTIME] Built runtime: "%CD%\EDColonisationAsst.exe"
 )
 
 echo.
 
 REM ---------------------------------------------------------------------------
-REM 5. Build GUI installer EXE (EDColonizationAsstInstaller.exe)
+REM 5. Build GUI installer EXE (EDColonisationAsstInstaller.exe)
 REM ---------------------------------------------------------------------------
 
-echo [INSTALLER] Building EDColonizationAsstInstaller.exe via buildguiinstaller.py ...
+echo [INSTALLER] Building EDColonisationAsstInstaller.exe via buildguiinstaller.py ...
 
 "%BACKEND_PY%" buildguiinstaller.py
 if errorlevel 1 (
@@ -302,24 +302,24 @@ if errorlevel 1 (
     exit /b 1
 )
 
-if not exist "EDColonizationAsstInstaller.exe" (
-    echo [WARN] buildguiinstaller.py completed but EDColonizationAsstInstaller.exe was not found.
+if not exist "EDColonisationAsstInstaller.exe" (
+    echo [WARN] buildguiinstaller.py completed but EDColonisationAsstInstaller.exe was not found.
     echo        Check the buildguiinstaller output above for details.
 ) else (
-    echo [INSTALLER] Built installer: "%CD%\EDColonizationAsstInstaller.exe"
+    echo [INSTALLER] Built installer: "%CD%\EDColonisationAsstInstaller.exe"
 )
 
 echo.
 echo ====================================================
 echo  Build pipeline complete.
-echo  Runtime  : "%CD%\EDColonizationAsst.exe"
-echo  Installer: "%CD%\EDColonizationAsstInstaller.exe"
+echo  Runtime  : "%CD%\EDColonisationAsst.exe"
+echo  Installer: "%CD%\EDColonisationAsstInstaller.exe"
 echo ====================================================
 echo.
 echo You can now run the installer by double-clicking:
-echo   "%CD%\EDColonizationAsstInstaller.exe"
+echo   "%CD%\EDColonisationAsstInstaller.exe"
 echo or from this shell (PowerShell):
-echo   Start-Process .\EDColonizationAsstInstaller.exe
+echo   Start-Process .\EDColonisationAsstInstaller.exe
 echo.
 
 endlocal

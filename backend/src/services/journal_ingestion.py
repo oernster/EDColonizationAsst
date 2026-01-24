@@ -1,10 +1,10 @@
-"""Journal ingestion helpers for Elite Dangerous colonization data.
+"""Journal ingestion helpers for Elite Dangerous colonisation data.
 
 This module contains the JournalFileHandler class which:
 
 - Parses Journal.*.log files using an injected IJournalParser.
 - Updates the SystemTracker with location/jump/docked events.
-- Projects colonization-related events into the ColonizationRepository.
+- Projects colonisation-related events into the ColonisationRepository.
 - Notifies an optional callback with the set of systems that changed.
 
 The FileWatcher in src.services.file_watcher wires filesystem events
@@ -22,15 +22,15 @@ from watchdog.events import FileCreatedEvent, FileModifiedEvent, FileSystemEvent
 
 from .journal_parser import IJournalParser
 from .system_tracker import ISystemTracker
-from ..models.colonization import Commodity, ConstructionSite
+from ..models.colonisation import Commodity, ConstructionSite
 from ..models.journal_events import (
-    ColonizationConstructionDepotEvent,
-    ColonizationContributionEvent,
+    ColonisationConstructionDepotEvent,
+    ColonisationContributionEvent,
     DockedEvent,
     FSDJumpEvent,
     LocationEvent,
 )
-from ..repositories.colonization_repository import IColonizationRepository
+from ..repositories.colonisation_repository import IColonisationRepository
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -50,7 +50,7 @@ class JournalFileHandler(FileSystemEventHandler):
         self,
         parser: IJournalParser,
         system_tracker: ISystemTracker,
-        repository: IColonizationRepository,
+        repository: IColonisationRepository,
         update_callback: Optional[Callable] = None,
         loop: Optional[asyncio.AbstractEventLoop] = None,
     ) -> None:
@@ -130,7 +130,7 @@ class JournalFileHandler(FileSystemEventHandler):
                     self.system_tracker.update_from_jump(event)
                 elif isinstance(event, DockedEvent):
                     self.system_tracker.update_from_docked(event)
-                    # Also check if this is a colonization site
+                    # Also check if this is a colonisation site
                     if (
                         "Colonisation" in event.station_type
                         or "Construction" in event.station_type
@@ -138,11 +138,11 @@ class JournalFileHandler(FileSystemEventHandler):
                         await self._process_docked_at_construction_site(event)
                         updated_systems.add(event.star_system)
 
-                # Process colonization events
-                if isinstance(event, ColonizationConstructionDepotEvent):
+                # Process colonisation events
+                if isinstance(event, ColonisationConstructionDepotEvent):
                     await self._process_construction_depot(event)
                     updated_systems.add(event.system_name)
-                elif isinstance(event, ColonizationContributionEvent):
+                elif isinstance(event, ColonisationContributionEvent):
                     await self._process_contribution(event)
                     site = await self.repository.get_site_by_market_id(event.market_id)
                     if site:
@@ -158,9 +158,9 @@ class JournalFileHandler(FileSystemEventHandler):
 
     async def _process_construction_depot(
         self,
-        event: ColonizationConstructionDepotEvent,
+        event: ColonisationConstructionDepotEvent,
     ) -> None:
-        """Process ColonizationConstructionDepot event.
+        """Process ColonisationConstructionDepot event.
 
         Notes:
             - Elite can emit many snapshot events while you sit on the
@@ -174,7 +174,7 @@ class JournalFileHandler(FileSystemEventHandler):
             - New snapshots must never *lose* progress that was previously
               observed in either:
                 • earlier depot snapshots, or
-                • ColonizationContribution events.
+                • ColonisationContribution events.
               To ensure this we merge commodity progress with any existing
               site and take the maximum observed provided_amount/required_amount
               per commodity.
@@ -289,8 +289,8 @@ class JournalFileHandler(FileSystemEventHandler):
             site.construction_progress,
         )
 
-    async def _process_contribution(self, event: ColonizationContributionEvent) -> None:
-        """Process ColonizationContribution event."""
+    async def _process_contribution(self, event: ColonisationContributionEvent) -> None:
+        """Process ColonisationContribution event."""
         await self.repository.update_commodity(
             market_id=event.market_id,
             commodity_name=event.commodity,

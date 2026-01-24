@@ -1,4 +1,4 @@
-# Elite: Dangerous Colonization Assistant - Project Setup Guide
+# Elite: Dangerous Colonisation Assistant - Project Setup Guide
 
 ## Quick Start
 
@@ -23,7 +23,7 @@ This guide will help you set up the development environment and understand the p
 ## Project Structure
 
 ```
-EDColonizationAsst/
+EDColonisationAsst/
 ├── ARCHITECTURE.md           # Detailed architecture documentation
 ├── PROJECT_SETUP.md         # This file
 ├── README.md                # Project overview
@@ -56,8 +56,8 @@ EDColonizationAsst/
 
 ```bash
 # If starting fresh
-mkdir EDColonizationAsst
-cd EDColonizationAsst
+mkdir EDColonisationAsst
+cd EDColonisationAsst
 git init
 ```
 

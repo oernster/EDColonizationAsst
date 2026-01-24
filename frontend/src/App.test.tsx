@@ -10,7 +10,7 @@ const { mockHealthCheck, mockGetAppSettings } = vi.hoisted(() => {
   return {
     mockHealthCheck: vi
       .fn()
-      .mockResolvedValue({ version: '2.2.1', python_version: '3.11.0' }),
+      .mockResolvedValue({ version: '2.3.1', python_version: '3.11.0' }),
     mockGetAppSettings: vi.fn().mockResolvedValue({
       inara_commander_name: 'Test Commander',
     }),
@@ -36,7 +36,7 @@ describe('App', () => {
 
   it('renders the main heading', () => {
     render(<App />);
-    const headingElement = screen.getByText(/Elite: Dangerous Colonization Assistant/i);
+    const headingElement = screen.getByText(/Elite: Dangerous Colonisation Assistant/i);
     expect(headingElement).toBeTruthy();
   });
 

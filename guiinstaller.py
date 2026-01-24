@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PySide6-based installer UI for Elite: Dangerous Colonization Assistant (EDCA).
+PySide6-based installer UI for Elite: Dangerous Colonisation Assistant (EDCA).
 
 Features:
 - Cross-platform PySide6 GUI (Windows / macOS / Linux).
@@ -10,7 +10,7 @@ Features:
 - Simple log area and status bar for feedback.
 
 This script is intended to be run as a GUI application. It expects that the
-installer payload (the EDColonizationAsst project files) is located in a
+installer payload (the EDColonisationAsst project files) is located in a
 known directory relative to the script, for example:
 
 - When running from source:
@@ -21,9 +21,9 @@ known directory relative to the script, for example:
 
 By default, the installer:
 - Installs into:
-    - Windows:   %LOCALAPPDATA%\\EDColonizationAssistant
-    - macOS:     ~/Applications/EDColonizationAssistant
-    - Linux:     ~/.local/share/EDColonizationAssistant
+    - Windows:   %LOCALAPPDATA%\\EDColonisationAssistant
+    - macOS:     ~/Applications/EDColonisationAssistant
+    - Linux:     ~/.local/share/EDColonisationAssistant
 
 Install/Repair both copy the payload into the chosen install directory
 (overwriting existing files on Repair). Uninstall removes the install
@@ -62,18 +62,18 @@ from PySide6.QtWidgets import (
 from guiinstallercss import DARK_QSS, LIGHT_QSS
 
 
-APP_NAME = "Elite: Dangerous Colonization Assistant"
-APP_ID = "EDColonizationAssistant"
+APP_NAME = "Elite: Dangerous Colonisation Assistant"
+APP_ID = "EDColonisationAssistant"
 PROJECT_ROOT = Path(__file__).resolve().parent
 # Default relative payload directory when running from source.
 DEFAULT_PAYLOAD_DIR = PROJECT_ROOT / "build_payload"
 WINDOWS_UNINSTALL_KEY = (
-    r"Software\Microsoft\Windows\CurrentVersion\Uninstall\EDColonizationAsst"
+    r"Software\Microsoft\Windows\CurrentVersion\Uninstall\EDColonisationAsst"
 )
 
 # Windows auto-start (per-user) registry Run key.
 WINDOWS_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-WINDOWS_RUN_VALUE_NAME = "EDColonizationAsst"
+WINDOWS_RUN_VALUE_NAME = "EDColonisationAsst"
 
 
 def get_backend_version() -> str:
@@ -1097,7 +1097,7 @@ class InstallerWindow(QMainWindow):
 
         # Target the installed runtime EXE. Pass --no-browser so that login start
         # does not pop a browser window.
-        runtime_exe = self.install_dir / "EDColonizationAsst.exe"
+        runtime_exe = self.install_dir / "EDColonisationAsst.exe"
         cmd = f'"{runtime_exe}" --no-browser'
 
         try:
@@ -1130,7 +1130,7 @@ class InstallerWindow(QMainWindow):
 
         New behaviour:
         - Regardless of whether a PID file exists, we also issue a best-effort
-          'taskkill /IM "EDColonizationAsst.exe" /T /F' so that the packaged
+          'taskkill /IM "EDColonisationAsst.exe" /T /F' so that the packaged
           runtime executable (which hosts the new tray in-process) is stopped
           before we start deleting files. This avoids leaving a ghost tray icon
           running after uninstall via Add/Remove Programs.
@@ -1168,7 +1168,7 @@ class InstallerWindow(QMainWindow):
                     pass
 
         # Additionally, always try to kill any running packaged runtime EXE so
-        # that the new in-process tray hosted by EDColonizationAsst.exe is
+        # that the new in-process tray hosted by EDColonisationAsst.exe is
         # terminated cleanly before we start removing files.
         if sys.platform.startswith("win"):
             try:
@@ -1177,7 +1177,7 @@ class InstallerWindow(QMainWindow):
                 startup_info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
                 subprocess.run(
-                    ["taskkill", "/IM", "EDColonizationAsst.exe", "/T", "/F"],
+                    ["taskkill", "/IM", "EDColonisationAsst.exe", "/T", "/F"],
                     check=False,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
@@ -1196,7 +1196,7 @@ class InstallerWindow(QMainWindow):
         """
         Return (desktop_shortcut, start_menu_shortcut) paths on Windows.
         """
-        shortcut_name = "EDColonizationAsst.lnk"
+        shortcut_name = "EDColonisationAsst.lnk"
 
         # Desktop
         user_profile = os.environ.get("USERPROFILE") or str(Path.home())
@@ -1208,7 +1208,7 @@ class InstallerWindow(QMainWindow):
         start_menu_root = (
             Path(appdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
         )
-        start_menu_dir = start_menu_root / "EDColonizationAsst"
+        start_menu_dir = start_menu_root / "EDColonisationAsst"
         start_menu_shortcut = start_menu_dir / shortcut_name
 
         return desktop_shortcut, start_menu_shortcut
@@ -1221,35 +1221,35 @@ class InstallerWindow(QMainWindow):
         Shortcut strategy for the installed app:
 
         - Shortcuts point directly at the packaged runtime EXE
-          (EDColonizationAsst.exe) in the install directory.
+          (EDColonisationAsst.exe) in the install directory.
         - No batch files or VBScript launchers are used at runtime.
-        - The shortcut icon is always EDColonizationAsst.ico from the install
+        - The shortcut icon is always EDColonisationAsst.ico from the install
           directory, so the user never sees a Python icon for the app.
         """
         if not sys.platform.startswith("win"):
             return
 
-        runtime_exe = self.install_dir / "EDColonizationAsst.exe"
+        runtime_exe = self.install_dir / "EDColonisationAsst.exe"
         self._log(f"Shortcut creation using install dir: {self.install_dir}")
         self._log(f"Expected runtime EXE at: {runtime_exe}")
 
         # In theory the runtime EXE should always have been copied from the
         # payload into the install directory by _copy_tree(). However, Nuitka's
         # onefile packaging can treat executables differently inside data
-        # directories. We therefore embed EDColonizationAsst.exe explicitly as a
+        # directories. We therefore embed EDColonisationAsst.exe explicitly as a
         # data file under a dedicated "runtime/" directory in the bundle (see
         # buildguiinstaller.build_installer) and recover from there if needed.
         if not runtime_exe.exists():
             # 1) Prefer the dedicated runtime/ directory next to the extracted
             #    installer module. In onefile builds, __file__ points at the
             #    extraction directory that also contains data files such as
-            #    "runtime/EDColonizationAsst.exe".
+            #    "runtime/EDColonisationAsst.exe".
             runtime_candidates: list[Path] = []
             try:
                 runtime_candidates.append(
                     Path(__file__).resolve().parent
                     / "runtime"
-                    / "EDColonizationAsst.exe"
+                    / "EDColonisationAsst.exe"
                 )
             except Exception:
                 pass
@@ -1261,7 +1261,7 @@ class InstallerWindow(QMainWindow):
                 runtime_candidates.append(
                     Path(sys.argv[0]).resolve().parent
                     / "runtime"
-                    / "EDColonizationAsst.exe"
+                    / "EDColonisationAsst.exe"
                 )
             except Exception:
                 pass
@@ -1290,7 +1290,7 @@ class InstallerWindow(QMainWindow):
             if not recovered:
                 payload_root = get_payload_root()
                 if payload_root is not None:
-                    candidate = payload_root / "EDColonizationAsst.exe"
+                    candidate = payload_root / "EDColonisationAsst.exe"
                     self._log(
                         f"Runtime EXE still missing; probing payload at: {candidate}"
                     )
@@ -1310,7 +1310,7 @@ class InstallerWindow(QMainWindow):
                     else:
                         self._log(
                             "Runtime EXE not found in payload either; cannot "
-                            "recover EDColonizationAsst.exe for shortcuts."
+                            "recover EDColonisationAsst.exe for shortcuts."
                         )
 
         if not runtime_exe.exists():
@@ -1323,7 +1323,7 @@ class InstallerWindow(QMainWindow):
         target = runtime_exe
         self._log(f"Using runtime EXE for shortcuts: {target}")
 
-        icon = self.install_dir / "EDColonizationAsst.ico"
+        icon = self.install_dir / "EDColonisationAsst.ico"
         if not icon.exists():
             # Fallback so the shortcut still has *some* icon even if the ICO
             # went missing for any reason.
@@ -1457,7 +1457,7 @@ class InstallerWindow(QMainWindow):
 
         # Prefer the installed icon if present; otherwise fall back to the
         # installer copy we just registered.
-        icon_path = self.install_dir / "EDColonizationAsst.ico"
+        icon_path = self.install_dir / "EDColonisationAsst.ico"
         if not icon_path.exists():
             icon_path = exe_for_registry
 
@@ -1651,7 +1651,7 @@ def main() -> int:
     # Ensure the installer EXE has the correct icon in the Windows taskbar and
     # reuse the same icon for the splash screen if available.
     splash: QSplashScreen | None = None
-    icon_path = PROJECT_ROOT / "EDColonizationAsst.ico"
+    icon_path = PROJECT_ROOT / "EDColonisationAsst.ico"
     if icon_path.exists():
         try:
             app.setWindowIcon(QIcon(str(icon_path)))
